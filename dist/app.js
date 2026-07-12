@@ -8,9 +8,9 @@ const today = new Date().toISOString().slice(0, 10)
 
 const seedData = {
   business: {
-    name: 'Mercado Central Demo',
+    name: 'codelector local',
     owner: 'Lucia Torres',
-    shift: 'Turno tarde',
+    shift: 'Sucursal Centro',
   },
   products: [
     { id: crypto.randomUUID(), name: 'Yerba Tradicional 1kg', sku: 'YT-100', stock: 22, price: 5400, minStock: 10, category: 'Almacen' },
@@ -33,7 +33,23 @@ const seedData = {
   ],
 }
 
+const modules = [
+  { id: 'lector', icon: '◯', label: 'Lector', detail: 'Escaneo rapido' },
+  { id: 'caja', icon: '⚙', label: 'Caja', detail: 'Cobros y cierres' },
+  { id: 'productos', icon: '🏷', label: 'Productos', detail: 'Catalogo y precios' },
+  { id: 'precios', icon: '$', label: 'Precios', detail: 'Margenes activos' },
+  { id: 'compras', icon: '🛒', label: 'Compras', detail: 'Ordenes y recepcion' },
+  { id: 'clientes', icon: '☀', label: 'Clientes', detail: 'Segmentos frecuentes' },
+  { id: 'proveedores', icon: '⌖', label: 'Proveedores', detail: 'Cuentas a pagar' },
+  { id: 'ventas', icon: '▣', label: 'Ventas', detail: 'Ultimos movimientos' },
+  { id: 'cheques', icon: '≡', label: 'Cheques', detail: 'Calendario financiero' },
+  { id: 'cajeros', icon: '◔', label: 'Cajeros', detail: 'Turnos y permisos' },
+  { id: 'facturacion', icon: '▤', label: 'Facturacion', detail: 'Comprobantes' },
+  { id: 'reportes', icon: '✦', label: 'Reportes', detail: 'Resumen del dia' },
+]
+
 const storageKey = 'comercio360-data'
+const app = document.querySelector('#app')
 
 const loadState = () => {
   const saved = localStorage.getItem(storageKey)
@@ -74,384 +90,341 @@ const getTopProducts = () => {
   return [...sold.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)
 }
 
-const app = document.querySelector('#app')
-
 const render = () => {
   const metrics = getMetrics()
   const topProducts = getTopProducts()
 
   app.innerHTML = `
-    <div class="shell">
-      <aside class="sidebar">
-        <div>
-          <p class="eyebrow">Comercio 360</p>
-          <h1>${state.business.name}</h1>
-          <p class="muted">${state.business.owner} · ${state.business.shift}</p>
+    <div class="app-shell">
+      <aside class="nav-rail">
+        <div class="brand-stack">
+          <div class="brand-logo">c</div>
+          <div class="rail-items">
+            <a href="#dashboard">Inicio</a>
+            <a href="#ventas">Ventas</a>
+            <a href="#compras">Compras</a>
+            <a href="#clientes">Clientes</a>
+            <a href="#proveedores">Proveedores</a>
+            <a href="#cajeros">Cajeros</a>
+            <a href="#facturacion">Facturas</a>
+          </div>
         </div>
-        <nav class="menu">
-          <a href="#resumen">Resumen</a>
-          <a href="#ventas">Ventas</a>
-          <a href="#inventario">Inventario</a>
-          <a href="#proveedores">Proveedores</a>
-          <a href="#facturacion">Facturacion</a>
-        </nav>
-        <div class="sidebar-card">
-          <p class="label">Caja del dia</p>
-          <strong>${money(metrics.totalSales - metrics.unpaidSales)}</strong>
-          <span>${state.sales.filter((sale) => sale.date === today).length} movimientos registrados hoy</span>
-        </div>
+        <div class="rail-foot">Soporte</div>
       </aside>
 
-      <main class="content">
-        <section class="hero-panel" id="resumen">
-          <div>
-            <p class="eyebrow">Operacion diaria</p>
-            <h2>Controla ventas, compras y facturas desde un solo tablero.</h2>
-            <p class="lead">La app guarda informacion en este navegador para que el equipo pueda trabajar con una base simple, rapida y sin configuraciones extra.</p>
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <strong>${state.business.name}</strong>
+            <span>${state.business.owner} - ${state.business.shift}</span>
           </div>
-          <div class="hero-stats">
-            <div>
-              <span>Ventas acumuladas</span>
+          <div class="searchbar">
+            <span>⌕</span>
+            <input type="text" value="" placeholder="Buscar productos, clientes y proveedores" />
+          </div>
+          <div class="topbar-right">
+            <span class="status-pill">Online</span>
+            <span class="avatar">${state.business.owner[0]}</span>
+          </div>
+        </header>
+
+        <main class="page">
+          <section class="dashboard-card" id="dashboard">
+            <p class="section-label">Panel principal</p>
+            <h1>¿Que quieres hacer?</h1>
+            <div class="module-grid">
+              ${modules
+                .map(
+                  (module) => `
+                    <button class="module-card" data-jump="${module.id}" type="button">
+                      <span class="module-icon">${module.icon}</span>
+                      <strong>${module.label}</strong>
+                      <small>${module.detail}</small>
+                    </button>`,
+                )
+                .join('')}
+            </div>
+          </section>
+
+          <section class="strip-metrics">
+            <article class="metric-box">
+              <span>Ventas del dia</span>
               <strong>${money(metrics.totalSales)}</strong>
-            </div>
-            <div>
-              <span>Cuentas a pagar</span>
-              <strong>${money(metrics.payables)}</strong>
-            </div>
-          </div>
-        </section>
+              <small>${state.sales.length} operaciones</small>
+            </article>
+            <article class="metric-box">
+              <span>Por cobrar</span>
+              <strong>${money(metrics.unpaidSales)}</strong>
+              <small>${state.sales.filter((sale) => !sale.paid).length} pendientes</small>
+            </article>
+            <article class="metric-box">
+              <span>Stock critico</span>
+              <strong>${metrics.lowStock.length}</strong>
+              <small>${metrics.lowStock[0] ? metrics.lowStock[0].name : 'Sin alertas'}</small>
+            </article>
+            <article class="metric-box">
+              <span>Facturas abiertas</span>
+              <strong>${money(metrics.pendingInvoices)}</strong>
+              <small>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes</small>
+            </article>
+          </section>
 
-        <section class="kpis">
-          <article class="kpi-card accent">
-            <span>Facturacion pendiente</span>
-            <strong>${money(metrics.pendingInvoices)}</strong>
-            <p>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes por seguir</p>
-          </article>
-          <article class="kpi-card">
-            <span>Ventas sin cobrar</span>
-            <strong>${money(metrics.unpaidSales)}</strong>
-            <p>${state.sales.filter((sale) => !sale.paid).length} operaciones abiertas</p>
-          </article>
-          <article class="kpi-card">
-            <span>Alertas de stock</span>
-            <strong>${metrics.lowStock.length}</strong>
-            <p>${metrics.lowStock[0] ? metrics.lowStock[0].name : 'Sin alertas criticas'}</p>
-          </article>
-          <article class="kpi-card">
-            <span>Proveedores activos</span>
-            <strong>${state.providers.length}</strong>
-            <p>Ultimo ingreso ${state.providers[0]?.lastDelivery ?? '-'}</p>
-          </article>
-        </section>
+          <section class="content-grid">
+            <article class="panel large-panel" id="ventas">
+              <div class="panel-head">
+                <div>
+                  <h2>Ventas</h2>
+                  <p>Registra operaciones y descuenta stock automaticamente.</p>
+                </div>
+              </div>
+              <form class="form-grid" data-form="sale">
+                <label>
+                  Producto
+                  <select name="item" required>
+                    ${state.products.map((product) => `<option value="${product.name}">${product.name}</option>`).join('')}
+                  </select>
+                </label>
+                <label>
+                  Cantidad
+                  <input type="number" name="quantity" min="1" value="1" required />
+                </label>
+                <label>
+                  Monto total
+                  <input type="number" name="amount" min="1" placeholder="5400" required />
+                </label>
+                <label>
+                  Canal
+                  <select name="channel">
+                    <option>Mostrador</option>
+                    <option>WhatsApp</option>
+                    <option>Delivery</option>
+                    <option>Mayorista</option>
+                  </select>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" name="paid" checked />
+                  Cobrado
+                </label>
+                <button type="submit">Registrar venta</button>
+              </form>
+              <div class="mini-list">
+                ${state.sales
+                  .slice()
+                  .reverse()
+                  .slice(0, 4)
+                  .map(
+                    (sale) => `
+                      <div class="mini-row">
+                        <div>
+                          <strong>${sale.item}</strong>
+                          <p>${sale.date} - ${sale.channel}</p>
+                        </div>
+                        <div class="mini-value">
+                          <strong>${money(sale.amount)}</strong>
+                          <p>${sale.quantity} un. - ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
+                        </div>
+                      </div>`,
+                  )
+                  .join('')}
+              </div>
+            </article>
 
-        <section class="grid-two">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Productos mas vendidos</h3>
-              <span>Ranking rapido</span>
-            </div>
-            <div class="top-list">
-              ${topProducts.length
-                ? topProducts
-                    .map(
-                      ([item, quantity], index) => `
-                        <div class="top-row">
-                          <span class="rank">0${index + 1}</span>
-                          <div>
-                            <strong>${item}</strong>
-                            <p>${quantity} unidades vendidas</p>
-                          </div>
-                        </div>`,
-                    )
-                    .join('')
-                : '<p class="empty">Todavia no hay ventas cargadas.</p>'}
-            </div>
-          </article>
+            <article class="panel side-panel" id="productos">
+              <div class="panel-head">
+                <div>
+                  <h2>Productos</h2>
+                  <p>Alta rapida para catalogo y stock.</p>
+                </div>
+              </div>
+              <form class="form-grid compact" data-form="product">
+                <label>
+                  Nombre
+                  <input type="text" name="name" placeholder="Cafe molido 500g" required />
+                </label>
+                <label>
+                  SKU
+                  <input type="text" name="sku" placeholder="CF-500" required />
+                </label>
+                <label>
+                  Stock
+                  <input type="number" name="stock" min="0" required />
+                </label>
+                <label>
+                  Precio
+                  <input type="number" name="price" min="0" required />
+                </label>
+                <label>
+                  Minimo
+                  <input type="number" name="minStock" min="0" required />
+                </label>
+                <label>
+                  Categoria
+                  <input type="text" name="category" placeholder="Almacen" required />
+                </label>
+                <button type="submit">Guardar producto</button>
+              </form>
+            </article>
 
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Alertas operativas</h3>
-              <span>Lo que conviene resolver hoy</span>
-            </div>
-            <div class="alerts">
-              ${
-                metrics.lowStock.length
-                  ? metrics.lowStock
+            <article class="panel" id="compras">
+              <div class="panel-head">
+                <div>
+                  <h2>Compras y proveedores</h2>
+                  <p>Controla recepciones y cuentas a pagar.</p>
+                </div>
+              </div>
+              <form class="form-grid compact" data-form="provider">
+                <label>
+                  Empresa
+                  <input type="text" name="name" required />
+                </label>
+                <label>
+                  Contacto
+                  <input type="text" name="contact" required />
+                </label>
+                <label>
+                  Telefono
+                  <input type="text" name="phone" required />
+                </label>
+                <label>
+                  Saldo pendiente
+                  <input type="number" name="balance" min="0" required />
+                </label>
+                <label>
+                  Ultima entrega
+                  <input type="date" name="lastDelivery" value="${today}" required />
+                </label>
+                <label>
+                  Categoria
+                  <input type="text" name="category" required />
+                </label>
+                <button type="submit">Guardar proveedor</button>
+              </form>
+              <div class="mini-list">
+                ${state.providers
+                  .slice(0, 4)
+                  .map(
+                    (provider) => `
+                      <div class="mini-row">
+                        <div>
+                          <strong>${provider.name}</strong>
+                          <p>${provider.contact} - ${provider.phone}</p>
+                        </div>
+                        <div class="mini-value">
+                          <strong>${money(provider.balance)}</strong>
+                          <p>${provider.category}</p>
+                        </div>
+                      </div>`,
+                  )
+                  .join('')}
+              </div>
+            </article>
+
+            <article class="panel" id="facturacion">
+              <div class="panel-head">
+                <div>
+                  <h2>Facturacion</h2>
+                  <p>Emite comprobantes y sigue el estado de cobro.</p>
+                </div>
+              </div>
+              <form class="form-grid compact" data-form="invoice">
+                <label>
+                  Numero
+                  <input type="text" name="number" placeholder="B-0001-001245" required />
+                </label>
+                <label>
+                  Cliente
+                  <input type="text" name="client" required />
+                </label>
+                <label>
+                  Total
+                  <input type="number" name="total" min="1" required />
+                </label>
+                <label>
+                  Tipo
+                  <select name="type">
+                    <option>A</option>
+                    <option>B</option>
+                    <option>C</option>
+                  </select>
+                </label>
+                <label>
+                  Vencimiento
+                  <input type="date" name="dueDate" value="${today}" required />
+                </label>
+                <label>
+                  Estado
+                  <select name="status">
+                    <option>Emitida</option>
+                    <option>En revision</option>
+                    <option>Cobrada</option>
+                  </select>
+                </label>
+                <button type="submit">Guardar factura</button>
+              </form>
+              <div class="mini-list">
+                ${state.invoices
+                  .slice()
+                  .reverse()
+                  .slice(0, 4)
+                  .map(
+                    (invoice) => `
+                      <div class="mini-row">
+                        <div>
+                          <strong>${invoice.number}</strong>
+                          <p>${invoice.client} - Tipo ${invoice.type}</p>
+                        </div>
+                        <div class="mini-value">
+                          <strong>${money(invoice.total)}</strong>
+                          <p>${invoice.status}</p>
+                        </div>
+                      </div>`,
+                  )
+                  .join('')}
+              </div>
+            </article>
+
+            <article class="panel stats-panel" id="clientes">
+              <div class="panel-head">
+                <div>
+                  <h2>Resumen rapido</h2>
+                  <p>Accesos directos para caja, clientes y alertas.</p>
+                </div>
+              </div>
+              <div class="top-products">
+                ${topProducts.length
+                  ? topProducts
                       .map(
-                        (product) => `
-                          <div class="alert warning">
-                            <strong>${product.name}</strong>
-                            <p>Stock ${product.stock} / minimo ${product.minStock}</p>
+                        ([item, quantity], index) => `
+                          <div class="top-item">
+                            <span>${index + 1}</span>
+                            <div>
+                              <strong>${item}</strong>
+                              <p>${quantity} unidades vendidas</p>
+                            </div>
                           </div>`,
                       )
                       .join('')
-                  : '<div class="alert success"><strong>Inventario estable</strong><p>No hay productos debajo del minimo.</p></div>'
-              }
-              ${
-                state.invoices.some((invoice) => invoice.status === 'Emitida')
-                  ? '<div class="alert info"><strong>Seguimiento comercial</strong><p>Hay facturas emitidas que todavia no figuran como cobradas.</p></div>'
-                  : ''
-              }
-            </div>
-          </article>
-        </section>
-
-        <section class="workspace" id="ventas">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Cargar venta</h3>
-              <span>Descuenta stock y actualiza caja</span>
-            </div>
-            <form class="form-grid" data-form="sale">
-              <label>
-                Producto
-                <select name="item" required>
-                  ${state.products.map((product) => `<option value="${product.name}">${product.name}</option>`).join('')}
-                </select>
-              </label>
-              <label>
-                Cantidad
-                <input type="number" name="quantity" min="1" value="1" required />
-              </label>
-              <label>
-                Monto total
-                <input type="number" name="amount" min="1" placeholder="5400" required />
-              </label>
-              <label>
-                Canal
-                <select name="channel">
-                  <option>Mostrador</option>
-                  <option>WhatsApp</option>
-                  <option>Delivery</option>
-                  <option>Mayorista</option>
-                </select>
-              </label>
-              <label class="checkbox">
-                <input type="checkbox" name="paid" checked />
-                Cobrado
-              </label>
-              <button type="submit">Registrar venta</button>
-            </form>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Ultimas ventas</h3>
-              <span>Historial reciente</span>
-            </div>
-            <div class="table-list">
-              ${state.sales
-                .slice()
-                .reverse()
-                .slice(0, 6)
-                .map(
-                  (sale) => `
-                    <div class="table-row">
-                      <div>
-                        <strong>${sale.item}</strong>
-                        <p>${sale.date} · ${sale.channel}</p>
-                      </div>
-                      <div>
-                        <strong>${money(sale.amount)}</strong>
-                        <p>${sale.quantity} un. · ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
-                      </div>
-                    </div>`,
-                )
-                .join('')}
-            </div>
-          </article>
-        </section>
-
-        <section class="workspace" id="inventario">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Agregar producto</h3>
-              <span>Control de stock minimo</span>
-            </div>
-            <form class="form-grid" data-form="product">
-              <label>
-                Nombre
-                <input type="text" name="name" placeholder="Cafe molido 500g" required />
-              </label>
-              <label>
-                SKU
-                <input type="text" name="sku" placeholder="CF-500" required />
-              </label>
-              <label>
-                Stock inicial
-                <input type="number" name="stock" min="0" required />
-              </label>
-              <label>
-                Precio
-                <input type="number" name="price" min="0" required />
-              </label>
-              <label>
-                Stock minimo
-                <input type="number" name="minStock" min="0" required />
-              </label>
-              <label>
-                Categoria
-                <input type="text" name="category" placeholder="Almacen" required />
-              </label>
-              <button type="submit">Guardar producto</button>
-            </form>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Inventario actual</h3>
-              <span>${state.products.length} productos</span>
-            </div>
-            <div class="table-list">
-              ${state.products
-                .map(
-                  (product) => `
-                    <div class="table-row">
-                      <div>
-                        <strong>${product.name}</strong>
-                        <p>${product.sku} · ${product.category}</p>
-                      </div>
-                      <div>
-                        <strong>${product.stock} un.</strong>
-                        <p>${money(product.price)} · minimo ${product.minStock}</p>
-                      </div>
-                    </div>`,
-                )
-                .join('')}
-            </div>
-          </article>
-        </section>
-
-        <section class="workspace" id="proveedores">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Nuevo proveedor</h3>
-              <span>Compras y cuentas a pagar</span>
-            </div>
-            <form class="form-grid" data-form="provider">
-              <label>
-                Empresa
-                <input type="text" name="name" required />
-              </label>
-              <label>
-                Contacto
-                <input type="text" name="contact" required />
-              </label>
-              <label>
-                Telefono
-                <input type="text" name="phone" required />
-              </label>
-              <label>
-                Saldo pendiente
-                <input type="number" name="balance" min="0" required />
-              </label>
-              <label>
-                Ultima entrega
-                <input type="date" name="lastDelivery" value="${today}" required />
-              </label>
-              <label>
-                Categoria
-                <input type="text" name="category" required />
-              </label>
-              <button type="submit">Guardar proveedor</button>
-            </form>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Proveedores</h3>
-              <span>Seguimiento de compras</span>
-            </div>
-            <div class="table-list">
-              ${state.providers
-                .map(
-                  (provider) => `
-                    <div class="table-row">
-                      <div>
-                        <strong>${provider.name}</strong>
-                        <p>${provider.contact} · ${provider.phone}</p>
-                      </div>
-                      <div>
-                        <strong>${money(provider.balance)}</strong>
-                        <p>${provider.category} · ultima entrega ${provider.lastDelivery}</p>
-                      </div>
-                    </div>`,
-                )
-                .join('')}
-            </div>
-          </article>
-        </section>
-
-        <section class="workspace" id="facturacion">
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Emitir factura</h3>
-              <span>Comprobantes basicos</span>
-            </div>
-            <form class="form-grid" data-form="invoice">
-              <label>
-                Numero
-                <input type="text" name="number" placeholder="B-0001-001245" required />
-              </label>
-              <label>
-                Cliente
-                <input type="text" name="client" required />
-              </label>
-              <label>
-                Total
-                <input type="number" name="total" min="1" required />
-              </label>
-              <label>
-                Tipo
-                <select name="type">
-                  <option>A</option>
-                  <option>B</option>
-                  <option>C</option>
-                </select>
-              </label>
-              <label>
-                Vencimiento
-                <input type="date" name="dueDate" value="${today}" required />
-              </label>
-              <label>
-                Estado
-                <select name="status">
-                  <option>Emitida</option>
-                  <option>En revision</option>
-                  <option>Cobrada</option>
-                </select>
-              </label>
-              <button type="submit">Guardar factura</button>
-            </form>
-          </article>
-
-          <article class="panel">
-            <div class="panel-head">
-              <h3>Facturas recientes</h3>
-              <span>Control de cobro</span>
-            </div>
-            <div class="table-list">
-              ${state.invoices
-                .slice()
-                .reverse()
-                .map(
-                  (invoice) => `
-                    <div class="table-row">
-                      <div>
-                        <strong>${invoice.number}</strong>
-                        <p>${invoice.client} · tipo ${invoice.type}</p>
-                      </div>
-                      <div>
-                        <strong>${money(invoice.total)}</strong>
-                        <p>${invoice.status} · vence ${invoice.dueDate}</p>
-                      </div>
-                    </div>`,
-                )
-                .join('')}
-            </div>
-          </article>
-        </section>
-      </main>
+                  : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
+              </div>
+              <div class="alert-list">
+                ${
+                  metrics.lowStock.length
+                    ? metrics.lowStock
+                        .map(
+                          (product) => `
+                            <div class="notice warning">
+                              <strong>${product.name}</strong>
+                              <p>Stock ${product.stock} / minimo ${product.minStock}</p>
+                            </div>`,
+                        )
+                        .join('')
+                    : '<div class="notice success"><strong>Inventario estable</strong><p>No hay productos debajo del minimo.</p></div>'
+                }
+              </div>
+            </article>
+          </section>
+        </main>
+      </div>
     </div>
   `
 
@@ -461,6 +434,13 @@ const render = () => {
 const bindEvents = () => {
   for (const form of document.querySelectorAll('form[data-form]')) {
     form.addEventListener('submit', handleSubmit)
+  }
+
+  for (const button of document.querySelectorAll('[data-jump]')) {
+    button.addEventListener('click', () => {
+      const target = document.getElementById(button.dataset.jump)
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 }
 
@@ -478,9 +458,7 @@ const handleSubmit = (event) => {
     const paid = formData.get('paid') === 'on'
     const product = state.products.find((entry) => entry.name === item)
 
-    if (product) {
-      product.stock = Math.max(0, product.stock - quantity)
-    }
+    if (product) product.stock = Math.max(0, product.stock - quantity)
 
     state.sales.push({
       id: crypto.randomUUID(),
