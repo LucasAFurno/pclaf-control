@@ -217,9 +217,9 @@ const loginView = (ui) => `
         <button type="submit">Ingresar</button>
       </form>
       <div class="login-hints">
-        <span>Admin: `0000`</span>
-        <span>Caja: `1111`</span>
-        <span>Deposito: `2222`</span>
+        <span>Admin: 0000</span>
+        <span>Caja: 1111</span>
+        <span>Deposito: 2222</span>
       </div>
     </div>
   </div>
