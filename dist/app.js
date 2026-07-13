@@ -45,6 +45,7 @@ let reportDateFrom = ''
 let reportDateTo = ''
 let saleDraftQuantities = {}
 let saleQuickAddCode = ''
+let topbarSearch = ''
 
 const money = (value) => currency.format(Number(value) || 0)
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
@@ -110,6 +111,18 @@ const registerActionButtons = (register) => `
   <button type="button" class="inline-action" data-register-action="edit" data-id="${register.id}">Editar</button>
   <button type="button" class="inline-action danger" data-delete="register" data-id="${register.id}">Eliminar</button>
 `
+const planLabels = {
+  basic: 'Basico',
+  retail: 'Retail',
+  full: 'Full',
+  custom: 'Personalizado',
+}
+const getInitials = (name) => String(name || '')
+  .split(' ')
+  .filter(Boolean)
+  .slice(0, 2)
+  .map((part) => part[0]?.toUpperCase() || '')
+  .join('') || 'PC'
 
 const getUiState = () => {
   const snapshot = store.getSnapshot()
@@ -610,6 +623,16 @@ const renderApp = (ui) => {
   const allowedNav = navItems.filter((item) => store.canAccessModule(item.moduleKey, item.permission))
   if (!allowedNav.some((item) => item.id === activeSection)) activeSection = allowedNav[0]?.id || 'dashboard'
   saveSection()
+  const branchName = ui.currentBranch?.name || ui.snapshot.business.branch || 'Sucursal'
+  const registerName = ui.currentRegister?.name || 'Sin caja asignada'
+  const planName = planLabels[ui.snapshot.business.activePlan] || 'Personalizado'
+  const edition = String(ui.snapshot.meta?.edition || '').toLowerCase()
+  const isLocalMode = edition.includes('local')
+  const modeName = isLocalMode ? 'Local' : 'Online'
+  const modeHint = isLocalMode ? 'Base instalada' : 'Version web'
+  const statusTitle = ui.openCashSession ? 'Caja abierta y lista para operar' : 'Caja cerrada'
+  const statusHint = ui.openCashSession ? `${branchName} · ${registerName}` : `${branchName} · Abri una caja para cobrar`
+  const searchOptions = allowedNav.map((item) => `<option value="${item.label}"></option>`).join('')
 
   return `
     <div class="app-shell">
@@ -619,9 +642,32 @@ const renderApp = (ui) => {
       </aside>
       <div class="workspace">
         <header class="topbar">
-          <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${productName}</h1><span>${ui.currentBranch?.name || ui.snapshot.business.branch || 'Sucursal'}</span></div>
-          <div class="topbar-center"><div class="searchbar"><span>Estado</span><input type="text" value="${ui.openCashSession ? 'Caja abierta y lista para operar' : 'Sin caja abierta'}" disabled /></div></div>
-          <div class="topbar-right"><div class="user-pill compact"><strong>${ui.user.fullName}</strong><span>${ui.role.name}</span></div><button class="theme-toggle" type="button" data-action="toggle-theme">${theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</button><span class="badge">Local</span></div>
+          <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${productName}</h1><span>${branchName}</span></div>
+          <div class="topbar-center">
+            <div class="status-card ${ui.openCashSession ? 'is-open' : 'is-closed'}">
+              <span class="status-led" aria-hidden="true"></span>
+              <div class="status-copy"><p>Estado</p><strong>${statusTitle}</strong><span>${statusHint}</span></div>
+            </div>
+            <form class="quick-search" data-form="topbar-jump">
+              <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
+              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Ir rapido a ventas, caja o productos" />
+              <datalist id="nav-search-options">${searchOptions}</datalist>
+            </form>
+          </div>
+          <div class="topbar-right">
+            <div class="account-card">
+              <span class="account-avatar">${getInitials(ui.user.fullName)}</span>
+              <div class="account-copy"><strong>${ui.user.fullName}</strong><span>${ui.role.name} · Plan ${planName}</span></div>
+            </div>
+            <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
+              <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
+              <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
+            </button>
+            <div class="mode-badge ${isLocalMode ? 'is-local' : 'is-online'}">
+              <span class="mode-dot" aria-hidden="true"></span>
+              <div class="mode-copy"><strong>${modeName}</strong><span>${modeHint}</span></div>
+            </div>
+          </div>
         </header>
         <main class="page">${renderCurrentView(ui)}</main>
       </div>
@@ -766,6 +812,21 @@ const handleSubmit = (event) => {
     reportDateFrom = formData.get('dateFrom') || ''
     reportDateTo = formData.get('dateTo') || ''
     feedbackMessage = 'Filtro de reportes actualizado.'
+  }
+  if (kind === 'topbar-jump') {
+    topbarSearch = String(formData.get('query') || '').trim()
+    if (!topbarSearch) return
+    const normalized = topbarSearch.toLowerCase()
+    const allowedNav = navItems.filter((item) => store.canAccessModule(item.moduleKey, item.permission))
+    const match = allowedNav.find((item) => item.label.toLowerCase().includes(normalized) || item.id.toLowerCase().includes(normalized))
+    if (match) {
+      activeSection = match.id
+      topbarSearch = ''
+      saveSection()
+      render()
+      return
+    }
+    feedbackMessage = 'No encontre un modulo con ese nombre.'
   }
   if (kind === 'module-preset') {
     const result = store.applyModulePreset(formData.get('presetKey'))
