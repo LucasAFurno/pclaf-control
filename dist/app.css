@@ -111,6 +111,12 @@ input, select { outline: none; }
   box-shadow: 0 18px 28px rgba(214, 16, 16, 0.14);
 }
 
+.nav-square.is-active {
+  border-color: rgba(214, 16, 16, 0.28);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  box-shadow: 0 18px 28px rgba(214, 16, 16, 0.12);
+}
+
 .nav-icon svg {
   width: 20px;
   height: 20px;
@@ -236,6 +242,24 @@ input, select { outline: none; }
 
 .page { padding: 22px; }
 
+.view-section {
+  display: grid;
+  gap: 14px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+
+.section-header h2 {
+  margin: 4px 0 0;
+  font-family: 'Oswald', sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
 .metrics-grid,
 .dashboard-grid,
 .content-grid {
@@ -278,6 +302,14 @@ input, select { outline: none; }
 .content-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 14px;
+}
+
+.content-grid.single-focus {
+  margin-top: 0;
+}
+
+.reports-layout {
+  margin-top: 0;
 }
 
 .panel {

@@ -7,6 +7,7 @@ const currency = new Intl.NumberFormat('es-AR', {
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'Control'
 const themeStorageKey = 'pclaf-control-theme'
+const sectionStorageKey = 'pclaf-control-section'
 
 const icon = (path) => `
   <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -64,9 +65,11 @@ const loadState = () => {
 }
 
 const loadTheme = () => localStorage.getItem(themeStorageKey) || 'light'
+const loadSection = () => localStorage.getItem(sectionStorageKey) || 'dashboard'
 
 let state = loadState()
 let theme = loadTheme()
+let activeSection = loadSection()
 
 const saveState = () => {
   localStorage.setItem(storageKey, JSON.stringify(state))
@@ -74,6 +77,10 @@ const saveState = () => {
 
 const saveTheme = () => {
   localStorage.setItem(themeStorageKey, theme)
+}
+
+const saveSection = () => {
+  localStorage.setItem(sectionStorageKey, activeSection)
 }
 
 const applyTheme = () => {
@@ -102,6 +109,489 @@ const getTopProducts = () => {
   return [...sold.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
 }
 
+const recentSalesMarkup = () =>
+  state.sales
+    .slice()
+    .reverse()
+    .slice(0, 6)
+    .map(
+      (sale) => `
+        <div class="list-row">
+          <div>
+            <strong>${sale.item}</strong>
+            <p>${sale.date} - ${sale.channel}</p>
+          </div>
+          <div class="right">
+            <strong>${money(sale.amount)}</strong>
+            <p>${sale.quantity} un. - ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
+          </div>
+        </div>`,
+    )
+    .join('')
+
+const topProductsMarkup = (topProducts) =>
+  topProducts.length
+    ? topProducts
+        .map(
+          ([item, quantity], index) => `
+            <div class="top-row">
+              <span>${index + 1}</span>
+              <div>
+                <strong>${item}</strong>
+                <p>${quantity} unidades vendidas</p>
+              </div>
+            </div>`,
+        )
+        .join('')
+    : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'
+
+const alertsMarkup = (lowStock) =>
+  lowStock.length
+    ? lowStock
+        .map(
+          (product) => `
+            <div class="alert-card">
+              <strong>${product.name}</strong>
+              <p>Stock ${product.stock} / minimo ${product.minStock}</p>
+            </div>`,
+        )
+        .join('')
+    : '<div class="alert-card ok"><strong>Sin alertas criticas</strong><p>El inventario esta estable.</p></div>'
+
+const dashboardView = (metrics, topProducts) => `
+  <section class="view-section">
+    <div class="section-header">
+      <div>
+        <p class="kicker">Resumen diario</p>
+        <h2>Lo importante de hoy</h2>
+      </div>
+    </div>
+
+    <section class="metrics-grid">
+      <article class="metric-card">
+        <span>Ventas registradas</span>
+        <strong>${money(metrics.totalSales)}</strong>
+        <p>${state.sales.length} operaciones</p>
+      </article>
+      <article class="metric-card">
+        <span>Por cobrar</span>
+        <strong>${money(metrics.unpaidSales)}</strong>
+        <p>${state.sales.filter((sale) => !sale.paid).length} pendientes</p>
+      </article>
+      <article class="metric-card">
+        <span>Facturas abiertas</span>
+        <strong>${money(metrics.pendingInvoices)}</strong>
+        <p>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes</p>
+      </article>
+      <article class="metric-card">
+        <span>A pagar</span>
+        <strong>${money(metrics.payables)}</strong>
+        <p>${state.providers.length} proveedores activos</p>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Ventas recientes</h3>
+            <p>Lo ultimo que paso en caja</p>
+          </div>
+        </div>
+        <div class="list">${recentSalesMarkup()}</div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Articulos mas vendidos</h3>
+            <p>Ranking de movimiento</p>
+          </div>
+        </div>
+        <div class="top-list">${topProductsMarkup(topProducts)}</div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Alertas de stock</h3>
+            <p>Productos para reponer</p>
+          </div>
+        </div>
+        <div class="alert-list">${alertsMarkup(metrics.lowStock)}</div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Estado financiero</h3>
+            <p>Cobros y compromisos</p>
+          </div>
+        </div>
+        <div class="priority-list">
+          <div class="priority-item">
+            <strong>Cuentas por cobrar</strong>
+            <p>${money(metrics.unpaidSales)} en operaciones pendientes</p>
+          </div>
+          <div class="priority-item">
+            <strong>Cuentas por pagar</strong>
+            <p>${money(metrics.payables)} comprometidos con proveedores</p>
+          </div>
+          <div class="priority-item">
+            <strong>Facturas emitidas</strong>
+            <p>${money(metrics.pendingInvoices)} aun no cerradas</p>
+          </div>
+        </div>
+      </article>
+    </section>
+  </section>
+`
+
+const salesView = () => `
+  <section class="view-section">
+    <div class="section-header">
+      <div>
+        <p class="kicker">Ventas</p>
+        <h2>Registrar venta</h2>
+      </div>
+    </div>
+    <section class="content-grid single-focus">
+      <article class="panel" id="ventas">
+        <div class="panel-head">
+          <div>
+            <h3>Carga rapida</h3>
+            <p>Operacion y cobro en una sola vista</p>
+          </div>
+        </div>
+        <form class="form-grid" data-form="sale">
+          <label>
+            Producto
+            <select name="item" required>
+              ${state.products.map((product) => `<option value="${product.name}">${product.name}</option>`).join('')}
+            </select>
+          </label>
+          <label>
+            Cantidad
+            <input type="number" name="quantity" min="1" value="1" required />
+          </label>
+          <label>
+            Monto total
+            <input type="number" name="amount" min="1" placeholder="38000" required />
+          </label>
+          <label>
+            Canal
+            <select name="channel">
+              <option>Mostrador</option>
+              <option>WhatsApp</option>
+              <option>Transferencia</option>
+              <option>Mercado Pago</option>
+            </select>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="paid" checked />
+            Cobrado
+          </label>
+          <button type="submit">Registrar venta</button>
+        </form>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Ultimas operaciones</h3>
+            <p>Historial inmediato</p>
+          </div>
+        </div>
+        <div class="list">${recentSalesMarkup()}</div>
+      </article>
+    </section>
+  </section>
+`
+
+const productsView = () => `
+  <section class="view-section">
+    <div class="section-header">
+      <div>
+        <p class="kicker">Productos</p>
+        <h2>Catalogo y stock</h2>
+      </div>
+    </div>
+    <section class="content-grid single-focus">
+      <article class="panel" id="productos">
+        <div class="panel-head">
+          <div>
+            <h3>Alta de productos</h3>
+            <p>Stock, precios y categorias</p>
+          </div>
+        </div>
+        <form class="form-grid" data-form="product">
+          <label>
+            Nombre
+            <input type="text" name="name" placeholder="Mouse gamer USB" required />
+          </label>
+          <label>
+            SKU
+            <input type="text" name="sku" placeholder="MO-USB" required />
+          </label>
+          <label>
+            Stock
+            <input type="number" name="stock" min="0" required />
+          </label>
+          <label>
+            Precio
+            <input type="number" name="price" min="0" required />
+          </label>
+          <label>
+            Minimo
+            <input type="number" name="minStock" min="0" required />
+          </label>
+          <label>
+            Categoria
+            <input type="text" name="category" placeholder="Perifericos" required />
+          </label>
+          <button type="submit">Guardar producto</button>
+        </form>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Stock critico</h3>
+            <p>Revision rapida</p>
+          </div>
+        </div>
+        <div class="alert-list">${alertsMarkup(getMetrics().lowStock)}</div>
+      </article>
+    </section>
+  </section>
+`
+
+const purchasesView = () => `
+  <section class="view-section">
+    <div class="section-header">
+      <div>
+        <p class="kicker">Compras</p>
+        <h2>Proveedores y saldos</h2>
+      </div>
+    </div>
+    <section class="content-grid single-focus">
+      <article class="panel" id="compras">
+        <div class="panel-head">
+          <div>
+            <h3>Alta de proveedor</h3>
+            <p>Ingresos y saldos pendientes</p>
+          </div>
+        </div>
+        <form class="form-grid" data-form="provider">
+          <label>
+            Empresa
+            <input type="text" name="name" required />
+          </label>
+          <label>
+            Contacto
+            <input type="text" name="contact" required />
+          </label>
+          <label>
+            Telefono
+            <input type="text" name="phone" required />
+          </label>
+          <label>
+            Saldo pendiente
+            <input type="number" name="balance" min="0" required />
+          </label>
+          <label>
+            Ultima entrega
+            <input type="date" name="lastDelivery" value="${today}" required />
+          </label>
+          <label>
+            Categoria
+            <input type="text" name="category" required />
+          </label>
+          <button type="submit">Guardar proveedor</button>
+        </form>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Proveedores activos</h3>
+            <p>Resumen de deuda</p>
+          </div>
+        </div>
+        <div class="list">
+          ${state.providers
+            .slice(0, 6)
+            .map(
+              (provider) => `
+                <div class="list-row">
+                  <div>
+                    <strong>${provider.name}</strong>
+                    <p>${provider.contact} - ${provider.phone}</p>
+                  </div>
+                  <div class="right">
+                    <strong>${money(provider.balance)}</strong>
+                    <p>${provider.category}</p>
+                  </div>
+                </div>`,
+            )
+            .join('')}
+        </div>
+      </article>
+    </section>
+  </section>
+`
+
+const invoicesView = () => `
+  <section class="view-section">
+    <div class="section-header">
+      <div>
+        <p class="kicker">Facturacion</p>
+        <h2>Comprobantes</h2>
+      </div>
+    </div>
+    <section class="content-grid single-focus">
+      <article class="panel" id="facturacion">
+        <div class="panel-head">
+          <div>
+            <h3>Nueva factura</h3>
+            <p>Comprobantes y seguimiento</p>
+          </div>
+        </div>
+        <form class="form-grid" data-form="invoice">
+          <label>
+            Numero
+            <input type="text" name="number" placeholder="B-0001-001555" required />
+          </label>
+          <label>
+            Cliente
+            <input type="text" name="client" required />
+          </label>
+          <label>
+            Total
+            <input type="number" name="total" min="1" required />
+          </label>
+          <label>
+            Tipo
+            <select name="type">
+              <option>A</option>
+              <option>B</option>
+              <option>C</option>
+            </select>
+          </label>
+          <label>
+            Vencimiento
+            <input type="date" name="dueDate" value="${today}" required />
+          </label>
+          <label>
+            Estado
+            <select name="status">
+              <option>Emitida</option>
+              <option>En revision</option>
+              <option>Cobrada</option>
+            </select>
+          </label>
+          <button type="submit">Guardar factura</button>
+        </form>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Facturas recientes</h3>
+            <p>Seguimiento de cobro</p>
+          </div>
+        </div>
+        <div class="list">
+          ${state.invoices
+            .slice()
+            .reverse()
+            .slice(0, 6)
+            .map(
+              (invoice) => `
+                <div class="list-row">
+                  <div>
+                    <strong>${invoice.number}</strong>
+                    <p>${invoice.client} - Tipo ${invoice.type}</p>
+                  </div>
+                  <div class="right">
+                    <strong>${money(invoice.total)}</strong>
+                    <p>${invoice.status}</p>
+                  </div>
+                </div>`,
+            )
+            .join('')}
+        </div>
+      </article>
+    </section>
+  </section>
+`
+
+const reportsView = (metrics, topProducts) => `
+  <section class="view-section">
+    <div class="section-header">
+      <div>
+        <p class="kicker">Reportes</p>
+        <h2>Indicadores y prioridades</h2>
+      </div>
+    </div>
+    <section class="dashboard-grid reports-layout">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Top productos</h3>
+            <p>Rendimiento comercial</p>
+          </div>
+        </div>
+        <div class="top-list">${topProductsMarkup(topProducts)}</div>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Alertas</h3>
+            <p>Acciones inmediatas</p>
+          </div>
+        </div>
+        <div class="alert-list">${alertsMarkup(metrics.lowStock)}</div>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Estado financiero</h3>
+            <p>Balance rapido</p>
+          </div>
+        </div>
+        <div class="priority-list">
+          <div class="priority-item">
+            <strong>Por cobrar</strong>
+            <p>${money(metrics.unpaidSales)}</p>
+          </div>
+          <div class="priority-item">
+            <strong>Por pagar</strong>
+            <p>${money(metrics.payables)}</p>
+          </div>
+          <div class="priority-item">
+            <strong>Facturas abiertas</strong>
+            <p>${money(metrics.pendingInvoices)}</p>
+          </div>
+        </div>
+      </article>
+    </section>
+  </section>
+`
+
+const renderCurrentView = (metrics, topProducts) => {
+  switch (activeSection) {
+    case 'ventas':
+      return salesView()
+    case 'productos':
+      return productsView()
+    case 'compras':
+      return purchasesView()
+    case 'facturacion':
+      return invoicesView()
+    case 'reportes':
+      return reportsView(metrics, topProducts)
+    default:
+      return dashboardView(metrics, topProducts)
+  }
+}
+
 const render = () => {
   const metrics = getMetrics()
   const topProducts = getTopProducts()
@@ -117,7 +607,13 @@ const render = () => {
           ${navItems
             .map(
               (item) => `
-                <button class="nav-square" type="button" data-jump="${item.id}" title="${item.label}" aria-label="${item.label}">
+                <button
+                  class="nav-square ${activeSection === item.id ? 'is-active' : ''}"
+                  type="button"
+                  data-section="${item.id}"
+                  title="${item.label}"
+                  aria-label="${item.label}"
+                >
                   <span class="nav-icon">${item.icon}</span>
                   <span class="nav-label">${item.label}</span>
                 </button>`,
@@ -148,288 +644,7 @@ const render = () => {
         </header>
 
         <main class="page">
-          <section class="metrics-grid" id="dashboard">
-            <article class="metric-card">
-              <span>Ventas registradas</span>
-              <strong>${money(metrics.totalSales)}</strong>
-              <p>${state.sales.length} operaciones</p>
-            </article>
-            <article class="metric-card">
-              <span>Por cobrar</span>
-              <strong>${money(metrics.unpaidSales)}</strong>
-              <p>${state.sales.filter((sale) => !sale.paid).length} pendientes</p>
-            </article>
-            <article class="metric-card">
-              <span>Facturas abiertas</span>
-              <strong>${money(metrics.pendingInvoices)}</strong>
-              <p>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes</p>
-            </article>
-            <article class="metric-card">
-              <span>A pagar</span>
-              <strong>${money(metrics.payables)}</strong>
-              <p>${state.providers.length} proveedores activos</p>
-            </article>
-          </section>
-
-          <section class="dashboard-grid">
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h3>Ventas recientes</h3>
-                  <p>Lo ultimo que paso en caja</p>
-                </div>
-              </div>
-              <div class="list">
-                ${state.sales
-                  .slice()
-                  .reverse()
-                  .slice(0, 6)
-                  .map(
-                    (sale) => `
-                      <div class="list-row">
-                        <div>
-                          <strong>${sale.item}</strong>
-                          <p>${sale.date} - ${sale.channel}</p>
-                        </div>
-                        <div class="right">
-                          <strong>${money(sale.amount)}</strong>
-                          <p>${sale.quantity} un. - ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
-                        </div>
-                      </div>`,
-                  )
-                  .join('')}
-              </div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h3>Articulos mas vendidos</h3>
-                  <p>Ranking de movimiento</p>
-                </div>
-              </div>
-              <div class="top-list">
-                ${topProducts.length
-                  ? topProducts
-                      .map(
-                        ([item, quantity], index) => `
-                          <div class="top-row">
-                            <span>${index + 1}</span>
-                            <div>
-                              <strong>${item}</strong>
-                              <p>${quantity} unidades vendidas</p>
-                            </div>
-                          </div>`,
-                      )
-                      .join('')
-                  : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
-              </div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h3>Alertas de stock</h3>
-                  <p>Productos para reponer</p>
-                </div>
-              </div>
-              <div class="alert-list">
-                ${
-                  metrics.lowStock.length
-                    ? metrics.lowStock
-                        .map(
-                          (product) => `
-                            <div class="alert-card">
-                              <strong>${product.name}</strong>
-                              <p>Stock ${product.stock} / minimo ${product.minStock}</p>
-                            </div>`,
-                        )
-                        .join('')
-                    : '<div class="alert-card ok"><strong>Sin alertas criticas</strong><p>El inventario esta estable.</p></div>'
-                }
-              </div>
-            </article>
-
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h3>Estado financiero</h3>
-                  <p>Cobros y compromisos</p>
-                </div>
-              </div>
-              <div class="priority-list">
-                <div class="priority-item">
-                  <strong>Cuentas por cobrar</strong>
-                  <p>${money(metrics.unpaidSales)} en operaciones pendientes</p>
-                </div>
-                <div class="priority-item">
-                  <strong>Cuentas por pagar</strong>
-                  <p>${money(metrics.payables)} comprometidos con proveedores</p>
-                </div>
-                <div class="priority-item">
-                  <strong>Facturas emitidas</strong>
-                  <p>${money(metrics.pendingInvoices)} aun no cerradas</p>
-                </div>
-              </div>
-            </article>
-          </section>
-
-          <section class="content-grid">
-            <article class="panel" id="ventas">
-              <div class="panel-head">
-                <div>
-                  <h3>Registrar venta</h3>
-                  <p>Carga rapida de operaciones</p>
-                </div>
-              </div>
-              <form class="form-grid" data-form="sale">
-                <label>
-                  Producto
-                  <select name="item" required>
-                    ${state.products.map((product) => `<option value="${product.name}">${product.name}</option>`).join('')}
-                  </select>
-                </label>
-                <label>
-                  Cantidad
-                  <input type="number" name="quantity" min="1" value="1" required />
-                </label>
-                <label>
-                  Monto total
-                  <input type="number" name="amount" min="1" placeholder="38000" required />
-                </label>
-                <label>
-                  Canal
-                  <select name="channel">
-                    <option>Mostrador</option>
-                    <option>WhatsApp</option>
-                    <option>Transferencia</option>
-                    <option>Mercado Pago</option>
-                  </select>
-                </label>
-                <label class="checkbox-row">
-                  <input type="checkbox" name="paid" checked />
-                  Cobrado
-                </label>
-                <button type="submit">Registrar venta</button>
-              </form>
-            </article>
-
-            <article class="panel" id="productos">
-              <div class="panel-head">
-                <div>
-                  <h3>Alta de productos</h3>
-                  <p>Stock, precios y categorias</p>
-                </div>
-              </div>
-              <form class="form-grid" data-form="product">
-                <label>
-                  Nombre
-                  <input type="text" name="name" placeholder="Mouse gamer USB" required />
-                </label>
-                <label>
-                  SKU
-                  <input type="text" name="sku" placeholder="MO-USB" required />
-                </label>
-                <label>
-                  Stock
-                  <input type="number" name="stock" min="0" required />
-                </label>
-                <label>
-                  Precio
-                  <input type="number" name="price" min="0" required />
-                </label>
-                <label>
-                  Minimo
-                  <input type="number" name="minStock" min="0" required />
-                </label>
-                <label>
-                  Categoria
-                  <input type="text" name="category" placeholder="Perifericos" required />
-                </label>
-                <button type="submit">Guardar producto</button>
-              </form>
-            </article>
-
-            <article class="panel" id="compras">
-              <div class="panel-head">
-                <div>
-                  <h3>Proveedores</h3>
-                  <p>Ingresos y saldos pendientes</p>
-                </div>
-              </div>
-              <form class="form-grid" data-form="provider">
-                <label>
-                  Empresa
-                  <input type="text" name="name" required />
-                </label>
-                <label>
-                  Contacto
-                  <input type="text" name="contact" required />
-                </label>
-                <label>
-                  Telefono
-                  <input type="text" name="phone" required />
-                </label>
-                <label>
-                  Saldo pendiente
-                  <input type="number" name="balance" min="0" required />
-                </label>
-                <label>
-                  Ultima entrega
-                  <input type="date" name="lastDelivery" value="${today}" required />
-                </label>
-                <label>
-                  Categoria
-                  <input type="text" name="category" required />
-                </label>
-                <button type="submit">Guardar proveedor</button>
-              </form>
-            </article>
-
-            <article class="panel" id="facturacion">
-              <div class="panel-head">
-                <div>
-                  <h3>Facturacion</h3>
-                  <p>Comprobantes y seguimiento</p>
-                </div>
-              </div>
-              <form class="form-grid" data-form="invoice">
-                <label>
-                  Numero
-                  <input type="text" name="number" placeholder="B-0001-001555" required />
-                </label>
-                <label>
-                  Cliente
-                  <input type="text" name="client" required />
-                </label>
-                <label>
-                  Total
-                  <input type="number" name="total" min="1" required />
-                </label>
-                <label>
-                  Tipo
-                  <select name="type">
-                    <option>A</option>
-                    <option>B</option>
-                    <option>C</option>
-                  </select>
-                </label>
-                <label>
-                  Vencimiento
-                  <input type="date" name="dueDate" value="${today}" required />
-                </label>
-                <label>
-                  Estado
-                  <select name="status">
-                    <option>Emitida</option>
-                    <option>En revision</option>
-                    <option>Cobrada</option>
-                  </select>
-                </label>
-                <button type="submit">Guardar factura</button>
-              </form>
-            </article>
-          </section>
+          ${renderCurrentView(metrics, topProducts)}
         </main>
       </div>
     </div>
@@ -443,10 +658,11 @@ const bindEvents = () => {
     form.addEventListener('submit', handleSubmit)
   }
 
-  for (const button of document.querySelectorAll('[data-jump]')) {
+  for (const button of document.querySelectorAll('[data-section]')) {
     button.addEventListener('click', () => {
-      const target = document.getElementById(button.dataset.jump)
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      activeSection = button.dataset.section
+      saveSection()
+      render()
     })
   }
 
