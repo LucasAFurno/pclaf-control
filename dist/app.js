@@ -244,13 +244,13 @@ const loginView = (ui) => `
       <h1>${productName}</h1>
       <p class="login-copy">Ingresá con usuario y PIN para operar ventas, caja, compras y control.</p>
       <form class="login-form" data-form="login">
-        <label>Usuario o email<input type="text" name="identifier" placeholder="admin@pclaf.local" required /></label>
+        <label>Usuario o email<input type="text" name="identifier" placeholder="admin" required /></label>
         <label>PIN<input type="password" name="pin" placeholder="1234" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Ingresar</button>
       </form>
       <div class="login-hints">
-        <span>Admin: admin@pclaf.local / 1234</span>
+        <span>Admin: admin / 1234</span>
         <span>Caja: caja@pclaf.local / 1111</span>
         <span>Deposito: deposito@pclaf.local / 2222</span>
       </div>

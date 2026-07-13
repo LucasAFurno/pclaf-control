@@ -648,6 +648,7 @@ export const createBrowserDataStore = () => {
       && (
         entry.id === identifier
         || String(entry.email || '').trim().toLowerCase() === normalized
+        || String(entry.email || '').trim().toLowerCase().split('@')[0] === normalized
         || String(entry.fullName || '').trim().toLowerCase() === normalized
       )
     ))
