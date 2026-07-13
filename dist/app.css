@@ -394,6 +394,125 @@ input, select { outline: none; }
   gap: 10px;
 }
 
+.data-table {
+  display: grid;
+  gap: 10px;
+}
+
+.data-head,
+.data-row {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr 1fr 0.9fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.data-head {
+  padding: 0 4px 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.data-row {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 14px 15px;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.data-row:hover {
+  transform: translateY(-2px);
+  border-color: rgba(214, 16, 16, 0.18);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
+}
+
+.data-row span,
+.data-head span {
+  min-width: 0;
+}
+
+.data-row span:last-child {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.data-empty {
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  color: var(--muted);
+  text-align: center;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+}
+
+.inline-action,
+.primary-action,
+.danger-action,
+.file-action {
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.inline-action {
+  border: 1px solid rgba(214, 16, 16, 0.16);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  color: var(--accent);
+}
+
+.inline-action:hover,
+.primary-action:hover,
+.danger-action:hover,
+.file-action:hover {
+  transform: translateY(-1px);
+}
+
+.primary-action {
+  border: 0;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+  color: #ffffff;
+  box-shadow: 0 16px 28px rgba(214, 16, 16, 0.22);
+}
+
+.danger-action {
+  border: 1px solid rgba(214, 16, 16, 0.18);
+  background: transparent;
+  color: var(--text);
+}
+
+.file-action {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-action input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.full-span {
+  grid-column: span 2;
+}
+
 .list-row,
 .priority-item,
 .top-row,
@@ -484,8 +603,22 @@ input, select { outline: none; }
   }
 
   .checkbox-row,
+  .full-span,
   .form-grid button {
     grid-column: span 1;
+  }
+
+  .data-head {
+    display: none;
+  }
+
+  .data-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .data-row span:last-child {
+    justify-content: flex-start;
   }
 
   .list-row,
