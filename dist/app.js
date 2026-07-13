@@ -15,18 +15,18 @@ const icon = (path) => `
 `
 
 const navItems = [
-  { id: 'dashboard', label: 'Inicio', permission: 'dashboard:view', icon: icon('<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/>') },
-  { id: 'clientes', label: 'Clientes', permission: 'customers:view', icon: icon('<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3"/><path d="M20 8v6"/><path d="M17 11h6"/>') },
-  { id: 'ventas', label: 'Ventas', permission: 'sales:view', icon: icon('<path d="M4 17h16"/><path d="M7 17V9"/><path d="M12 17V5"/><path d="M17 17v-6"/>') },
-  { id: 'caja', label: 'Caja', permission: 'cash:view', icon: icon('<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M16 14h2"/>') },
-  { id: 'sucursales', label: 'Sucursales', permission: 'branches:view', icon: icon('<path d="M4 20V8l8-4 8 4v12"/><path d="M9 20v-6h6v6"/><path d="M4 10h16"/>') },
-  { id: 'cajeros', label: 'Cajas', permission: 'registers:view', icon: icon('<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 8h8"/><path d="M9 12h1"/><path d="M12 12h1"/><path d="M15 12h1"/><path d="M9 15h1"/><path d="M12 15h4"/>') },
-  { id: 'productos', label: 'Productos', permission: 'products:view', icon: icon('<path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5V16.5L12 21l9-4.5V7.5"/>') },
-  { id: 'compras', label: 'Compras', permission: 'purchases:view', icon: icon('<circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/><path d="M3 4h2l2.4 10.5h10.8L21 8H8"/>') },
-  { id: 'facturacion', label: 'Facturas', permission: 'invoices:view', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>') },
-  { id: 'tickets', label: 'Tickets', permission: 'tickets:view', icon: icon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/><path d="M10 15v4"/><path d="M14 15v4"/>') },
-  { id: 'reportes', label: 'Reportes', permission: 'reports:view', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>') },
-  { id: 'ajustes', label: 'Ajustes', permission: 'settings:view', icon: icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1 .33H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.51 1.34Z"/>') },
+  { id: 'dashboard', moduleKey: 'dashboard', label: 'Inicio', permission: 'dashboard:view', icon: icon('<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/>') },
+  { id: 'clientes', moduleKey: 'customers', label: 'Clientes', permission: 'customers:view', icon: icon('<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3"/><path d="M20 8v6"/><path d="M17 11h6"/>') },
+  { id: 'ventas', moduleKey: 'sales', label: 'Ventas', permission: 'sales:view', icon: icon('<path d="M4 17h16"/><path d="M7 17V9"/><path d="M12 17V5"/><path d="M17 17v-6"/>') },
+  { id: 'caja', moduleKey: 'cash', label: 'Caja', permission: 'cash:view', icon: icon('<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16"/><path d="M16 14h2"/>') },
+  { id: 'sucursales', moduleKey: 'branches', label: 'Sucursales', permission: 'branches:view', icon: icon('<path d="M4 20V8l8-4 8 4v12"/><path d="M9 20v-6h6v6"/><path d="M4 10h16"/>') },
+  { id: 'cajeros', moduleKey: 'registers', label: 'Cajas', permission: 'registers:view', icon: icon('<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 8h8"/><path d="M9 12h1"/><path d="M12 12h1"/><path d="M15 12h1"/><path d="M9 15h1"/><path d="M12 15h4"/>') },
+  { id: 'productos', moduleKey: 'products', label: 'Productos', permission: 'products:view', icon: icon('<path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5V16.5L12 21l9-4.5V7.5"/>') },
+  { id: 'compras', moduleKey: 'purchases', label: 'Compras', permission: 'purchases:view', icon: icon('<circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/><path d="M3 4h2l2.4 10.5h10.8L21 8H8"/>') },
+  { id: 'facturacion', moduleKey: 'invoices', label: 'Facturas', permission: 'invoices:view', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>') },
+  { id: 'tickets', moduleKey: 'tickets', label: 'Tickets', permission: 'tickets:view', icon: icon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/><path d="M10 15v4"/><path d="M14 15v4"/>') },
+  { id: 'reportes', moduleKey: 'reports', label: 'Reportes', permission: 'reports:view', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>') },
+  { id: 'ajustes', moduleKey: 'settings', label: 'Ajustes', permission: 'settings:view', icon: icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1 .33H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.51 1.34Z"/>') },
 ]
 
 const app = document.querySelector('#app')
@@ -151,6 +151,8 @@ const getUiState = () => {
 
   return {
     snapshot,
+    moduleCatalog: store.moduleCatalog,
+    modulePresets: store.modulePresets,
     user,
     role,
     isAuthenticated: store.isAuthenticated(),
@@ -547,6 +549,22 @@ const settingsView = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
     <section class="dashboard-grid reports-layout">
       <article class="panel"><div class="panel-head"><div><h3>Sesion actual</h3><p>Usuario autenticado</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}</p></div><div class="priority-item"><strong>Rol</strong><p>${ui.role.name}</p></div><div class="priority-item"><strong>Persistencia</strong><p>${ui.snapshot.meta.adapter}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
+        <form class="form-grid" data-form="module-preset">
+          <label>Preset<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Basico</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Retail</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Full</option></select></label>
+          <button type="submit">Aplicar preset</button>
+        </form>
+        <div class="timeline-list">
+          ${Object.values(ui.moduleCatalog).map((module) => `
+            <div class="timeline-item">
+              <strong>${module.name}</strong>
+              <p>${module.description}</p>
+              <span>${ui.snapshot.business.enabledModules.includes(module.key) ? 'Habilitado' : 'Oculto para este cliente'}</span>
+              <div class="settings-actions"><button type="button" class="inline-action" data-module-toggle="${module.key}" data-enabled="${ui.snapshot.business.enabledModules.includes(module.key) ? 'true' : 'false'}">${ui.snapshot.business.enabledModules.includes(module.key) ? 'Deshabilitar' : 'Habilitar'}</button></div>
+            </div>
+          `).join('')}
+        </div>
+      </article>
       <article class="panel"><div class="panel-head"><div><h3>Backup local</h3><p>Exporta o restaura los datos</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label><button type="button" class="danger-action" data-action="reset-data">Restaurar demo</button></div></article>
       <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimos eventos</p></div></div><div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div></article>
     </section>
@@ -571,7 +589,7 @@ const renderCurrentView = (ui) => {
 }
 
 const renderApp = (ui) => {
-  const allowedNav = navItems.filter((item) => store.hasPermission(item.permission))
+  const allowedNav = navItems.filter((item) => store.canAccessModule(item.moduleKey, item.permission))
   if (!allowedNav.some((item) => item.id === activeSection)) activeSection = allowedNav[0]?.id || 'dashboard'
   saveSection()
 
@@ -731,6 +749,10 @@ const handleSubmit = (event) => {
     reportDateTo = formData.get('dateTo') || ''
     feedbackMessage = 'Filtro de reportes actualizado.'
   }
+  if (kind === 'module-preset') {
+    const result = store.applyModulePreset(formData.get('presetKey'))
+    feedbackMessage = result.message || ''
+  }
   if (kind === 'product') store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
   if (kind === 'supplier') store.createSupplier({ name: formData.get('name'), contact: formData.get('contact'), phone: formData.get('phone'), balance: formData.get('balance'), lastDelivery: formData.get('lastDelivery'), category: formData.get('category') })
   if (kind === 'invoice') {
@@ -790,6 +812,13 @@ const bindEvents = () => {
   for (const form of document.querySelectorAll('form[data-form]')) form.addEventListener('submit', handleSubmit)
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
+  for (const button of document.querySelectorAll('[data-module-toggle]')) {
+    button.addEventListener('click', () => {
+      const result = store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
+      feedbackMessage = result.message || ''
+      render()
+    })
+  }
   for (const button of document.querySelectorAll('[data-sale-action]')) {
     button.addEventListener('click', () => {
       if (button.dataset.saleAction === 'edit') {

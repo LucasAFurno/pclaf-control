@@ -20,6 +20,27 @@ const permissionCatalog = {
   settings: 'settings:view',
 }
 
+const moduleCatalog = {
+  dashboard: { key: 'dashboard', name: 'Inicio', description: 'Resumen operativo principal' },
+  customers: { key: 'customers', name: 'Clientes', description: 'Base de clientes y cuentas corrientes' },
+  sales: { key: 'sales', name: 'Ventas', description: 'Ventas y cobros comerciales' },
+  cash: { key: 'cash', name: 'Caja', description: 'Apertura, cierre y arqueo' },
+  branches: { key: 'branches', name: 'Sucursales', description: 'Locales y numeracion' },
+  registers: { key: 'registers', name: 'Cajas', description: 'Puestos de cobro y cajeros' },
+  products: { key: 'products', name: 'Productos', description: 'Catalogo y stock' },
+  purchases: { key: 'purchases', name: 'Compras', description: 'Proveedores y reposicion' },
+  invoices: { key: 'invoices', name: 'Facturacion', description: 'Comprobantes y numeracion' },
+  tickets: { key: 'tickets', name: 'Tickets', description: 'Seguimiento postventa o tecnico' },
+  reports: { key: 'reports', name: 'Reportes', description: 'Reportes y exportes' },
+  settings: { key: 'settings', name: 'Ajustes', description: 'Configuracion del sistema' },
+}
+
+const modulePresets = {
+  basic: ['dashboard', 'customers', 'sales', 'cash', 'products', 'reports', 'settings'],
+  retail: ['dashboard', 'customers', 'sales', 'cash', 'branches', 'registers', 'products', 'purchases', 'invoices', 'reports', 'settings'],
+  full: Object.keys(moduleCatalog),
+}
+
 const roles = [
   { id: makeId(), key: 'admin', name: 'Administrador', permissions: Object.values(permissionCatalog) },
   {
@@ -62,6 +83,8 @@ const seedData = {
     organization: 'PCLAF',
     currentBranchId: '',
     currentRegisterId: '',
+    enabledModules: modulePresets.full,
+    activePlan: 'full',
     documentCounters: {
       invoiceB: 184,
       ticket: 1002,
@@ -139,6 +162,10 @@ const getCurrentRegister = (state) => {
   const register = getRegister(state, state.business.currentRegisterId)
   if (register?.branchId === getCurrentBranch(state)?.id) return register
   return state.registers.find((entry) => entry.branchId === getCurrentBranch(state)?.id) || null
+}
+const isModuleEnabled = (state, moduleKey) => {
+  const enabled = Array.isArray(state.business.enabledModules) ? state.business.enabledModules : modulePresets.full
+  return enabled.includes(moduleKey)
 }
 const nextNumber = (state, key) => {
   state.business.documentCounters[key] = Number(state.business.documentCounters[key] || 0) + 1
@@ -433,6 +460,10 @@ const migrateState = (source) => {
 
   migrated.meta = { ...migrated.meta, ...(source.meta || {}) }
   migrated.business = { ...migrated.business, ...(source.business || {}) }
+  migrated.business.enabledModules = Array.isArray(source.business?.enabledModules) && source.business.enabledModules.length
+    ? source.business.enabledModules.filter((key) => moduleCatalog[key])
+    : [...modulePresets.full]
+  migrated.business.activePlan = source.business?.activePlan || 'full'
   migrated.branches = Array.isArray(source.branches) && source.branches.length ? source.branches : migrated.branches
   migrated.registers = Array.isArray(source.registers) && source.registers.length ? source.registers : migrated.registers
   if (!migrated.business.currentBranchId) migrated.business.currentBranchId = migrated.branches[0]?.id || ''
@@ -584,6 +615,7 @@ export const createBrowserDataStore = () => {
   const currentUser = () => currentUserFromState(state)
   const currentRole = () => getRole(currentUser().roleId)
   const hasPermission = (permission) => currentRole().permissions.includes(permission)
+  const canAccessModule = (moduleKey, permission) => isModuleEnabled(state, moduleKey) && hasPermission(permission)
   const isAuthenticated = () => Boolean(state.session.authenticated && state.session.userId)
 
   const authenticateUser = (identifier, pin) => {
@@ -701,6 +733,30 @@ export const createBrowserDataStore = () => {
     pushAudit(state, currentUser().id, 'register', register.id, 'updated', register, before)
     save()
     return { ok: true, message: 'Caja actualizada.' }
+  }
+
+  const setModuleEnabled = (moduleKey, enabled) => {
+    if (!moduleCatalog[moduleKey]) return { ok: false, message: 'Modulo no encontrado.' }
+    const current = new Set(state.business.enabledModules || modulePresets.full)
+    if (enabled) current.add(moduleKey)
+    else current.delete(moduleKey)
+    current.add('dashboard')
+    current.add('settings')
+    state.business.enabledModules = [...current]
+    state.business.activePlan = 'custom'
+    pushAudit(state, currentUser().id, 'business_module', moduleKey, enabled ? 'enabled' : 'disabled', { enabled })
+    save()
+    return { ok: true, message: `Modulo ${enabled ? 'habilitado' : 'deshabilitado'}.` }
+  }
+
+  const applyModulePreset = (presetKey) => {
+    const preset = modulePresets[presetKey]
+    if (!preset) return { ok: false, message: 'Preset no encontrado.' }
+    state.business.enabledModules = [...preset]
+    state.business.activePlan = presetKey
+    pushAudit(state, currentUser().id, 'business_plan', presetKey, 'preset_applied', { presetKey, modules: preset })
+    save()
+    return { ok: true, message: `Plan ${presetKey} aplicado.` }
   }
 
   const createProduct = (payload) => {
@@ -1088,10 +1144,13 @@ export const createBrowserDataStore = () => {
 
   return {
     permissionCatalog,
+    moduleCatalog,
+    modulePresets,
     getSnapshot: () => clone(state),
     currentUser,
     currentRole,
     hasPermission,
+    canAccessModule,
     isAuthenticated,
     authenticateUser,
     signOut,
@@ -1105,6 +1164,8 @@ export const createBrowserDataStore = () => {
     selectRegister,
     createRegister,
     updateRegister,
+    setModuleEnabled,
+    applyModulePreset,
     createProduct,
     createSupplier,
     createSale,
