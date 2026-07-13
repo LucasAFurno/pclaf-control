@@ -9,6 +9,7 @@ const serverDir = path.join(dist, 'server')
 const hostingDir = path.join(dist, '.openai')
 
 const clientJs = await readFile(path.join(root, 'site', 'client.js'), 'utf8')
+const dataStoreJs = await readFile(path.join(root, 'site', 'data-store.js'), 'utf8')
 const stylesCss = await readFile(path.join(root, 'site', 'styles.css'), 'utf8')
 const hostingJson = await readFile(path.join(root, '.openai', 'hosting.json'), 'utf8')
 const faviconSvg = await readFile(path.join(root, 'public', 'favicon.svg'), 'utf8')
@@ -26,7 +27,7 @@ const html = `<!doctype html>
   </head>
   <body>
     <div id="app"></div>
-    <script src="/app.js"></script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>
 `
@@ -34,6 +35,7 @@ const html = `<!doctype html>
 const serverCode = `const html = ${JSON.stringify(html)};
 const css = ${JSON.stringify(stylesCss)};
 const js = ${JSON.stringify(clientJs)};
+const dataStore = ${JSON.stringify(dataStoreJs)};
 const favicon = ${JSON.stringify(faviconSvg)};
 const logo = ${JSON.stringify([...pclafLogo])};
 
@@ -59,6 +61,7 @@ export default {
 
     if (url.pathname === '/app.css') return asset(css, 'text/css; charset=utf-8');
     if (url.pathname === '/app.js') return asset(js, 'application/javascript; charset=utf-8');
+    if (url.pathname === '/data-store.js') return asset(dataStore, 'application/javascript; charset=utf-8');
     if (url.pathname === '/favicon.svg') return asset(favicon, 'image/svg+xml');
     if (url.pathname === '/pclaf-logo.png') return asset(Uint8Array.from(logo), 'image/png');
     if (url.pathname === '/' || url.pathname.startsWith('/#')) return page();
@@ -75,6 +78,7 @@ await mkdir(hostingDir, { recursive: true })
 await writeFile(path.join(dist, 'index.html'), html)
 await writeFile(path.join(dist, 'app.css'), stylesCss)
 await writeFile(path.join(dist, 'app.js'), clientJs)
+await writeFile(path.join(dist, 'data-store.js'), dataStoreJs)
 await writeFile(path.join(serverDir, 'index.js'), serverCode)
 await writeFile(path.join(hostingDir, 'hosting.json'), hostingJson)
 await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'favicon.svg'))
