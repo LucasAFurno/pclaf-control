@@ -260,7 +260,7 @@ const loginView = (ui) => `
 
 const dashboardView = (ui) => `
   <section class="view-section">
-    <div class="section-header"><div><p class="kicker">Resumen diario</p><h2>Operacion del local</h2></div><div class="user-pill"><strong>${ui.user.fullName}</strong><span>${ui.role.name}</span></div></div>
+    <div class="section-header"><div><p class="kicker">Resumen diario</p><h2>Operacion del local</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="metrics-grid">
       <article class="metric-card"><span>Ventas registradas</span><strong>${money(ui.totalSales)}</strong><p>${ui.snapshot.sales.length} tickets</p></article>
@@ -688,9 +688,9 @@ const renderApp = (ui) => {
             </form>
           </div>
           <div class="topbar-right">
-            <div class="account-card">
+            <div class="account-card compact-meta">
               <span class="account-avatar">${getInitials(ui.user.fullName)}</span>
-              <div class="account-copy"><strong>${ui.user.fullName}</strong><span>${ui.role.name} · Plan ${planName}</span></div>
+              <div class="account-copy"><strong>${ui.role.name}</strong><span>Plan ${planName}</span></div>
             </div>
             <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
               <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>

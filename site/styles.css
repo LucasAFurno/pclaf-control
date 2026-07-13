@@ -212,9 +212,9 @@ input, select { outline: none; }
 .topbar {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: 12px;
   align-items: center;
-  padding: 18px 22px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   backdrop-filter: blur(10px);
@@ -232,7 +232,7 @@ input, select { outline: none; }
 
 .topbar-left h1 {
   margin: 2px 0;
-  font-size: 2rem;
+  font-size: 1.65rem;
   line-height: 1;
 }
 
@@ -248,7 +248,7 @@ input, select { outline: none; }
   color: var(--muted);
 }
 
-.topbar-left span { font-size: 0.92rem; }
+.topbar-left span { font-size: 0.84rem; }
 
 .kicker {
   margin: 0;
@@ -260,7 +260,7 @@ input, select { outline: none; }
 .topbar-center {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .status-card,
@@ -270,22 +270,22 @@ input, select { outline: none; }
 .mode-badge {
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--panel) 96%, transparent);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .status-card,
 .quick-search,
 .account-card,
 .mode-badge {
-  border-radius: 18px;
+  border-radius: 16px;
 }
 
 .status-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .status-card:hover,
@@ -325,7 +325,7 @@ input, select { outline: none; }
 .mode-copy span {
   margin: 0;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
 .status-copy strong,
@@ -337,7 +337,7 @@ input, select { outline: none; }
 }
 
 .status-copy strong {
-  font-size: 1.05rem;
+  font-size: 0.96rem;
 }
 
 .quick-search {
@@ -345,7 +345,7 @@ input, select { outline: none; }
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
   align-items: center;
-  padding: 0 14px;
+  padding: 0 12px;
 }
 
 .quick-search-icon {
@@ -364,7 +364,7 @@ input, select { outline: none; }
   border: 0;
   background: transparent;
   color: var(--text);
-  padding: 14px 0;
+  padding: 12px 0;
 }
 
 .quick-search input::placeholder { color: var(--muted); }
@@ -372,7 +372,7 @@ input, select { outline: none; }
 .topbar-right {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -403,26 +403,31 @@ input, select { outline: none; }
 .account-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  padding: 10px 14px;
-  min-width: 220px;
+  padding: 8px 10px;
+  min-width: 0;
 }
 
 .account-avatar {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 28%, transparent), color-mix(in srgb, var(--accent-dark) 62%, transparent));
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.04em;
+  font-size: 0.78rem;
 }
 
 .account-copy {
   min-width: 0;
+}
+
+.account-card.compact-meta .account-copy strong {
+  font-size: 0.92rem;
 }
 
 .theme-switch {
@@ -430,7 +435,7 @@ input, select { outline: none; }
   align-items: center;
   gap: 10px;
   border-radius: 999px;
-  padding: 8px 11px;
+  padding: 6px 10px;
   color: var(--text);
 }
 
@@ -459,16 +464,16 @@ input, select { outline: none; }
 }
 
 .theme-switch-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
 .mode-badge {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  padding: 10px 14px;
+  padding: 8px 10px;
 }
 
 .mode-dot {
