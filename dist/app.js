@@ -43,6 +43,8 @@ let registerEditingId = ''
 let reportRegisterFilter = 'all'
 let reportDateFrom = ''
 let reportDateTo = ''
+let saleDraftQuantities = {}
+let saleQuickAddCode = ''
 
 const money = (value) => currency.format(Number(value) || 0)
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
@@ -56,6 +58,11 @@ const isWithinDateRange = (value, from, to) => {
   return true
 }
 const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
+const readCurrentSaleQuantities = () => Object.fromEntries(
+  [...document.querySelectorAll('input[name^="qty_"]')]
+    .map((input) => [input.name.replace('qty_', ''), Number(input.value || 0)])
+    .filter(([, quantity]) => quantity > 0),
+)
 
 const dataTable = (headers, rows) => `
   <div class="data-table">
@@ -277,7 +284,10 @@ const customersView = (ui) => `
 const salesView = (ui) => `
   ${(() => {
     const editingSale = ui.snapshot.sales.find((sale) => sale.id === saleEditingId)
-    const quantities = new Map((editingSale?.items || []).map((item) => [item.productId, item.quantity]))
+    if (editingSale && !Object.keys(saleDraftQuantities).length) {
+      saleDraftQuantities = Object.fromEntries((editingSale.items || []).map((item) => [item.productId, item.quantity]))
+    }
+    const quantities = new Map(Object.entries(Object.keys(saleDraftQuantities).length ? saleDraftQuantities : Object.fromEntries((editingSale?.items || []).map((item) => [item.productId, item.quantity]))))
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ventas</p><h2>Venta multi-item</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
@@ -296,11 +306,18 @@ const salesView = (ui) => `
             <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</p></div>
             <div class="priority-item"><strong>Modo</strong><p>${ui.openCashSession ? 'Venta ligada a caja abierta' : 'Transferencia o cuenta sin caja'}</p></div>
           </div>
+          <div class="full-span">
+            <div class="panel-head"><div><h3>Escaner rapido</h3><p>Lee codigo de barras, SKU o nombre exacto</p></div></div>
+            <div class="inline-action-group">
+              <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" placeholder="Escanea o escribe codigo" />
+              <button type="button" class="primary-action" data-action="quick-add-sale">Agregar</button>
+            </div>
+          </div>
           <p class="form-note full-span">Las ventas en efectivo solo se pueden registrar con una caja abierta. Los reportes toman sucursal y caja actual.</p>
           <div class="full-span cart-builder">
             ${ui.snapshot.products.map((product) => `
               <div class="cart-line">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} - stock ${product.stock}</p></div>
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} - stock ${product.stock} - cod. ${product.barcode || '-'}</p></div>
                 <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
               </div>`).join('')}
           </div>
@@ -363,6 +380,7 @@ const productsView = (ui) => `
         <form class="form-grid" data-form="product">
           <label>Nombre<input type="text" name="name" required /></label>
           <label>SKU<input type="text" name="sku" required /></label>
+          <label>Codigo de barras<input type="text" name="barcode" placeholder="Escanea o escribe codigo" /></label>
           <label>Stock<input type="number" name="stock" min="0" required /></label>
           <label>Precio venta<input type="number" name="salePrice" min="0" required /></label>
           <label>Costo<input type="number" name="costPrice" min="0" required /></label>
@@ -373,7 +391,7 @@ const productsView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Inventario</h3><p>Con stock actual</p></div></div>
-        ${dataTable(['Producto', 'SKU', 'Stock', 'Precio', 'Accion'], ui.snapshot.products.map((product) => `<div class="data-row"><span>${product.name}</span><span>${product.sku}</span><span>${product.stock}</span><span>${money(product.salePrice)}</span><span>${actionButton('product', product.id)}</span></div>`))}
+        ${dataTable(['Producto', 'Codigo', 'Stock', 'Precio', 'Accion'], ui.snapshot.products.map((product) => `<div class="data-row"><span>${product.name}<br /><small>${product.sku}</small></span><span>${product.barcode || '-'}</span><span>${product.stock}</span><span>${money(product.salePrice)}</span><span>${actionButton('product', product.id)}</span></div>`))}
       </article>
     </section>
   </section>
@@ -753,7 +771,7 @@ const handleSubmit = (event) => {
     const result = store.applyModulePreset(formData.get('presetKey'))
     feedbackMessage = result.message || ''
   }
-  if (kind === 'product') store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
+  if (kind === 'product') store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), barcode: formData.get('barcode'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
   if (kind === 'supplier') store.createSupplier({ name: formData.get('name'), contact: formData.get('contact'), phone: formData.get('phone'), balance: formData.get('balance'), lastDelivery: formData.get('lastDelivery'), category: formData.get('category') })
   if (kind === 'invoice') {
     const currentBranchId = getUiState().currentBranch?.id
@@ -802,6 +820,8 @@ const handleSubmit = (event) => {
       : store.createSale(payload)
     feedbackMessage = result.message || (result.ok ? 'Venta registrada.' : '')
     saleEditingId = ''
+    saleDraftQuantities = {}
+    saleQuickAddCode = ''
   }
 
   form.reset()
@@ -810,8 +830,41 @@ const handleSubmit = (event) => {
 
 const bindEvents = () => {
   for (const form of document.querySelectorAll('form[data-form]')) form.addEventListener('submit', handleSubmit)
+  for (const input of document.querySelectorAll('input[name^="qty_"]')) {
+    input.addEventListener('input', () => {
+      const productId = input.name.replace('qty_', '')
+      const quantity = Number(input.value || 0)
+      if (quantity > 0) saleDraftQuantities[productId] = quantity
+      else delete saleDraftQuantities[productId]
+    })
+  }
+  const quickAddInput = document.querySelector('input[name="quickAddCode"]')
+  const runQuickAdd = () => {
+    const currentCode = String(quickAddInput?.value || '').trim()
+    const product = store.findProductByCode(currentCode)
+    if (!product) {
+      feedbackMessage = 'No encontre un producto con ese codigo.'
+      render()
+      return
+    }
+    saleDraftQuantities = { ...readCurrentSaleQuantities(), [product.id]: Number(readCurrentSaleQuantities()[product.id] || 0) + 1 }
+    saleQuickAddCode = ''
+    feedbackMessage = `${product.name} agregado a la venta.`
+    render()
+  }
+  if (quickAddInput) {
+    quickAddInput.addEventListener('input', () => { saleQuickAddCode = quickAddInput.value })
+    quickAddInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        runQuickAdd()
+      }
+    })
+  }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
+  const quickAddButton = document.querySelector('[data-action="quick-add-sale"]')
+  if (quickAddButton) quickAddButton.addEventListener('click', runQuickAdd)
   for (const button of document.querySelectorAll('[data-module-toggle]')) {
     button.addEventListener('click', () => {
       const result = store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
@@ -823,6 +876,9 @@ const bindEvents = () => {
     button.addEventListener('click', () => {
       if (button.dataset.saleAction === 'edit') {
         saleEditingId = button.dataset.id
+        const sale = store.getSnapshot().sales.find((entry) => entry.id === button.dataset.id)
+        saleDraftQuantities = Object.fromEntries((sale?.items || []).map((item) => [item.productId, item.quantity]))
+        saleQuickAddCode = ''
         feedbackMessage = 'Venta cargada para edicion.'
         render()
         return
@@ -913,7 +969,7 @@ const bindEvents = () => {
   const signOutButton = document.querySelector('[data-action="sign-out"]')
   if (signOutButton) signOutButton.addEventListener('click', () => { store.signOut(); loginMessage = ''; feedbackMessage = ''; render() })
   const cancelSaleEdit = document.querySelector('[data-action="cancel-sale-edit"]')
-  if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; feedbackMessage = 'Edicion de venta cancelada.'; render() })
+  if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; saleDraftQuantities = {}; saleQuickAddCode = ''; feedbackMessage = 'Edicion de venta cancelada.'; render() })
   const cancelPurchaseEdit = document.querySelector('[data-action="cancel-purchase-edit"]')
   if (cancelPurchaseEdit) cancelPurchaseEdit.addEventListener('click', () => { purchaseEditingId = ''; feedbackMessage = 'Edicion de compra cancelada.'; render() })
   const cancelInvoiceEdit = document.querySelector('[data-action="cancel-invoice-edit"]')

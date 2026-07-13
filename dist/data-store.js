@@ -111,10 +111,10 @@ const seedData = {
     { id: makeId(), fullName: 'Marina Diaz', phone: '11 4120 8899', email: 'marina@mail.com', balance: 0, tag: 'Mostrador' },
   ],
   products: [
-    { id: makeId(), name: 'SSD Kingston 480GB', sku: 'SSD-480', stock: 12, salePrice: 64000, costPrice: 47000, minStock: 4, category: 'Hardware', trackStock: true },
-    { id: makeId(), name: 'Pasta termica MX-4', sku: 'PT-MX4', stock: 18, salePrice: 12500, costPrice: 7800, minStock: 6, category: 'Insumos', trackStock: true },
-    { id: makeId(), name: 'Fuente 500W generica', sku: 'FU-500', stock: 3, salePrice: 47000, costPrice: 32100, minStock: 5, category: 'Hardware', trackStock: true },
-    { id: makeId(), name: 'Limpieza completa notebook', sku: 'SERV-LIM', stock: 99, salePrice: 38000, costPrice: 0, minStock: 0, category: 'Servicio', trackStock: false },
+    { id: makeId(), name: 'SSD Kingston 480GB', sku: 'SSD-480', barcode: '7790010010011', stock: 12, salePrice: 64000, costPrice: 47000, minStock: 4, category: 'Hardware', trackStock: true },
+    { id: makeId(), name: 'Pasta termica MX-4', sku: 'PT-MX4', barcode: '7790010010012', stock: 18, salePrice: 12500, costPrice: 7800, minStock: 6, category: 'Insumos', trackStock: true },
+    { id: makeId(), name: 'Fuente 500W generica', sku: 'FU-500', barcode: '7790010010013', stock: 3, salePrice: 47000, costPrice: 32100, minStock: 5, category: 'Hardware', trackStock: true },
+    { id: makeId(), name: 'Limpieza completa notebook', sku: 'SERV-LIM', barcode: '7790010010014', stock: 99, salePrice: 38000, costPrice: 0, minStock: 0, category: 'Servicio', trackStock: false },
   ],
   suppliers: [
     { id: makeId(), name: 'Mayorista Microglobal', contact: 'Daniel Perez', phone: '11 5011 4010', balance: 218000, lastDelivery: '2026-07-10', category: 'Hardware' },
@@ -153,6 +153,15 @@ const pushAudit = (state, actorUserId, entityType, entityId, action, afterData, 
 const currentUserFromState = (state) => state.users.find((user) => user.id === state.session.userId) || state.users[0]
 const getCustomer = (state, customerId) => state.customers.find((customer) => customer.id === customerId)
 const getProduct = (state, productId) => state.products.find((product) => product.id === productId)
+const findProductByCode = (state, code) => {
+  const normalized = String(code || '').trim().toLowerCase()
+  if (!normalized) return null
+  return state.products.find((product) => (
+    String(product.barcode || '').trim().toLowerCase() === normalized
+    || String(product.sku || '').trim().toLowerCase() === normalized
+    || String(product.name || '').trim().toLowerCase() === normalized
+  )) || null
+}
 const getOpenCashSession = (state) => state.cashSessions.find((session) => session.status === 'open') || null
 const getInvoiceBySaleId = (state, saleId) => state.invoices.find((invoice) => invoice.saleId === saleId) || null
 const getBranch = (state, branchId) => state.branches.find((branch) => branch.id === branchId)
@@ -488,6 +497,7 @@ const migrateState = (source) => {
     id: product.id || makeId(),
     name: product.name,
     sku: product.sku,
+    barcode: product.barcode || '',
     stock: Number(product.stock || 0),
     salePrice: Number(product.salePrice || product.price || 0),
     costPrice: Number(product.costPrice || 0),
@@ -764,6 +774,7 @@ export const createBrowserDataStore = () => {
       id: makeId(),
       name: payload.name,
       sku: payload.sku,
+      barcode: String(payload.barcode || '').trim(),
       stock: Number(payload.stock),
       salePrice: Number(payload.salePrice),
       costPrice: Number(payload.costPrice),
@@ -1167,6 +1178,7 @@ export const createBrowserDataStore = () => {
     setModuleEnabled,
     applyModulePreset,
     createProduct,
+    findProductByCode: (code) => findProductByCode(state, code),
     createSupplier,
     createSale,
     updateSale,
