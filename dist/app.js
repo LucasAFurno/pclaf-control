@@ -211,15 +211,15 @@ const loginView = (ui) => `
       <h1>${productName}</h1>
       <p class="login-copy">Ingresá con usuario y PIN para operar ventas, caja, compras y control.</p>
       <form class="login-form" data-form="login">
-        <label>Usuario<select name="userId" required>${ui.snapshot.users.filter((user) => user.isActive).map((user) => `<option value="${user.id}">${user.fullName}</option>`).join('')}</select></label>
-        <label>PIN<input type="password" name="pin" placeholder="0000" required /></label>
+        <label>Usuario o email<input type="text" name="identifier" placeholder="admin@pclaf.local" required /></label>
+        <label>PIN<input type="password" name="pin" placeholder="1234" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Ingresar</button>
       </form>
       <div class="login-hints">
-        <span>Admin: 0000</span>
-        <span>Caja: 1111</span>
-        <span>Deposito: 2222</span>
+        <span>Admin: admin@pclaf.local / 1234</span>
+        <span>Caja: caja@pclaf.local / 1111</span>
+        <span>Deposito: deposito@pclaf.local / 2222</span>
       </div>
     </div>
   </div>
@@ -703,7 +703,7 @@ const handleSubmit = (event) => {
   const kind = form.dataset.form
 
   if (kind === 'login') {
-    const result = store.authenticateUser(formData.get('userId'), formData.get('pin'))
+    const result = store.authenticateUser(formData.get('identifier'), formData.get('pin'))
     loginMessage = result.ok ? '' : result.message
     feedbackMessage = ''
     render()

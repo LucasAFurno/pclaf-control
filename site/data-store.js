@@ -74,7 +74,7 @@ const seedData = {
   registers: [],
   roles,
   users: [
-    { id: makeId(), fullName: 'Pablo Laf', roleId: roleIds.admin, email: 'admin@pclaf.local', pin: '0000', isActive: true },
+    { id: makeId(), fullName: 'Pablo Laf', roleId: roleIds.admin, email: 'admin@pclaf.local', pin: '1234', isActive: true },
     { id: makeId(), fullName: 'Mica Caja', roleId: roleIds.cashier, email: 'caja@pclaf.local', pin: '1111', isActive: true },
     { id: makeId(), fullName: 'Leo Deposito', roleId: roleIds.warehouse, email: 'deposito@pclaf.local', pin: '2222', isActive: true },
   ],
@@ -586,9 +586,18 @@ export const createBrowserDataStore = () => {
   const hasPermission = (permission) => currentRole().permissions.includes(permission)
   const isAuthenticated = () => Boolean(state.session.authenticated && state.session.userId)
 
-  const authenticateUser = (userId, pin) => {
-    const user = state.users.find((entry) => entry.id === userId && entry.isActive)
-    if (!user || user.pin !== String(pin)) return { ok: false, message: 'PIN incorrecto' }
+  const authenticateUser = (identifier, pin) => {
+    const normalized = String(identifier || '').trim().toLowerCase()
+    const user = state.users.find((entry) => (
+      entry.isActive
+      && (
+        entry.id === identifier
+        || String(entry.email || '').trim().toLowerCase() === normalized
+        || String(entry.fullName || '').trim().toLowerCase() === normalized
+      )
+    ))
+    if (!user) return { ok: false, message: 'Usuario no encontrado' }
+    if (user.pin !== String(pin)) return { ok: false, message: 'PIN incorrecto' }
     state.session.userId = user.id
     state.session.authenticated = true
     pushAudit(state, user.id, 'session', user.id, 'sign_in', { userId: user.id })
