@@ -40,6 +40,7 @@ let invoiceEditingId = ''
 let ticketEditingId = ''
 let branchEditingId = ''
 let registerEditingId = ''
+let userEditingId = ''
 let reportRegisterFilter = 'all'
 let reportDateFrom = ''
 let reportDateTo = ''
@@ -111,6 +112,12 @@ const registerActionButtons = (register) => `
   <button type="button" class="inline-action" data-register-action="edit" data-id="${register.id}">Editar</button>
   <button type="button" class="inline-action danger" data-delete="register" data-id="${register.id}">Eliminar</button>
 `
+const userActionButtons = (user) => `
+  <div class="inline-action-group">
+    <button type="button" class="inline-action" data-user-action="edit" data-id="${user.id}">Editar</button>
+    <button type="button" class="inline-action" data-user-action="toggle" data-id="${user.id}" data-active="${user.isActive ? 'true' : 'false'}">${user.isActive ? 'Desactivar' : 'Activar'}</button>
+  </div>
+`
 const planLabels = {
   basic: 'Basico',
   retail: 'Retail',
@@ -180,7 +187,7 @@ const getUiState = () => {
     cashSalesTotal,
     sessionCashMovementTotal,
     expectedCash: openCashSession ? Number(openCashSession.openingAmount) + cashSalesTotal + sessionCashMovementTotal : 0,
-    unpaidSales: scopedSales.filter((sale) => sale.status !== 'completed').reduce((sum, sale) => sum + sale.totalAmount, 0),
+    unpaidSales: scopedSales.reduce((sum, sale) => sum + Math.max(0, Number(sale.totalAmount || 0) - Number(sale.amountPaid || 0)), 0),
     totalSales: scopedSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
     pendingInvoices: scopedInvoices.filter((invoice) => invoice.status !== 'Cobrada').reduce((sum, invoice) => sum + invoice.totalAmount, 0),
     lowStock: snapshot.products.filter((product) => product.trackStock && product.stock <= product.minStock),
@@ -195,6 +202,10 @@ const getUiState = () => {
     enrichedInvoices,
     enrichedTickets,
     enrichedAudit: byRecentDate(snapshot.auditLogs, 'createdAt').slice(0, 8).map((log) => ({ ...log, actorName: userMap.get(log.actorUserId)?.fullName || 'Sistema' })),
+    enrichedUsers: snapshot.users.map((entry) => ({
+      ...entry,
+      roleName: snapshot.roles.find((roleEntry) => roleEntry.id === entry.roleId)?.name || 'Sin rol',
+    })),
     enrichedReceipts: byRecentDate(snapshot.purchaseReceipts, 'receivedAt').map((receipt) => ({
       ...receipt,
       supplierName: supplierMap.get(receipt.supplierId)?.name || 'Proveedor',
@@ -314,6 +325,9 @@ const salesView = (ui) => `
           <label>Pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option></select></label>
           <label class="checkbox-row"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} />Cobrado</label>
           <label class="checkbox-row"><input type="checkbox" name="autoInvoice" />Generar factura si corresponde</label>
+          <label>Descuento<input type="number" min="0" name="discountAmount" value="${editingSale?.discountAmount || 0}" /></label>
+          <label>Monto cobrado<input type="number" min="0" name="amountPaid" value="${editingSale?.amountPaid || 0}" /></label>
+          <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Detalle interno, referencia o condicion comercial" /></label>
           <div class="priority-list compact-list full-span">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
             <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</p></div>
@@ -339,7 +353,7 @@ const salesView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Tickets, factura y ticket postventa</p></div></div>
-        ${dataTable(['Cliente', 'Items', 'Caja', 'Total', 'Accion'], ui.enrichedSales.map((sale) => `<div class="data-row"><span>${sale.customerName}</span><span>${sale.itemSummary}</span><span>${sale.branchName} / ${sale.registerName}</span><span>${money(sale.totalAmount)}</span><span>${saleActionButtons(sale)}</span></div>`))}
+        ${dataTable(['Cliente', 'Items', 'Caja', 'Cobro', 'Accion'], ui.enrichedSales.map((sale) => `<div class="data-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}</span><span>${sale.branchName} / ${sale.registerName}</span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}
       </article>
     </section>
   </section>
@@ -433,14 +447,16 @@ const purchasesView = (ui) => `
           <input type="hidden" name="receiptId" value="${editingReceipt?.id || ''}" />
           <label>Proveedor<select name="supplierId" required>${ui.snapshot.suppliers.map((supplier) => `<option value="${supplier.id}" ${editingReceipt?.supplierId === supplier.id ? 'selected' : ''}>${supplier.name}</option>`).join('')}</select></label>
           <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}" ${editingReceipt?.productId === product.id ? 'selected' : ''}>${product.name}</option>`).join('')}</select></label>
+          <label>Comprobante<input type="text" name="documentNumber" value="${editingReceipt?.documentNumber || ''}" placeholder="FAC-000123" /></label>
           <label>Cantidad<input type="number" min="1" name="quantity" value="${editingReceipt?.quantity || ''}" required /></label>
           <label>Costo unitario<input type="number" min="0" name="unitCost" value="${editingReceipt?.unitCost || ''}" required /></label>
+          <label class="full-span">Observaciones<input type="text" name="note" value="${editingReceipt?.note || ''}" placeholder="Pedido, lote, condicion o referencia" /></label>
           <button type="submit">${editingReceipt ? 'Guardar cambios' : 'Registrar recepcion'}</button>
           ${editingReceipt ? '<button type="button" class="danger-action" data-action="cancel-purchase-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Con impacto en stock</p></div></div>
-        ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}</span><span>${receipt.productName}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
+        ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Saldos y categorias</p></div></div>
         ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
@@ -577,9 +593,25 @@ const reportsView = (ui) => `
 `
 
 const settingsView = (ui) => `
+  ${(() => {
+    const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
+    return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
     <section class="dashboard-grid reports-layout">
       <article class="panel"><div class="panel-head"><div><h3>Sesion actual</h3><p>Usuario autenticado</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}</p></div><div class="priority-item"><strong>Rol</strong><p>${ui.role.name}</p></div><div class="priority-item"><strong>Persistencia</strong><p>${ui.snapshot.meta.adapter}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar usuario' : 'Usuarios y accesos'}</h3><p>Alta de administradores, cajas y deposito</p></div></div>
+        <form class="form-grid" data-form="user">
+          <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
+          <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" required /></label>
+          <label>Email o login<input type="text" name="email" value="${editingUser?.email || ''}" placeholder="usuario@pclaf.local" /></label>
+          <label>Rol<select name="roleId" required>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
+          <label>PIN ${editingUser ? '<small>(deja vacio para no cambiarlo)</small>' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Nuevo PIN' : '1234'}" ${editingUser ? '' : 'required'} /></label>
+          <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} />Usuario activo</label>
+          <button type="submit">${editingUser ? 'Guardar usuario' : 'Crear usuario'}</button>
+          ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
+        </form>
+        ${dataTable(['Usuario', 'Rol', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.isActive ? 'Activo' : 'Inactivo'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : 'Disponible'}</span><span>${userActionButtons(entry)}</span></div>`))}
+      </article>
       <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
         <form class="form-grid" data-form="module-preset">
           <label>Preset<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Basico</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Retail</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Full</option></select></label>
@@ -597,9 +629,10 @@ const settingsView = (ui) => `
         </div>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Backup local</h3><p>Exporta o restaura los datos</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label><button type="button" class="danger-action" data-action="reset-data">Restaurar demo</button></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimos eventos</p></div></div><div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimos eventos</p></div></div><div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div></article>
     </section>
   </section>
+`})()}
 `
 
 const renderCurrentView = (ui) => {
@@ -807,6 +840,13 @@ const handleSubmit = (event) => {
     feedbackMessage = result.message || ''
     registerEditingId = ''
   }
+  if (kind === 'user') {
+    const result = formData.get('userId')
+      ? store.updateUser(formData.get('userId'), { fullName: formData.get('fullName'), email: formData.get('email'), roleId: formData.get('roleId'), pin: formData.get('pin'), isActive: formData.get('isActive') === 'on' })
+      : store.createUser({ fullName: formData.get('fullName'), email: formData.get('email'), roleId: formData.get('roleId'), pin: formData.get('pin'), isActive: formData.get('isActive') === 'on' })
+    feedbackMessage = result.message || ''
+    userEditingId = ''
+  }
   if (kind === 'report-filter') {
     reportRegisterFilter = formData.get('registerFilter') || 'all'
     reportDateFrom = formData.get('dateFrom') || ''
@@ -865,8 +905,8 @@ const handleSubmit = (event) => {
   }
   if (kind === 'purchase-receipt') {
     const result = formData.get('receiptId')
-      ? store.updatePurchaseReceipt(formData.get('receiptId'), { supplierId: formData.get('supplierId'), productId: formData.get('productId'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost') })
-      : store.createPurchaseReceipt({ supplierId: formData.get('supplierId'), productId: formData.get('productId'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost') })
+      ? store.updatePurchaseReceipt(formData.get('receiptId'), { supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
+      : store.createPurchaseReceipt({ supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
     feedbackMessage = result.message || (result.ok ? 'Recepcion registrada y stock actualizado.' : '')
     purchaseEditingId = ''
   }
@@ -875,7 +915,7 @@ const handleSubmit = (event) => {
     for (const [key, value] of formData.entries()) {
       if (key.startsWith('qty_') && Number(value) > 0) items.push({ productId: key.replace('qty_', ''), quantity: Number(value) })
     }
-    const payload = { customerId: formData.get('customerId'), channel: formData.get('channel'), paymentMethod: formData.get('paymentMethod'), isPaid: formData.get('isPaid') === 'on', autoInvoice: formData.get('autoInvoice') === 'on', items }
+    const payload = { customerId: formData.get('customerId'), channel: formData.get('channel'), paymentMethod: formData.get('paymentMethod'), isPaid: formData.get('isPaid') === 'on', autoInvoice: formData.get('autoInvoice') === 'on', discountAmount: formData.get('discountAmount'), amountPaid: formData.get('amountPaid'), note: formData.get('note'), items }
     const result = formData.get('saleId')
       ? store.updateSale(formData.get('saleId'), payload)
       : store.createSale(payload)
@@ -1016,6 +1056,19 @@ const bindEvents = () => {
       }
     })
   }
+  for (const button of document.querySelectorAll('[data-user-action]')) {
+    button.addEventListener('click', () => {
+      if (button.dataset.userAction === 'edit') {
+        userEditingId = button.dataset.id
+        feedbackMessage = 'Usuario cargado para edicion.'
+        render()
+        return
+      }
+      const result = store.toggleUserActive(button.dataset.id, button.dataset.active !== 'true')
+      feedbackMessage = result.message || ''
+      render()
+    })
+  }
 
   const themeToggle = document.querySelector('[data-action="toggle-theme"]')
   if (themeToggle) themeToggle.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; localStorage.setItem(themeStorageKey, theme); applyTheme(); render() })
@@ -1041,6 +1094,8 @@ const bindEvents = () => {
   if (cancelBranchEdit) cancelBranchEdit.addEventListener('click', () => { branchEditingId = ''; feedbackMessage = 'Edicion de sucursal cancelada.'; render() })
   const cancelRegisterEdit = document.querySelector('[data-action="cancel-register-edit"]')
   if (cancelRegisterEdit) cancelRegisterEdit.addEventListener('click', () => { registerEditingId = ''; feedbackMessage = 'Edicion de caja cancelada.'; render() })
+  const cancelUserEdit = document.querySelector('[data-action="cancel-user-edit"]')
+  if (cancelUserEdit) cancelUserEdit.addEventListener('click', () => { userEditingId = ''; feedbackMessage = 'Edicion de usuario cancelada.'; render() })
 }
 
 applyTheme()

@@ -198,6 +198,14 @@ const getScopedRegister = (state, registerId, branchId) => {
 const getCashMovementDelta = (state, sessionId) => state.cashMovements
   .filter((movement) => movement.cashSessionId === sessionId)
   .reduce((sum, movement) => sum + Number(movement.signedAmount || 0), 0)
+const getSaleBalanceDue = (sale) => Math.max(0, Number(sale.totalAmount || 0) - Number(sale.amountPaid || 0))
+const getSaleStatus = (totalAmount, amountPaid) => {
+  const total = Number(totalAmount || 0)
+  const paid = Number(amountPaid || 0)
+  if (paid <= 0) return 'pending'
+  if (paid >= total) return 'completed'
+  return 'partial'
+}
 
 const buildSaleItem = (productId, quantity, state, unitPriceOverride) => {
   const product = getProduct(state, productId)
@@ -258,9 +266,9 @@ const applySaleEffects = (state, sale) => {
     }
   }
 
-  if (sale.status !== 'completed' && sale.customerId) {
+  if (sale.customerId) {
     const customer = getCustomer(state, sale.customerId)
-    if (customer) customer.balance += Number(sale.totalAmount || 0)
+    if (customer) customer.balance += getSaleBalanceDue(sale)
   }
 }
 
@@ -270,9 +278,9 @@ const revertSaleEffects = (state, sale) => {
     if (product?.trackStock) product.stock += Number(item.quantity || 0)
   }
 
-  if (sale.status !== 'completed' && sale.customerId) {
+  if (sale.customerId) {
     const customer = getCustomer(state, sale.customerId)
-    if (customer) customer.balance = Math.max(0, Number(customer.balance || 0) - Number(sale.totalAmount || 0))
+    if (customer) customer.balance = Math.max(0, Number(customer.balance || 0) - getSaleBalanceDue(sale))
   }
 
   state.stockMovements = state.stockMovements.filter((movement) => movement.referenceId !== sale.id)
@@ -524,6 +532,8 @@ const migrateState = (source) => {
   }))
   if (Array.isArray(source.purchaseReceipts)) migrated.purchaseReceipts = source.purchaseReceipts.map((receipt) => ({
     ...receipt,
+    documentNumber: receipt.documentNumber || '',
+    note: receipt.note || '',
     branchId: receipt.branchId || migrated.business.currentBranchId || migrated.branches[0]?.id || null,
   }))
 
@@ -544,11 +554,14 @@ const migrateState = (source) => {
       customerId: sale.customerId || null,
       sellerUserId: sale.sellerUserId || migrated.users[0]?.id || '',
       totalQuantity: Number(sale.totalQuantity || items.reduce((sum, item) => sum + item.quantity, 0)),
-      totalAmount: Number(sale.totalAmount || sale.amount || items.reduce((sum, item) => sum + item.lineTotal, 0)),
-      amountPaid: sale.amountPaid ?? (sale.paid ? Number(sale.totalAmount || sale.amount || 0) : 0),
+      subtotalAmount: Number(sale.subtotalAmount || items.reduce((sum, item) => sum + item.lineTotal, 0)),
+      discountAmount: Number(sale.discountAmount || 0),
+      totalAmount: Number(sale.totalAmount || sale.amount || items.reduce((sum, item) => sum + item.lineTotal, 0) - Number(sale.discountAmount || 0)),
+      amountPaid: Number(sale.amountPaid ?? (sale.paid ? Number(sale.totalAmount || sale.amount || 0) : 0)),
       channel: sale.channel || 'Mostrador',
       paymentMethod: sale.paymentMethod || 'cash',
-      status: sale.status || (sale.paid ? 'completed' : 'pending'),
+      status: sale.status || getSaleStatus(Number(sale.totalAmount || sale.amount || items.reduce((sum, item) => sum + item.lineTotal, 0)), Number(sale.amountPaid ?? (sale.paid ? Number(sale.totalAmount || sale.amount || 0) : 0))),
+      note: sale.note || '',
       soldAt: sale.soldAt || `${sale.date || todayDate()}T12:00:00.000Z`,
       cashSessionId: sale.cashSessionId || null,
       branchId: sale.branchId || migrated.business.currentBranchId || migrated.branches[0]?.id || null,
@@ -650,6 +663,7 @@ export const createBrowserDataStore = () => {
   const signOut = () => {
     const user = currentUser()
     state.session.authenticated = false
+    state.session.userId = ''
     pushAudit(state, user.id, 'session', user.id, 'sign_out', { userId: user.id })
     save()
   }
@@ -814,6 +828,71 @@ export const createBrowserDataStore = () => {
     save()
   }
 
+  const createUser = (payload) => {
+    const normalizedEmail = String(payload.email || '').trim().toLowerCase()
+    if (!payload.fullName) return { ok: false, message: 'El usuario necesita un nombre.' }
+    if (!payload.pin || String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
+    if (normalizedEmail && state.users.some((user) => String(user.email || '').trim().toLowerCase() === normalizedEmail)) {
+      return { ok: false, message: 'Ya existe un usuario con ese email.' }
+    }
+    if (!state.roles.some((role) => role.id === payload.roleId)) return { ok: false, message: 'Rol invalido.' }
+    const user = {
+      id: makeId(),
+      fullName: payload.fullName,
+      roleId: payload.roleId,
+      email: normalizedEmail,
+      pin: String(payload.pin),
+      isActive: payload.isActive !== false,
+    }
+    state.users.unshift(user)
+    pushAudit(state, currentUser().id, 'user', user.id, 'created', { ...user, pin: '****' })
+    save()
+    return { ok: true, message: 'Usuario creado.' }
+  }
+
+  const updateUser = (userId, payload) => {
+    const user = state.users.find((entry) => entry.id === userId)
+    if (!user) return { ok: false, message: 'Usuario no encontrado.' }
+    const normalizedEmail = String(payload.email || '').trim().toLowerCase()
+    if (!payload.fullName) return { ok: false, message: 'El usuario necesita un nombre.' }
+    if (normalizedEmail && state.users.some((entry) => entry.id !== userId && String(entry.email || '').trim().toLowerCase() === normalizedEmail)) {
+      return { ok: false, message: 'Ya existe otro usuario con ese email.' }
+    }
+    if (!state.roles.some((role) => role.id === payload.roleId)) return { ok: false, message: 'Rol invalido.' }
+    if (state.session.userId === user.id && payload.isActive === false) return { ok: false, message: 'No podes desactivar la sesion actual.' }
+    const adminRoleId = state.roles.find((role) => role.key === 'admin')?.id
+    const wouldRemainAdmin = state.users.filter((entry) => entry.id !== userId && entry.isActive && entry.roleId === adminRoleId).length
+    if ((payload.roleId !== adminRoleId || payload.isActive === false) && user.roleId === adminRoleId && wouldRemainAdmin < 1) {
+      return { ok: false, message: 'Necesitas al menos un administrador activo.' }
+    }
+    const before = { ...clone(user), pin: '****' }
+    user.fullName = payload.fullName
+    user.roleId = payload.roleId
+    user.email = normalizedEmail
+    user.isActive = payload.isActive !== false
+    if (payload.pin) {
+      if (String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
+      user.pin = String(payload.pin)
+    }
+    pushAudit(state, currentUser().id, 'user', user.id, 'updated', { ...clone(user), pin: '****' }, before)
+    save()
+    return { ok: true, message: 'Usuario actualizado.' }
+  }
+
+  const toggleUserActive = (userId, isActive) => {
+    const user = state.users.find((entry) => entry.id === userId)
+    if (!user) return { ok: false, message: 'Usuario no encontrado.' }
+    if (state.session.userId === user.id && !isActive) return { ok: false, message: 'No podes desactivar la sesion actual.' }
+    const adminRoleId = state.roles.find((role) => role.key === 'admin')?.id
+    const activeAdmins = state.users.filter((entry) => entry.isActive && entry.roleId === adminRoleId)
+    if (!isActive && user.roleId === adminRoleId && activeAdmins.length <= 1) return { ok: false, message: 'Necesitas al menos un administrador activo.' }
+    const before = clone(user)
+    user.isActive = Boolean(isActive)
+    pushAudit(state, currentUser().id, 'user', user.id, user.isActive ? 'enabled' : 'disabled', { ...clone(user), pin: '****' }, { ...before, pin: '****' })
+    save()
+    return { ok: true, message: `Usuario ${user.isActive ? 'habilitado' : 'deshabilitado'}.` }
+  }
+
   const openCashSession = ({ openingAmount }) => {
     if (getOpenCashSession(state)) return { ok: false, message: 'Ya hay una caja abierta.' }
     const branch = getCurrentBranch(state)
@@ -887,8 +966,12 @@ export const createBrowserDataStore = () => {
     const stockCheck = ensureSaleStock(state, items)
     if (!stockCheck.ok) return stockCheck
 
-    const totalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
-    const amountPaid = payload.isPaid ? totalAmount : 0
+    const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
+    const discountAmount = Math.max(0, Math.min(Number(payload.discountAmount || 0), subtotalAmount))
+    const totalAmount = subtotalAmount - discountAmount
+    const rawPaid = payload.isPaid ? totalAmount : Number(payload.amountPaid || 0)
+    const amountPaid = Math.max(0, Math.min(rawPaid, totalAmount))
+    if (rawPaid > totalAmount) return { ok: false, message: 'El monto cobrado no puede superar el total.' }
     const openSession = getOpenCashSession(state)
     const currentBranch = getCurrentBranch(state)
     const register = payload.paymentMethod === 'cash'
@@ -900,11 +983,14 @@ export const createBrowserDataStore = () => {
       customerId: payload.customerId || null,
       sellerUserId: currentUser().id,
       totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
+      subtotalAmount,
+      discountAmount,
       totalAmount,
       amountPaid,
       channel: payload.channel,
       paymentMethod: payload.paymentMethod,
-      status: payload.isPaid ? 'completed' : 'pending',
+      status: getSaleStatus(totalAmount, amountPaid),
+      note: payload.note || '',
       soldAt: todayIso(),
       cashSessionId: openSession?.id || null,
       branchId: payload.paymentMethod === 'cash' ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null),
@@ -913,7 +999,7 @@ export const createBrowserDataStore = () => {
 
     state.sales.unshift(sale)
     applySaleEffects(state, sale)
-    if (payload.autoInvoice && payload.isPaid && payload.customerId) buildInvoiceForSale(state, sale.id)
+    if (payload.autoInvoice && amountPaid > 0 && payload.customerId) buildInvoiceForSale(state, sale.id)
     pushAudit(state, currentUser().id, 'sale', sale.id, 'created', sale)
     save()
     return { ok: true }
@@ -938,21 +1024,30 @@ export const createBrowserDataStore = () => {
     const register = payload.paymentMethod === 'cash'
       ? getRegister(state, openSession?.registerId)
       : getScopedRegister(state, state.business.currentRegisterId, currentBranch?.id)
+    const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
+    const discountAmount = Math.max(0, Math.min(Number(payload.discountAmount || 0), subtotalAmount))
+    const totalAmount = subtotalAmount - discountAmount
+    const rawPaid = payload.isPaid ? totalAmount : Number(payload.amountPaid || 0)
+    const amountPaid = Math.max(0, Math.min(rawPaid, totalAmount))
+    if (rawPaid > totalAmount) return { ok: false, message: 'El monto cobrado no puede superar el total.' }
     revertSaleEffects(state, sale)
     sale.items = items
     sale.customerId = payload.customerId || null
     sale.totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
-    sale.totalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
-    sale.amountPaid = payload.isPaid ? sale.totalAmount : 0
+    sale.subtotalAmount = subtotalAmount
+    sale.discountAmount = discountAmount
+    sale.totalAmount = totalAmount
+    sale.amountPaid = amountPaid
     sale.channel = payload.channel
     sale.paymentMethod = payload.paymentMethod
-    sale.status = payload.isPaid ? 'completed' : 'pending'
+    sale.status = getSaleStatus(totalAmount, amountPaid)
+    sale.note = payload.note || ''
     sale.cashSessionId = payload.paymentMethod === 'cash' ? openSession?.id || null : null
     sale.branchId = payload.paymentMethod === 'cash' ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null)
     sale.registerId = register?.id || null
     applySaleEffects(state, sale)
 
-    if (payload.autoInvoice && payload.isPaid && payload.customerId && !getInvoiceBySaleId(state, saleId)) {
+    if (payload.autoInvoice && amountPaid > 0 && payload.customerId && !getInvoiceBySaleId(state, saleId)) {
       buildInvoiceForSale(state, saleId)
     }
 
@@ -1012,9 +1107,11 @@ export const createBrowserDataStore = () => {
       id: makeId(),
       supplierId: supplier.id,
       productId: product.id,
+      documentNumber: payload.documentNumber || '',
       quantity,
       unitCost,
       totalCost: quantity * unitCost,
+      note: payload.note || '',
       receivedAt: todayIso(),
       receivedBy: currentUser().id,
       branchId: getCurrentBranch(state)?.id || null,
@@ -1033,9 +1130,11 @@ export const createBrowserDataStore = () => {
     revertPurchaseEffects(state, receipt)
     receipt.supplierId = payload.supplierId
     receipt.productId = payload.productId
+    receipt.documentNumber = payload.documentNumber || ''
     receipt.quantity = Number(payload.quantity)
     receipt.unitCost = Number(payload.unitCost)
     receipt.totalCost = receipt.quantity * receipt.unitCost
+    receipt.note = payload.note || ''
     receipt.branchId = payload.branchId || receipt.branchId || getCurrentBranch(state)?.id || null
     applyPurchaseEffects(state, receipt)
     pushAudit(state, currentUser().id, 'purchase_receipt', receipt.id, 'updated', receipt, before)
@@ -1180,6 +1279,9 @@ export const createBrowserDataStore = () => {
     createProduct,
     findProductByCode: (code) => findProductByCode(state, code),
     createSupplier,
+    createUser,
+    updateUser,
+    toggleUserActive,
     createSale,
     updateSale,
     createInvoiceFromSale,
