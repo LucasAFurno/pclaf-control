@@ -2,13 +2,38 @@
   "name": "storefront-manager",
   "version": "0.0.0",
   "private": true,
+  "description": "Herramienta de control comercial para PCLAF.",
+  "author": "PCLAF",
+  "main": "desktop/main.mjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "desktop:start": "npm run build && electron desktop/main.mjs",
+    "desktop:pack": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder"
   },
   "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
     "vite": "^8.1.1"
+  },
+  "build": {
+    "appId": "com.pclaf.control",
+    "productName": "PCLAF Control",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
   }
 }

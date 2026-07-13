@@ -6,6 +6,7 @@ const currency = new Intl.NumberFormat('es-AR', {
 
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'Control'
+const themeStorageKey = 'pclaf-control-theme'
 
 const icon = (path) => `
   <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -62,10 +63,21 @@ const loadState = () => {
   }
 }
 
+const loadTheme = () => localStorage.getItem(themeStorageKey) || 'light'
+
 let state = loadState()
+let theme = loadTheme()
 
 const saveState = () => {
   localStorage.setItem(storageKey, JSON.stringify(state))
+}
+
+const saveTheme = () => {
+  localStorage.setItem(themeStorageKey, theme)
+}
+
+const applyTheme = () => {
+  document.documentElement.dataset.theme = theme
 }
 
 const money = (value) => currency.format(Number(value) || 0)
@@ -106,7 +118,8 @@ const render = () => {
             .map(
               (item) => `
                 <button class="nav-square" type="button" data-jump="${item.id}" title="${item.label}" aria-label="${item.label}">
-                  ${item.icon}
+                  <span class="nav-icon">${item.icon}</span>
+                  <span class="nav-label">${item.label}</span>
                 </button>`,
             )
             .join('')}
@@ -127,6 +140,9 @@ const render = () => {
             </div>
           </div>
           <div class="topbar-right">
+            <button class="theme-toggle" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
+              ${theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            </button>
             <span class="badge">Online</span>
           </div>
         </header>
@@ -433,6 +449,16 @@ const bindEvents = () => {
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
+
+  const toggle = document.querySelector('[data-action="toggle-theme"]')
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      theme = theme === 'dark' ? 'light' : 'dark'
+      saveTheme()
+      applyTheme()
+      render()
+    })
+  }
 }
 
 const handleSubmit = (event) => {
@@ -503,4 +529,5 @@ const handleSubmit = (event) => {
   render()
 }
 
+applyTheme()
 render()
