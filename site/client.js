@@ -6,7 +6,6 @@ const currency = new Intl.NumberFormat('es-AR', {
 
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'Control'
-const adminSectionName = 'Operaciones'
 
 const icon = (path) => `
   <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -18,7 +17,6 @@ const seedData = {
   business: {
     name: 'Panel comercial',
     branch: 'Floresta, CABA',
-    shift: 'Sucursal central',
   },
   products: [
     { id: crypto.randomUUID(), name: 'SSD Kingston 480GB', sku: 'SSD-480', stock: 12, price: 64000, minStock: 4, category: 'Hardware' },
@@ -41,15 +39,13 @@ const seedData = {
   ],
 }
 
-const modules = [
-  { id: 'ventas', icon: icon('<path d="M4 17h16"/><path d="M7 17V9"/><path d="M12 17V5"/><path d="M17 17v-6"/>'), label: 'Ventas', detail: 'Caja y cobros' },
-  { id: 'productos', icon: icon('<path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5V16.5L12 21l9-4.5V7.5"/>'), label: 'Productos', detail: 'Stock y precios' },
-  { id: 'compras', icon: icon('<circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/><path d="M3 4h2l2.4 10.5h10.8L21 8H8"/>'), label: 'Compras', detail: 'Ingresos y costos' },
-  { id: 'facturacion', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>'), label: 'Facturacion', detail: 'Comprobantes' },
-  { id: 'clientes', icon: icon('<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>'), label: 'Clientes', detail: 'Historial y saldo' },
-  { id: 'servicio', icon: icon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/><path d="M10 15v4"/><path d="M14 15v4"/>'), label: 'Servicio', detail: 'Equipos y estados' },
-  { id: 'proveedores', icon: icon('<path d="M4 20h16"/><path d="M6 20V8l6-4 6 4v12"/><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M12 16h.01"/>'), label: 'Proveedores', detail: 'Cuentas a pagar' },
-  { id: 'reportes', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>'), label: 'Reportes', detail: 'Indicadores' },
+const navItems = [
+  { id: 'dashboard', label: 'Inicio', icon: icon('<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/>') },
+  { id: 'ventas', label: 'Ventas', icon: icon('<path d="M4 17h16"/><path d="M7 17V9"/><path d="M12 17V5"/><path d="M17 17v-6"/>') },
+  { id: 'productos', label: 'Productos', icon: icon('<path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5V16.5L12 21l9-4.5V7.5"/>') },
+  { id: 'compras', label: 'Compras', icon: icon('<circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/><path d="M3 4h2l2.4 10.5h10.8L21 8H8"/>') },
+  { id: 'facturacion', label: 'Facturas', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>') },
+  { id: 'reportes', label: 'Reportes', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>') },
 ]
 
 const storageKey = 'pclaf-control-data'
@@ -91,7 +87,7 @@ const getTopProducts = () => {
     sold.set(sale.item, (sold.get(sale.item) || 0) + sale.quantity)
   }
 
-  return [...sold.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)
+  return [...sold.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
 }
 
 const render = () => {
@@ -103,88 +99,44 @@ const render = () => {
       <aside class="sidebar">
         <div class="sidebar-brand">
           <img class="brand-logo" src="/pclaf-logo.png" alt="PCLAF" />
-          <div>
-            <strong>${productName}</strong>
-            <p>${adminSectionName}</p>
-          </div>
         </div>
 
         <nav class="sidebar-nav">
-          <a href="#dashboard">Inicio</a>
-          <a href="#ventas">Ventas</a>
-          <a href="#productos">Catalogo</a>
-          <a href="#compras">Compras</a>
-          <a href="#facturacion">Facturacion</a>
-          <a href="#clientes">Clientes</a>
-          <a href="#reportes">Reportes</a>
+          ${navItems
+            .map(
+              (item) => `
+                <button class="nav-square" type="button" data-jump="${item.id}" title="${item.label}" aria-label="${item.label}">
+                  ${item.icon}
+                </button>`,
+            )
+            .join('')}
         </nav>
-
-        <div class="sidebar-card">
-          <span>Espacio del admin</span>
-          <strong>${adminSectionName}</strong>
-          <p>Base de control para ventas, stock, compras y seguimiento operativo.</p>
-        </div>
       </aside>
 
       <div class="workspace">
         <header class="topbar">
           <div class="topbar-left">
-            <p class="kicker">Suite de gestion</p>
+            <p class="kicker">Panel de control</p>
             <h1>${productName}</h1>
             <span>${state.business.branch}</span>
           </div>
           <div class="topbar-center">
             <div class="searchbar">
               <span>Buscar</span>
-              <input type="text" placeholder="Productos, clientes, proveedores, equipos" />
+              <input type="text" placeholder="Productos, clientes, proveedores" />
             </div>
           </div>
           <div class="topbar-right">
             <span class="badge">Online</span>
-            <span class="badge muted">${adminSectionName}</span>
           </div>
         </header>
 
         <main class="page">
-          <section class="hero-panel" id="dashboard">
-            <div class="hero-copy">
-              <p class="kicker">Control central</p>
-              <h2>Una herramienta para ordenar la operacion diaria.</h2>
-              <p>
-                Pensada para crecer como solucion web y local, con foco en ventas, inventario,
-                compras, facturacion y seguimiento de procesos.
-              </p>
-            </div>
-            <div class="hero-actions">
-              <div class="hero-chip">
-                <span>Seccion del admin</span>
-                <strong>${adminSectionName}</strong>
-              </div>
-              <div class="hero-chip accent">
-                <span>Nombre de producto</span>
-                <strong>${productName}</strong>
-              </div>
-            </div>
-          </section>
-
-          <section class="module-grid">
-            ${modules
-              .map(
-                (module) => `
-                  <button class="module-card" data-jump="${module.id}" type="button">
-                    <span class="module-icon">${module.icon}</span>
-                    <strong>${module.label}</strong>
-                    <small>${module.detail}</small>
-                  </button>`,
-              )
-              .join('')}
-          </section>
-
-          <section class="metrics-grid">
+          <section class="metrics-grid" id="dashboard">
             <article class="metric-card">
               <span>Ventas registradas</span>
               <strong>${money(metrics.totalSales)}</strong>
-              <p>${state.sales.length} operaciones cargadas</p>
+              <p>${state.sales.length} operaciones</p>
             </article>
             <article class="metric-card">
               <span>Por cobrar</span>
@@ -197,9 +149,112 @@ const render = () => {
               <p>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes</p>
             </article>
             <article class="metric-card">
-              <span>Stock critico</span>
-              <strong>${metrics.lowStock.length}</strong>
-              <p>${metrics.lowStock[0] ? metrics.lowStock[0].name : 'Sin alertas'}</p>
+              <span>A pagar</span>
+              <strong>${money(metrics.payables)}</strong>
+              <p>${state.providers.length} proveedores activos</p>
+            </article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Ventas recientes</h3>
+                  <p>Lo ultimo que paso en caja</p>
+                </div>
+              </div>
+              <div class="list">
+                ${state.sales
+                  .slice()
+                  .reverse()
+                  .slice(0, 6)
+                  .map(
+                    (sale) => `
+                      <div class="list-row">
+                        <div>
+                          <strong>${sale.item}</strong>
+                          <p>${sale.date} - ${sale.channel}</p>
+                        </div>
+                        <div class="right">
+                          <strong>${money(sale.amount)}</strong>
+                          <p>${sale.quantity} un. - ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
+                        </div>
+                      </div>`,
+                  )
+                  .join('')}
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Articulos mas vendidos</h3>
+                  <p>Ranking de movimiento</p>
+                </div>
+              </div>
+              <div class="top-list">
+                ${topProducts.length
+                  ? topProducts
+                      .map(
+                        ([item, quantity], index) => `
+                          <div class="top-row">
+                            <span>${index + 1}</span>
+                            <div>
+                              <strong>${item}</strong>
+                              <p>${quantity} unidades vendidas</p>
+                            </div>
+                          </div>`,
+                      )
+                      .join('')
+                  : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Alertas de stock</h3>
+                  <p>Productos para reponer</p>
+                </div>
+              </div>
+              <div class="alert-list">
+                ${
+                  metrics.lowStock.length
+                    ? metrics.lowStock
+                        .map(
+                          (product) => `
+                            <div class="alert-card">
+                              <strong>${product.name}</strong>
+                              <p>Stock ${product.stock} / minimo ${product.minStock}</p>
+                            </div>`,
+                        )
+                        .join('')
+                    : '<div class="alert-card ok"><strong>Sin alertas criticas</strong><p>El inventario esta estable.</p></div>'
+                }
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Estado financiero</h3>
+                  <p>Cobros y compromisos</p>
+                </div>
+              </div>
+              <div class="priority-list">
+                <div class="priority-item">
+                  <strong>Cuentas por cobrar</strong>
+                  <p>${money(metrics.unpaidSales)} en operaciones pendientes</p>
+                </div>
+                <div class="priority-item">
+                  <strong>Cuentas por pagar</strong>
+                  <p>${money(metrics.payables)} comprometidos con proveedores</p>
+                </div>
+                <div class="priority-item">
+                  <strong>Facturas emitidas</strong>
+                  <p>${money(metrics.pendingInvoices)} aun no cerradas</p>
+                </div>
+              </div>
             </article>
           </section>
 
@@ -207,8 +262,8 @@ const render = () => {
             <article class="panel" id="ventas">
               <div class="panel-head">
                 <div>
-                  <h3>Ventas</h3>
-                  <p>Caja, cobros y descuentos de stock.</p>
+                  <h3>Registrar venta</h3>
+                  <p>Carga rapida de operaciones</p>
                 </div>
               </div>
               <form class="form-grid" data-form="sale">
@@ -241,33 +296,13 @@ const render = () => {
                 </label>
                 <button type="submit">Registrar venta</button>
               </form>
-              <div class="list">
-                ${state.sales
-                  .slice()
-                  .reverse()
-                  .slice(0, 4)
-                  .map(
-                    (sale) => `
-                      <div class="list-row">
-                        <div>
-                          <strong>${sale.item}</strong>
-                          <p>${sale.date} - ${sale.channel}</p>
-                        </div>
-                        <div class="right">
-                          <strong>${money(sale.amount)}</strong>
-                          <p>${sale.quantity} un. - ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
-                        </div>
-                      </div>`,
-                  )
-                  .join('')}
-              </div>
             </article>
 
             <article class="panel" id="productos">
               <div class="panel-head">
                 <div>
-                  <h3>Productos</h3>
-                  <p>Alta de articulos y servicios.</p>
+                  <h3>Alta de productos</h3>
+                  <p>Stock, precios y categorias</p>
                 </div>
               </div>
               <form class="form-grid" data-form="product">
@@ -302,8 +337,8 @@ const render = () => {
             <article class="panel" id="compras">
               <div class="panel-head">
                 <div>
-                  <h3>Compras y proveedores</h3>
-                  <p>Control de ingresos y cuentas a pagar.</p>
+                  <h3>Proveedores</h3>
+                  <p>Ingresos y saldos pendientes</p>
                 </div>
               </div>
               <form class="form-grid" data-form="provider">
@@ -333,31 +368,13 @@ const render = () => {
                 </label>
                 <button type="submit">Guardar proveedor</button>
               </form>
-              <div class="list">
-                ${state.providers
-                  .slice(0, 4)
-                  .map(
-                    (provider) => `
-                      <div class="list-row">
-                        <div>
-                          <strong>${provider.name}</strong>
-                          <p>${provider.contact} - ${provider.phone}</p>
-                        </div>
-                        <div class="right">
-                          <strong>${money(provider.balance)}</strong>
-                          <p>${provider.category}</p>
-                        </div>
-                      </div>`,
-                  )
-                  .join('')}
-              </div>
             </article>
 
             <article class="panel" id="facturacion">
               <div class="panel-head">
                 <div>
                   <h3>Facturacion</h3>
-                  <p>Comprobantes y seguimiento de cobro.</p>
+                  <p>Comprobantes y seguimiento</p>
                 </div>
               </div>
               <form class="form-grid" data-form="invoice">
@@ -395,89 +412,6 @@ const render = () => {
                 </label>
                 <button type="submit">Guardar factura</button>
               </form>
-              <div class="list">
-                ${state.invoices
-                  .slice()
-                  .reverse()
-                  .slice(0, 4)
-                  .map(
-                    (invoice) => `
-                      <div class="list-row">
-                        <div>
-                          <strong>${invoice.number}</strong>
-                          <p>${invoice.client} - Tipo ${invoice.type}</p>
-                        </div>
-                        <div class="right">
-                          <strong>${money(invoice.total)}</strong>
-                          <p>${invoice.status}</p>
-                        </div>
-                      </div>`,
-                  )
-                  .join('')}
-              </div>
-            </article>
-
-            <article class="panel" id="clientes">
-              <div class="panel-head">
-                <div>
-                  <h3>Prioridades</h3>
-                  <p>Lo mas util para seguir construyendo el producto.</p>
-                </div>
-              </div>
-              <div class="priority-list">
-                <div class="priority-item">
-                  <strong>Seguimiento operativo</strong>
-                  <p>Estados, historial, observaciones y alertas por proceso.</p>
-                </div>
-                <div class="priority-item">
-                  <strong>Multiusuario real</strong>
-                  <p>Usuarios, roles, caja por operador y permisos.</p>
-                </div>
-                <div class="priority-item">
-                  <strong>Version web y local</strong>
-                  <p>Base unica de producto con despliegue cloud y modo instalable.</p>
-                </div>
-              </div>
-            </article>
-
-            <article class="panel" id="reportes">
-              <div class="panel-head">
-                <div>
-                  <h3>Mas vendidos y alertas</h3>
-                  <p>Indicadores iniciales del negocio.</p>
-                </div>
-              </div>
-              <div class="top-list">
-                ${topProducts.length
-                  ? topProducts
-                      .map(
-                        ([item, quantity], index) => `
-                          <div class="top-row">
-                            <span>${index + 1}</span>
-                            <div>
-                              <strong>${item}</strong>
-                              <p>${quantity} unidades vendidas</p>
-                            </div>
-                          </div>`,
-                      )
-                      .join('')
-                  : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
-              </div>
-              <div class="alert-list">
-                ${
-                  metrics.lowStock.length
-                    ? metrics.lowStock
-                        .map(
-                          (product) => `
-                            <div class="alert-card">
-                              <strong>${product.name}</strong>
-                              <p>Stock ${product.stock} / minimo ${product.minStock}</p>
-                            </div>`,
-                        )
-                        .join('')
-                    : '<div class="alert-card ok"><strong>Sin alertas criticas</strong><p>El inventario esta estable.</p></div>'
-                }
-              </div>
             </article>
           </section>
         </main>
