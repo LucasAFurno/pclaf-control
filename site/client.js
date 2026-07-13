@@ -5,50 +5,48 @@ const currency = new Intl.NumberFormat('es-AR', {
 })
 
 const today = new Date().toISOString().slice(0, 10)
+const productName = 'PCLAF Control'
+const adminSectionName = 'Operaciones'
 
 const seedData = {
   business: {
-    name: 'codelector local',
-    owner: 'Lucia Torres',
-    shift: 'Sucursal Centro',
+    name: 'PCLAF Servicio Tecnico',
+    branch: 'Floresta, CABA',
+    shift: 'Sucursal central',
   },
   products: [
-    { id: crypto.randomUUID(), name: 'Yerba Tradicional 1kg', sku: 'YT-100', stock: 22, price: 5400, minStock: 10, category: 'Almacen' },
-    { id: crypto.randomUUID(), name: 'Galletitas de Avena', sku: 'GA-014', stock: 14, price: 1850, minStock: 8, category: 'Kiosco' },
-    { id: crypto.randomUUID(), name: 'Lavandina 2L', sku: 'LV-210', stock: 7, price: 3200, minStock: 9, category: 'Limpieza' },
-    { id: crypto.randomUUID(), name: 'Aceite de Girasol 900ml', sku: 'AG-900', stock: 18, price: 4100, minStock: 6, category: 'Almacen' },
+    { id: crypto.randomUUID(), name: 'SSD Kingston 480GB', sku: 'SSD-480', stock: 12, price: 64000, minStock: 4, category: 'Hardware' },
+    { id: crypto.randomUUID(), name: 'Pasta termica MX-4', sku: 'PT-MX4', stock: 18, price: 12500, minStock: 6, category: 'Insumos' },
+    { id: crypto.randomUUID(), name: 'Fuente 500W generica', sku: 'FU-500', stock: 3, price: 47000, minStock: 5, category: 'Hardware' },
+    { id: crypto.randomUUID(), name: 'Limpieza completa notebook', sku: 'SERV-LIM', stock: 99, price: 38000, minStock: 0, category: 'Servicio' },
   ],
   providers: [
-    { id: crypto.randomUUID(), name: 'Distribuidora Norte', contact: 'Marina Lopez', phone: '11 4321 9988', balance: 128000, lastDelivery: '2026-07-09', category: 'Almacen' },
-    { id: crypto.randomUUID(), name: 'Higiene Sur', contact: 'Jorge Benitez', phone: '11 5511 4010', balance: 42000, lastDelivery: '2026-07-11', category: 'Limpieza' },
+    { id: crypto.randomUUID(), name: 'Mayorista Microglobal', contact: 'Daniel Perez', phone: '11 5011 4010', balance: 218000, lastDelivery: '2026-07-10', category: 'Hardware' },
+    { id: crypto.randomUUID(), name: 'Tecnoinsumos BA', contact: 'Marina Lopez', phone: '11 4321 9988', balance: 46000, lastDelivery: '2026-07-11', category: 'Insumos' },
   ],
   sales: [
-    { id: crypto.randomUUID(), item: 'Yerba Tradicional 1kg', quantity: 3, amount: 16200, channel: 'Mostrador', paid: true, date: '2026-07-12' },
-    { id: crypto.randomUUID(), item: 'Aceite de Girasol 900ml', quantity: 2, amount: 8200, channel: 'WhatsApp', paid: true, date: '2026-07-12' },
-    { id: crypto.randomUUID(), item: 'Lavandina 2L', quantity: 1, amount: 3200, channel: 'Delivery', paid: false, date: '2026-07-11' },
+    { id: crypto.randomUUID(), item: 'Limpieza completa notebook', quantity: 1, amount: 38000, channel: 'Mostrador', paid: true, date: '2026-07-12' },
+    { id: crypto.randomUUID(), item: 'SSD Kingston 480GB', quantity: 2, amount: 128000, channel: 'WhatsApp', paid: true, date: '2026-07-12' },
+    { id: crypto.randomUUID(), item: 'Fuente 500W generica', quantity: 1, amount: 47000, channel: 'Mostrador', paid: false, date: '2026-07-11' },
   ],
   invoices: [
-    { id: crypto.randomUUID(), number: 'A-0003-000184', client: 'Punto Verde', total: 48600, status: 'Emitida', dueDate: '2026-07-20', type: 'A' },
-    { id: crypto.randomUUID(), number: 'B-0001-000992', client: 'Consumidor Final', total: 8200, status: 'Cobrada', dueDate: '2026-07-12', type: 'B' },
+    { id: crypto.randomUUID(), number: 'B-0001-001245', client: 'Juan Lopez', total: 38000, status: 'Cobrada', dueDate: '2026-07-12', type: 'B' },
+    { id: crypto.randomUUID(), number: 'A-0003-000184', client: 'Empresa Delta', total: 128000, status: 'Emitida', dueDate: '2026-07-20', type: 'A' },
   ],
 }
 
 const modules = [
-  { id: 'lector', icon: '◯', label: 'Lector', detail: 'Escaneo rapido' },
-  { id: 'caja', icon: '⚙', label: 'Caja', detail: 'Cobros y cierres' },
-  { id: 'productos', icon: '🏷', label: 'Productos', detail: 'Catalogo y precios' },
-  { id: 'precios', icon: '$', label: 'Precios', detail: 'Margenes activos' },
-  { id: 'compras', icon: '🛒', label: 'Compras', detail: 'Ordenes y recepcion' },
-  { id: 'clientes', icon: '☀', label: 'Clientes', detail: 'Segmentos frecuentes' },
-  { id: 'proveedores', icon: '⌖', label: 'Proveedores', detail: 'Cuentas a pagar' },
-  { id: 'ventas', icon: '▣', label: 'Ventas', detail: 'Ultimos movimientos' },
-  { id: 'cheques', icon: '≡', label: 'Cheques', detail: 'Calendario financiero' },
-  { id: 'cajeros', icon: '◔', label: 'Cajeros', detail: 'Turnos y permisos' },
-  { id: 'facturacion', icon: '▤', label: 'Facturacion', detail: 'Comprobantes' },
-  { id: 'reportes', icon: '✦', label: 'Reportes', detail: 'Resumen del dia' },
+  { id: 'ventas', icon: 'VT', label: 'Ventas', detail: 'Caja y cobros' },
+  { id: 'productos', icon: 'PD', label: 'Productos', detail: 'Stock y precios' },
+  { id: 'compras', icon: 'CP', label: 'Compras', detail: 'Ingresos y costos' },
+  { id: 'facturacion', icon: 'FC', label: 'Facturacion', detail: 'Comprobantes' },
+  { id: 'clientes', icon: 'CL', label: 'Clientes', detail: 'Historial y saldo' },
+  { id: 'servicio', icon: 'ST', label: 'Servicio', detail: 'Equipos en taller' },
+  { id: 'proveedores', icon: 'PR', label: 'Proveedores', detail: 'Cuentas a pagar' },
+  { id: 'reportes', icon: 'RP', label: 'Reportes', detail: 'Indicadores' },
 ]
 
-const storageKey = 'comercio360-data'
+const storageKey = 'pclaf-control-data'
 const app = document.querySelector('#app')
 
 const loadState = () => {
@@ -96,85 +94,118 @@ const render = () => {
 
   app.innerHTML = `
     <div class="app-shell">
-      <aside class="nav-rail">
-        <div class="brand-stack">
-          <div class="brand-logo">c</div>
-          <div class="rail-items">
-            <a href="#dashboard">Inicio</a>
-            <a href="#ventas">Ventas</a>
-            <a href="#compras">Compras</a>
-            <a href="#clientes">Clientes</a>
-            <a href="#proveedores">Proveedores</a>
-            <a href="#cajeros">Cajeros</a>
-            <a href="#facturacion">Facturas</a>
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-box">
+            <span>PC</span>
+            <span>LAF</span>
+          </div>
+          <div>
+            <strong>${productName}</strong>
+            <p>${adminSectionName}</p>
           </div>
         </div>
-        <div class="rail-foot">Soporte</div>
+
+        <nav class="sidebar-nav">
+          <a href="#dashboard">Inicio</a>
+          <a href="#ventas">Ventas</a>
+          <a href="#productos">Catalogo</a>
+          <a href="#compras">Compras</a>
+          <a href="#facturacion">Facturacion</a>
+          <a href="#clientes">Clientes</a>
+          <a href="#reportes">Reportes</a>
+        </nav>
+
+        <div class="sidebar-card">
+          <span>Plan sugerido</span>
+          <strong>Cloud Pro</strong>
+          <p>Multiusuario, stock, ventas y seguimiento de equipos.</p>
+        </div>
       </aside>
 
       <div class="workspace">
         <header class="topbar">
           <div class="topbar-left">
-            <strong>${state.business.name}</strong>
-            <span>${state.business.owner} - ${state.business.shift}</span>
+            <p class="kicker">PCLAF Suite</p>
+            <h1>${productName}</h1>
+            <span>${state.business.name} - ${state.business.branch}</span>
           </div>
-          <div class="searchbar">
-            <span>⌕</span>
-            <input type="text" value="" placeholder="Buscar productos, clientes y proveedores" />
+          <div class="topbar-center">
+            <div class="searchbar">
+              <span>Buscar</span>
+              <input type="text" placeholder="Productos, clientes, proveedores, equipos" />
+            </div>
           </div>
           <div class="topbar-right">
-            <span class="status-pill">Online</span>
-            <span class="avatar">${state.business.owner[0]}</span>
+            <span class="badge">Online</span>
+            <span class="badge muted">${adminSectionName}</span>
           </div>
         </header>
 
         <main class="page">
-          <section class="dashboard-card" id="dashboard">
-            <p class="section-label">Panel principal</p>
-            <h1>¿Que quieres hacer?</h1>
-            <div class="module-grid">
-              ${modules
-                .map(
-                  (module) => `
-                    <button class="module-card" data-jump="${module.id}" type="button">
-                      <span class="module-icon">${module.icon}</span>
-                      <strong>${module.label}</strong>
-                      <small>${module.detail}</small>
-                    </button>`,
-                )
-                .join('')}
+          <section class="hero-panel" id="dashboard">
+            <div class="hero-copy">
+              <p class="kicker">Gestion comercial y tecnica</p>
+              <h2>Vende, administra stock y sigue equipos desde una sola herramienta.</h2>
+              <p>
+                Base inicial de producto para PCLAF con foco en ventas, proveedores, facturacion y
+                servicios tecnicos. Pensada para escalar luego a version web y local.
+              </p>
+            </div>
+            <div class="hero-actions">
+              <div class="hero-chip">
+                <span>Seccion sugerida en tu admin</span>
+                <strong>${adminSectionName}</strong>
+              </div>
+              <div class="hero-chip accent">
+                <span>Nombre de trabajo</span>
+                <strong>${productName}</strong>
+              </div>
             </div>
           </section>
 
-          <section class="strip-metrics">
-            <article class="metric-box">
-              <span>Ventas del dia</span>
+          <section class="module-grid">
+            ${modules
+              .map(
+                (module) => `
+                  <button class="module-card" data-jump="${module.id}" type="button">
+                    <span class="module-icon">${module.icon}</span>
+                    <strong>${module.label}</strong>
+                    <small>${module.detail}</small>
+                  </button>`,
+              )
+              .join('')}
+          </section>
+
+          <section class="metrics-grid">
+            <article class="metric-card">
+              <span>Ventas registradas</span>
               <strong>${money(metrics.totalSales)}</strong>
-              <small>${state.sales.length} operaciones</small>
+              <p>${state.sales.length} operaciones cargadas</p>
             </article>
-            <article class="metric-box">
+            <article class="metric-card">
               <span>Por cobrar</span>
               <strong>${money(metrics.unpaidSales)}</strong>
-              <small>${state.sales.filter((sale) => !sale.paid).length} pendientes</small>
+              <p>${state.sales.filter((sale) => !sale.paid).length} pendientes</p>
             </article>
-            <article class="metric-box">
-              <span>Stock critico</span>
-              <strong>${metrics.lowStock.length}</strong>
-              <small>${metrics.lowStock[0] ? metrics.lowStock[0].name : 'Sin alertas'}</small>
-            </article>
-            <article class="metric-box">
+            <article class="metric-card">
               <span>Facturas abiertas</span>
               <strong>${money(metrics.pendingInvoices)}</strong>
-              <small>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes</small>
+              <p>${state.invoices.filter((invoice) => invoice.status !== 'Cobrada').length} comprobantes</p>
+            </article>
+            <article class="metric-card">
+              <span>Stock critico</span>
+              <strong>${metrics.lowStock.length}</strong>
+              <p>${metrics.lowStock[0] ? metrics.lowStock[0].name : 'Sin alertas'}</p>
             </article>
           </section>
 
           <section class="content-grid">
-            <article class="panel large-panel" id="ventas">
+            <article class="panel" id="ventas">
               <div class="panel-head">
                 <div>
-                  <h2>Ventas</h2>
-                  <p>Registra operaciones y descuenta stock automaticamente.</p>
+                  <h3>Ventas</h3>
+                  <p>Caja, cobros y descuentos de stock.</p>
                 </div>
               </div>
               <form class="form-grid" data-form="sale">
@@ -190,15 +221,15 @@ const render = () => {
                 </label>
                 <label>
                   Monto total
-                  <input type="number" name="amount" min="1" placeholder="5400" required />
+                  <input type="number" name="amount" min="1" placeholder="38000" required />
                 </label>
                 <label>
                   Canal
                   <select name="channel">
                     <option>Mostrador</option>
                     <option>WhatsApp</option>
-                    <option>Delivery</option>
-                    <option>Mayorista</option>
+                    <option>Transferencia</option>
+                    <option>Mercado Pago</option>
                   </select>
                 </label>
                 <label class="checkbox-row">
@@ -207,19 +238,19 @@ const render = () => {
                 </label>
                 <button type="submit">Registrar venta</button>
               </form>
-              <div class="mini-list">
+              <div class="list">
                 ${state.sales
                   .slice()
                   .reverse()
                   .slice(0, 4)
                   .map(
                     (sale) => `
-                      <div class="mini-row">
+                      <div class="list-row">
                         <div>
                           <strong>${sale.item}</strong>
                           <p>${sale.date} - ${sale.channel}</p>
                         </div>
-                        <div class="mini-value">
+                        <div class="right">
                           <strong>${money(sale.amount)}</strong>
                           <p>${sale.quantity} un. - ${sale.paid ? 'Cobrado' : 'Pendiente'}</p>
                         </div>
@@ -229,21 +260,21 @@ const render = () => {
               </div>
             </article>
 
-            <article class="panel side-panel" id="productos">
+            <article class="panel" id="productos">
               <div class="panel-head">
                 <div>
-                  <h2>Productos</h2>
-                  <p>Alta rapida para catalogo y stock.</p>
+                  <h3>Productos</h3>
+                  <p>Alta de articulos y servicios.</p>
                 </div>
               </div>
-              <form class="form-grid compact" data-form="product">
+              <form class="form-grid" data-form="product">
                 <label>
                   Nombre
-                  <input type="text" name="name" placeholder="Cafe molido 500g" required />
+                  <input type="text" name="name" placeholder="Mouse gamer USB" required />
                 </label>
                 <label>
                   SKU
-                  <input type="text" name="sku" placeholder="CF-500" required />
+                  <input type="text" name="sku" placeholder="MO-USB" required />
                 </label>
                 <label>
                   Stock
@@ -259,7 +290,7 @@ const render = () => {
                 </label>
                 <label>
                   Categoria
-                  <input type="text" name="category" placeholder="Almacen" required />
+                  <input type="text" name="category" placeholder="Perifericos" required />
                 </label>
                 <button type="submit">Guardar producto</button>
               </form>
@@ -268,11 +299,11 @@ const render = () => {
             <article class="panel" id="compras">
               <div class="panel-head">
                 <div>
-                  <h2>Compras y proveedores</h2>
-                  <p>Controla recepciones y cuentas a pagar.</p>
+                  <h3>Compras y proveedores</h3>
+                  <p>Control de ingresos y cuentas a pagar.</p>
                 </div>
               </div>
-              <form class="form-grid compact" data-form="provider">
+              <form class="form-grid" data-form="provider">
                 <label>
                   Empresa
                   <input type="text" name="name" required />
@@ -299,17 +330,17 @@ const render = () => {
                 </label>
                 <button type="submit">Guardar proveedor</button>
               </form>
-              <div class="mini-list">
+              <div class="list">
                 ${state.providers
                   .slice(0, 4)
                   .map(
                     (provider) => `
-                      <div class="mini-row">
+                      <div class="list-row">
                         <div>
                           <strong>${provider.name}</strong>
                           <p>${provider.contact} - ${provider.phone}</p>
                         </div>
-                        <div class="mini-value">
+                        <div class="right">
                           <strong>${money(provider.balance)}</strong>
                           <p>${provider.category}</p>
                         </div>
@@ -322,14 +353,14 @@ const render = () => {
             <article class="panel" id="facturacion">
               <div class="panel-head">
                 <div>
-                  <h2>Facturacion</h2>
-                  <p>Emite comprobantes y sigue el estado de cobro.</p>
+                  <h3>Facturacion</h3>
+                  <p>Comprobantes y seguimiento de cobro.</p>
                 </div>
               </div>
-              <form class="form-grid compact" data-form="invoice">
+              <form class="form-grid" data-form="invoice">
                 <label>
                   Numero
-                  <input type="text" name="number" placeholder="B-0001-001245" required />
+                  <input type="text" name="number" placeholder="B-0001-001555" required />
                 </label>
                 <label>
                   Cliente
@@ -361,19 +392,19 @@ const render = () => {
                 </label>
                 <button type="submit">Guardar factura</button>
               </form>
-              <div class="mini-list">
+              <div class="list">
                 ${state.invoices
                   .slice()
                   .reverse()
                   .slice(0, 4)
                   .map(
                     (invoice) => `
-                      <div class="mini-row">
+                      <div class="list-row">
                         <div>
                           <strong>${invoice.number}</strong>
                           <p>${invoice.client} - Tipo ${invoice.type}</p>
                         </div>
-                        <div class="mini-value">
+                        <div class="right">
                           <strong>${money(invoice.total)}</strong>
                           <p>${invoice.status}</p>
                         </div>
@@ -383,19 +414,42 @@ const render = () => {
               </div>
             </article>
 
-            <article class="panel stats-panel" id="clientes">
+            <article class="panel" id="clientes">
               <div class="panel-head">
                 <div>
-                  <h2>Resumen rapido</h2>
-                  <p>Accesos directos para caja, clientes y alertas.</p>
+                  <h3>Prioridades</h3>
+                  <p>Lo mas util para seguir construyendo el producto.</p>
                 </div>
               </div>
-              <div class="top-products">
+              <div class="priority-list">
+                <div class="priority-item">
+                  <strong>Seguimiento tecnico</strong>
+                  <p>Ingreso de equipos, estado, historial y avisos al cliente.</p>
+                </div>
+                <div class="priority-item">
+                  <strong>Multiusuario real</strong>
+                  <p>Usuarios, roles, caja por operador y permisos.</p>
+                </div>
+                <div class="priority-item">
+                  <strong>Version web y local</strong>
+                  <p>Base unica de producto con despliegue cloud y modo instalable.</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel" id="reportes">
+              <div class="panel-head">
+                <div>
+                  <h3>Mas vendidos y alertas</h3>
+                  <p>Indicadores iniciales del negocio.</p>
+                </div>
+              </div>
+              <div class="top-list">
                 ${topProducts.length
                   ? topProducts
                       .map(
                         ([item, quantity], index) => `
-                          <div class="top-item">
+                          <div class="top-row">
                             <span>${index + 1}</span>
                             <div>
                               <strong>${item}</strong>
@@ -412,13 +466,13 @@ const render = () => {
                     ? metrics.lowStock
                         .map(
                           (product) => `
-                            <div class="notice warning">
+                            <div class="alert-card">
                               <strong>${product.name}</strong>
                               <p>Stock ${product.stock} / minimo ${product.minStock}</p>
                             </div>`,
                         )
                         .join('')
-                    : '<div class="notice success"><strong>Inventario estable</strong><p>No hay productos debajo del minimo.</p></div>'
+                    : '<div class="alert-card ok"><strong>Sin alertas criticas</strong><p>El inventario esta estable.</p></div>'
                 }
               </div>
             </article>
