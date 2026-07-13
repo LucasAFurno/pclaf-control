@@ -5,12 +5,18 @@ const currency = new Intl.NumberFormat('es-AR', {
 })
 
 const today = new Date().toISOString().slice(0, 10)
-const productName = 'PCLAF Control'
+const productName = 'Control'
 const adminSectionName = 'Operaciones'
+
+const icon = (path) => `
+  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    ${path}
+  </svg>
+`
 
 const seedData = {
   business: {
-    name: 'PCLAF Servicio Tecnico',
+    name: 'Panel comercial',
     branch: 'Floresta, CABA',
     shift: 'Sucursal central',
   },
@@ -36,14 +42,14 @@ const seedData = {
 }
 
 const modules = [
-  { id: 'ventas', icon: 'VT', label: 'Ventas', detail: 'Caja y cobros' },
-  { id: 'productos', icon: 'PD', label: 'Productos', detail: 'Stock y precios' },
-  { id: 'compras', icon: 'CP', label: 'Compras', detail: 'Ingresos y costos' },
-  { id: 'facturacion', icon: 'FC', label: 'Facturacion', detail: 'Comprobantes' },
-  { id: 'clientes', icon: 'CL', label: 'Clientes', detail: 'Historial y saldo' },
-  { id: 'servicio', icon: 'ST', label: 'Servicio', detail: 'Equipos en taller' },
-  { id: 'proveedores', icon: 'PR', label: 'Proveedores', detail: 'Cuentas a pagar' },
-  { id: 'reportes', icon: 'RP', label: 'Reportes', detail: 'Indicadores' },
+  { id: 'ventas', icon: icon('<path d="M4 17h16"/><path d="M7 17V9"/><path d="M12 17V5"/><path d="M17 17v-6"/>'), label: 'Ventas', detail: 'Caja y cobros' },
+  { id: 'productos', icon: icon('<path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="M3 7.5V16.5L12 21l9-4.5V7.5"/>'), label: 'Productos', detail: 'Stock y precios' },
+  { id: 'compras', icon: icon('<circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/><path d="M3 4h2l2.4 10.5h10.8L21 8H8"/>'), label: 'Compras', detail: 'Ingresos y costos' },
+  { id: 'facturacion', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>'), label: 'Facturacion', detail: 'Comprobantes' },
+  { id: 'clientes', icon: icon('<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>'), label: 'Clientes', detail: 'Historial y saldo' },
+  { id: 'servicio', icon: icon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/><path d="M10 15v4"/><path d="M14 15v4"/>'), label: 'Servicio', detail: 'Equipos y estados' },
+  { id: 'proveedores', icon: icon('<path d="M4 20h16"/><path d="M6 20V8l6-4 6 4v12"/><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M12 16h.01"/>'), label: 'Proveedores', detail: 'Cuentas a pagar' },
+  { id: 'reportes', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>'), label: 'Reportes', detail: 'Indicadores' },
 ]
 
 const storageKey = 'pclaf-control-data'
@@ -96,10 +102,7 @@ const render = () => {
     <div class="app-shell">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <div class="brand-box">
-            <span>PC</span>
-            <span>LAF</span>
-          </div>
+          <img class="brand-logo" src="/pclaf-logo.png" alt="PCLAF" />
           <div>
             <strong>${productName}</strong>
             <p>${adminSectionName}</p>
@@ -117,18 +120,18 @@ const render = () => {
         </nav>
 
         <div class="sidebar-card">
-          <span>Plan sugerido</span>
-          <strong>Cloud Pro</strong>
-          <p>Multiusuario, stock, ventas y seguimiento de equipos.</p>
+          <span>Espacio del admin</span>
+          <strong>${adminSectionName}</strong>
+          <p>Base de control para ventas, stock, compras y seguimiento operativo.</p>
         </div>
       </aside>
 
       <div class="workspace">
         <header class="topbar">
           <div class="topbar-left">
-            <p class="kicker">PCLAF Suite</p>
+            <p class="kicker">Suite de gestion</p>
             <h1>${productName}</h1>
-            <span>${state.business.name} - ${state.business.branch}</span>
+            <span>${state.business.branch}</span>
           </div>
           <div class="topbar-center">
             <div class="searchbar">
@@ -145,20 +148,20 @@ const render = () => {
         <main class="page">
           <section class="hero-panel" id="dashboard">
             <div class="hero-copy">
-              <p class="kicker">Gestion comercial y tecnica</p>
-              <h2>Vende, administra stock y sigue equipos desde una sola herramienta.</h2>
+              <p class="kicker">Control central</p>
+              <h2>Una herramienta para ordenar la operacion diaria.</h2>
               <p>
-                Base inicial de producto para PCLAF con foco en ventas, proveedores, facturacion y
-                servicios tecnicos. Pensada para escalar luego a version web y local.
+                Pensada para crecer como solucion web y local, con foco en ventas, inventario,
+                compras, facturacion y seguimiento de procesos.
               </p>
             </div>
             <div class="hero-actions">
               <div class="hero-chip">
-                <span>Seccion sugerida en tu admin</span>
+                <span>Seccion del admin</span>
                 <strong>${adminSectionName}</strong>
               </div>
               <div class="hero-chip accent">
-                <span>Nombre de trabajo</span>
+                <span>Nombre de producto</span>
                 <strong>${productName}</strong>
               </div>
             </div>
@@ -423,8 +426,8 @@ const render = () => {
               </div>
               <div class="priority-list">
                 <div class="priority-item">
-                  <strong>Seguimiento tecnico</strong>
-                  <p>Ingreso de equipos, estado, historial y avisos al cliente.</p>
+                  <strong>Seguimiento operativo</strong>
+                  <p>Estados, historial, observaciones y alertas por proceso.</p>
                 </div>
                 <div class="priority-item">
                   <strong>Multiusuario real</strong>
