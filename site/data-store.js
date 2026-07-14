@@ -86,7 +86,15 @@ const seedData = {
     enabledModules: modulePresets.full,
     activePlan: 'full',
     documentCounters: {
+      invoiceA: 1,
       invoiceB: 184,
+      invoiceC: 1,
+      quote: 28,
+      remito: 14,
+      creditNoteA: 1,
+      creditNoteB: 7,
+      creditNoteC: 1,
+      receipt: 354,
       ticket: 1002,
     },
   },
@@ -180,10 +188,26 @@ const nextNumber = (state, key) => {
   state.business.documentCounters[key] = Number(state.business.documentCounters[key] || 0) + 1
   return state.business.documentCounters[key]
 }
-const generateInvoiceNumber = (state, type = 'B', branchId = state.business.currentBranchId) => {
+const documentCounterKey = (kind, letter = 'B') => {
+  if (kind === 'Factura') return `invoice${letter}`
+  if (kind === 'Nota de credito') return `creditNote${letter}`
+  if (kind === 'Presupuesto') return 'quote'
+  if (kind === 'Remito') return 'remito'
+  if (kind === 'Ticket') return 'receipt'
+  return `invoice${letter}`
+}
+const generateDocumentNumber = (state, kind = 'Factura', letter = 'B', branchId = state.business.currentBranchId) => {
   const branch = getBranch(state, branchId) || getCurrentBranch(state)
-  const seq = nextNumber(state, `invoice${type}`)
-  return `${type}-${branch?.code || 'GEN'}-0001-${String(seq).padStart(6, '0')}`
+  const seq = nextNumber(state, documentCounterKey(kind, letter))
+  if (kind === 'Factura') return `${letter}-${branch?.code || 'GEN'}-0001-${String(seq).padStart(6, '0')}`
+  if (kind === 'Nota de credito') return `NC-${letter}-${branch?.code || 'GEN'}-${String(seq).padStart(6, '0')}`
+  if (kind === 'Presupuesto') return `PRES-${branch?.code || 'GEN'}-${String(seq).padStart(6, '0')}`
+  if (kind === 'Remito') return `REM-${branch?.code || 'GEN'}-${String(seq).padStart(6, '0')}`
+  if (kind === 'Ticket') return `TCK-${branch?.code || 'GEN'}-${String(seq).padStart(6, '0')}`
+  return `${letter}-${branch?.code || 'GEN'}-0001-${String(seq).padStart(6, '0')}`
+}
+const generateInvoiceNumber = (state, type = 'B', branchId = state.business.currentBranchId) => {
+  return generateDocumentNumber(state, 'Factura', type, branchId)
 }
 const generateTicketNumber = (state, prefix = 'POST', branchId = state.business.currentBranchId) => {
   const branch = getBranch(state, branchId) || getCurrentBranch(state)
@@ -199,9 +223,29 @@ const getCashMovementDelta = (state, sessionId) => state.cashMovements
   .filter((movement) => movement.cashSessionId === sessionId)
   .reduce((sum, movement) => sum + Number(movement.signedAmount || 0), 0)
 const getSaleBalanceDue = (sale) => Math.max(0, Number(sale.totalAmount || 0) - Number(sale.amountPaid || 0))
+const getPaymentBreakdown = (payload, totalAmount) => {
+  const normalizedTotal = Number(totalAmount || 0)
+  if (payload.paymentMethod === 'mixed') {
+    return {
+      cash: Number(payload.cashAmount || 0),
+      transfer: Number(payload.transferAmount || 0),
+      mercadoPago: Number(payload.mercadoPagoAmount || 0),
+      account: Number(payload.accountAmount || 0),
+    }
+  }
+  const isPaid = Boolean(payload.isPaid)
+  return {
+    cash: payload.paymentMethod === 'cash' ? (isPaid ? normalizedTotal : Number(payload.amountPaid || 0)) : 0,
+    transfer: payload.paymentMethod === 'transfer' ? (isPaid ? normalizedTotal : Number(payload.amountPaid || 0)) : 0,
+    mercadoPago: payload.paymentMethod === 'mercado_pago' ? (isPaid ? normalizedTotal : Number(payload.amountPaid || 0)) : 0,
+    account: payload.paymentMethod === 'account' ? (normalizedTotal - Number(payload.amountPaid || 0)) : 0,
+  }
+}
+const getCashPortion = (breakdown = {}) => Number(breakdown.cash || 0)
 const getSaleStatus = (totalAmount, amountPaid) => {
   const total = Number(totalAmount || 0)
   const paid = Number(amountPaid || 0)
+  if (total <= 0) return 'completed'
   if (paid <= 0) return 'pending'
   if (paid >= total) return 'completed'
   return 'partial'
@@ -327,12 +371,14 @@ const revertPurchaseEffects = (state, receipt) => {
 
   const invoice = {
     id: makeId(),
-    number: generateInvoiceNumber(state, 'B', sale.branchId),
+    number: generateDocumentNumber(state, 'Factura', 'B', sale.branchId),
     customerId: sale.customerId,
     totalAmount: sale.totalAmount,
     status: sale.status === 'completed' ? 'Cobrada' : 'Emitida',
     dueDate: todayDate(),
     type: 'B',
+    kind: 'Factura',
+    fiscalStatus: 'Pendiente',
     saleId,
     branchId: sale.branchId || getCurrentBranch(state)?.id || null,
   }
@@ -560,6 +606,7 @@ const migrateState = (source) => {
       amountPaid: Number(sale.amountPaid ?? (sale.paid ? Number(sale.totalAmount || sale.amount || 0) : 0)),
       channel: sale.channel || 'Mostrador',
       paymentMethod: sale.paymentMethod || 'cash',
+      paymentBreakdown: sale.paymentBreakdown || getPaymentBreakdown({ paymentMethod: sale.paymentMethod || 'cash', isPaid: sale.paid, amountPaid: sale.amountPaid }, Number(sale.totalAmount || sale.amount || items.reduce((sum, item) => sum + item.lineTotal, 0))),
       status: sale.status || getSaleStatus(Number(sale.totalAmount || sale.amount || items.reduce((sum, item) => sum + item.lineTotal, 0)), Number(sale.amountPaid ?? (sale.paid ? Number(sale.totalAmount || sale.amount || 0) : 0))),
       note: sale.note || '',
       soldAt: sale.soldAt || `${sale.date || todayDate()}T12:00:00.000Z`,
@@ -577,6 +624,9 @@ const migrateState = (source) => {
     status: invoice.status || 'Emitida',
     dueDate: invoice.dueDate || todayDate(),
     type: invoice.type || 'B',
+    kind: invoice.kind || 'Factura',
+    fiscalStatus: invoice.fiscalStatus || 'Pendiente',
+    relatedDocumentId: invoice.relatedDocumentId || null,
     saleId: invoice.saleId || null,
     branchId: invoice.branchId || migrated.business.currentBranchId || migrated.branches[0]?.id || null,
   }))
@@ -921,8 +971,8 @@ export const createBrowserDataStore = () => {
     const session = getOpenCashSession(state)
     if (!session) return { ok: false, message: 'No hay caja abierta.' }
     const cashSales = state.sales
-      .filter((sale) => sale.cashSessionId === session.id && sale.paymentMethod === 'cash')
-      .reduce((sum, sale) => sum + sale.amountPaid, 0)
+      .filter((sale) => sale.cashSessionId === session.id)
+      .reduce((sum, sale) => sum + getCashPortion(sale.paymentBreakdown), 0)
     const manualDelta = getCashMovementDelta(state, session.id)
     session.countedAmount = Number(countedAmount || 0)
     session.closedAt = todayIso()
@@ -961,7 +1011,8 @@ export const createBrowserDataStore = () => {
       .map((item) => buildSaleItem(item.productId, item.quantity, state))
       .filter(Boolean)
     if (!items.length) return { ok: false, message: 'Cargá al menos un articulo.' }
-    if (payload.paymentMethod === 'cash' && !getOpenCashSession(state)) {
+    const paymentBreakdown = getPaymentBreakdown(payload, 0)
+    if (getCashPortion(paymentBreakdown) > 0 && !getOpenCashSession(state)) {
       return { ok: false, message: 'No podes cobrar en efectivo sin una caja abierta.' }
     }
     const stockCheck = ensureSaleStock(state, items)
@@ -970,12 +1021,13 @@ export const createBrowserDataStore = () => {
     const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
     const discountAmount = Math.max(0, Math.min(Number(payload.discountAmount || 0), subtotalAmount))
     const totalAmount = subtotalAmount - discountAmount
-    const rawPaid = payload.isPaid ? totalAmount : Number(payload.amountPaid || 0)
+    const effectiveBreakdown = getPaymentBreakdown(payload, totalAmount)
+    const rawPaid = payload.isPaid ? totalAmount : Object.values(effectiveBreakdown).reduce((sum, value) => sum + Number(value || 0), 0)
     const amountPaid = Math.max(0, Math.min(rawPaid, totalAmount))
     if (rawPaid > totalAmount) return { ok: false, message: 'El monto cobrado no puede superar el total.' }
     const openSession = getOpenCashSession(state)
     const currentBranch = getCurrentBranch(state)
-    const register = payload.paymentMethod === 'cash'
+    const register = getCashPortion(effectiveBreakdown) > 0
       ? getRegister(state, openSession?.registerId)
       : getScopedRegister(state, state.business.currentRegisterId, currentBranch?.id)
     const sale = {
@@ -990,11 +1042,12 @@ export const createBrowserDataStore = () => {
       amountPaid,
       channel: payload.channel,
       paymentMethod: payload.paymentMethod,
+      paymentBreakdown: effectiveBreakdown,
       status: getSaleStatus(totalAmount, amountPaid),
       note: payload.note || '',
       soldAt: todayIso(),
-      cashSessionId: openSession?.id || null,
-      branchId: payload.paymentMethod === 'cash' ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null),
+      cashSessionId: getCashPortion(effectiveBreakdown) > 0 ? openSession?.id || null : null,
+      branchId: getCashPortion(effectiveBreakdown) > 0 ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null),
       registerId: register?.id || null,
     }
 
@@ -1014,7 +1067,8 @@ export const createBrowserDataStore = () => {
       .map((item) => buildSaleItem(item.productId, item.quantity, state))
       .filter(Boolean)
     if (!items.length) return { ok: false, message: 'Cargá al menos un articulo.' }
-    if (payload.paymentMethod === 'cash' && !getOpenCashSession(state)) return { ok: false, message: 'No podes cobrar en efectivo sin una caja abierta.' }
+    const paymentBreakdown = getPaymentBreakdown(payload, 0)
+    if (getCashPortion(paymentBreakdown) > 0 && !getOpenCashSession(state)) return { ok: false, message: 'No podes cobrar en efectivo sin una caja abierta.' }
 
     const stockCheck = ensureSaleStock(state, items, saleId)
     if (!stockCheck.ok) return stockCheck
@@ -1022,13 +1076,14 @@ export const createBrowserDataStore = () => {
     const before = clone(sale)
     const openSession = getOpenCashSession(state)
     const currentBranch = getCurrentBranch(state)
-    const register = payload.paymentMethod === 'cash'
+    const register = getCashPortion(paymentBreakdown) > 0
       ? getRegister(state, openSession?.registerId)
       : getScopedRegister(state, state.business.currentRegisterId, currentBranch?.id)
     const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
     const discountAmount = Math.max(0, Math.min(Number(payload.discountAmount || 0), subtotalAmount))
     const totalAmount = subtotalAmount - discountAmount
-    const rawPaid = payload.isPaid ? totalAmount : Number(payload.amountPaid || 0)
+    const effectiveBreakdown = getPaymentBreakdown(payload, totalAmount)
+    const rawPaid = payload.isPaid ? totalAmount : Object.values(effectiveBreakdown).reduce((sum, value) => sum + Number(value || 0), 0)
     const amountPaid = Math.max(0, Math.min(rawPaid, totalAmount))
     if (rawPaid > totalAmount) return { ok: false, message: 'El monto cobrado no puede superar el total.' }
     revertSaleEffects(state, sale)
@@ -1041,10 +1096,11 @@ export const createBrowserDataStore = () => {
     sale.amountPaid = amountPaid
     sale.channel = payload.channel
     sale.paymentMethod = payload.paymentMethod
+    sale.paymentBreakdown = effectiveBreakdown
     sale.status = getSaleStatus(totalAmount, amountPaid)
     sale.note = payload.note || ''
-    sale.cashSessionId = payload.paymentMethod === 'cash' ? openSession?.id || null : null
-    sale.branchId = payload.paymentMethod === 'cash' ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null)
+    sale.cashSessionId = getCashPortion(effectiveBreakdown) > 0 ? openSession?.id || null : null
+    sale.branchId = getCashPortion(effectiveBreakdown) > 0 ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null)
     sale.registerId = register?.id || null
     applySaleEffects(state, sale)
 
@@ -1067,6 +1123,72 @@ export const createBrowserDataStore = () => {
     const result = buildInvoiceForSale(state, saleId)
     if (result.ok) save()
     return result
+  }
+
+  const cancelSale = (saleId, reason = 'Anulacion manual') => {
+    const sale = state.sales.find((entry) => entry.id === saleId)
+    if (!sale) return { ok: false, message: 'Venta no encontrada.' }
+    if (sale.status === 'cancelled') return { ok: false, message: 'La venta ya esta anulada.' }
+    const before = clone(sale)
+    revertSaleEffects(state, sale)
+    sale.status = 'cancelled'
+    sale.amountPaid = 0
+    sale.paymentBreakdown = { cash: 0, transfer: 0, mercadoPago: 0, account: 0 }
+    sale.note = [sale.note, `Anulada: ${reason}`].filter(Boolean).join(' | ')
+    state.invoices = state.invoices.map((invoice) => invoice.saleId === sale.id ? { ...invoice, status: 'Anulada', fiscalStatus: 'Anulado' } : invoice)
+    pushAudit(state, currentUser().id, 'sale', sale.id, 'cancelled', sale, before)
+    save()
+    return { ok: true, message: 'Venta anulada y movimientos revertidos.' }
+  }
+
+  const createReturnFromSale = (saleId, reason = 'Devolucion total') => {
+    const sale = state.sales.find((entry) => entry.id === saleId)
+    if (!sale) return { ok: false, message: 'Venta no encontrada.' }
+    if (sale.status === 'returned') return { ok: false, message: 'La venta ya fue devuelta.' }
+    for (const item of sale.items || []) {
+      const product = getProduct(state, item.productId)
+      if (product?.trackStock) {
+        product.stock += Number(item.quantity || 0)
+        state.stockMovements.unshift({
+          id: makeId(),
+          productId: item.productId,
+          type: 'return',
+          quantity: Number(item.quantity || 0),
+          referenceId: sale.id,
+          notes: `Devolucion de venta: ${reason}`,
+          createdAt: todayIso(),
+          createdBy: currentUser().id,
+          branchId: sale.branchId || null,
+          registerId: sale.registerId || null,
+        })
+      }
+    }
+    if (sale.customerId) {
+      const customer = getCustomer(state, sale.customerId)
+      if (customer) customer.balance = Math.max(0, Number(customer.balance || 0) - Number(sale.totalAmount || 0))
+    }
+    const note = {
+      id: makeId(),
+      number: generateDocumentNumber(state, 'Nota de credito', 'B', sale.branchId),
+      branchId: sale.branchId || getCurrentBranch(state)?.id || null,
+      customerId: sale.customerId || null,
+      totalAmount: Number(sale.totalAmount || 0),
+      status: 'Emitida',
+      dueDate: todayDate(),
+      type: 'B',
+      kind: 'Nota de credito',
+      fiscalStatus: 'Pendiente',
+      relatedDocumentId: getInvoiceBySaleId(state, sale.id)?.id || null,
+      saleId: sale.id,
+    }
+    state.invoices.unshift(note)
+    const before = clone(sale)
+    sale.status = 'returned'
+    sale.note = [sale.note, `Devuelta: ${reason}`].filter(Boolean).join(' | ')
+    pushAudit(state, currentUser().id, 'sale', sale.id, 'returned', sale, before)
+    pushAudit(state, currentUser().id, 'invoice', note.id, 'created_from_return', note)
+    save()
+    return { ok: true, message: 'Devolucion registrada y nota de credito generada.' }
   }
 
   const createTicketFromSale = (saleId) => {
@@ -1124,6 +1246,70 @@ export const createBrowserDataStore = () => {
     return { ok: true, message: 'Recepcion registrada.' }
   }
 
+  const createStockAdjustment = (payload) => {
+    const product = getProduct(state, payload.productId)
+    if (!product) return { ok: false, message: 'Producto no encontrado.' }
+    const quantity = Number(payload.quantity || 0)
+    if (!quantity) return { ok: false, message: 'La cantidad debe ser distinta de cero.' }
+    if (quantity < 0 && Number(product.stock || 0) < Math.abs(quantity)) return { ok: false, message: 'No hay stock suficiente para descontar esa cantidad.' }
+    product.stock = Math.max(0, Number(product.stock || 0) + quantity)
+    const movement = {
+      id: makeId(),
+      productId: product.id,
+      type: quantity > 0 ? 'adjustment_in' : 'adjustment_out',
+      quantity,
+      referenceId: product.id,
+      notes: payload.note || 'Ajuste manual de stock',
+      createdAt: todayIso(),
+      createdBy: currentUser().id,
+      branchId: getCurrentBranch(state)?.id || null,
+      registerId: null,
+    }
+    state.stockMovements.unshift(movement)
+    pushAudit(state, currentUser().id, 'stock_adjustment', movement.id, 'created', movement)
+    save()
+    return { ok: true, message: 'Ajuste de stock aplicado.' }
+  }
+
+  const transferStock = (payload) => {
+    const product = getProduct(state, payload.productId)
+    if (!product) return { ok: false, message: 'Producto no encontrado.' }
+    const quantity = Number(payload.quantity || 0)
+    if (quantity <= 0) return { ok: false, message: 'La cantidad debe ser mayor a cero.' }
+    if (payload.fromBranchId === payload.toBranchId) return { ok: false, message: 'La sucursal origen y destino no pueden ser la misma.' }
+    const fromBranch = getBranch(state, payload.fromBranchId)
+    const toBranch = getBranch(state, payload.toBranchId)
+    if (!fromBranch || !toBranch) return { ok: false, message: 'Sucursal invalida.' }
+    const transferId = makeId()
+    state.stockMovements.unshift({
+      id: makeId(),
+      productId: product.id,
+      type: 'transfer_out',
+      quantity: quantity * -1,
+      referenceId: transferId,
+      notes: payload.note || `Transferencia a ${toBranch.name}`,
+      createdAt: todayIso(),
+      createdBy: currentUser().id,
+      branchId: fromBranch.id,
+      registerId: null,
+    })
+    state.stockMovements.unshift({
+      id: makeId(),
+      productId: product.id,
+      type: 'transfer_in',
+      quantity,
+      referenceId: transferId,
+      notes: payload.note || `Transferencia desde ${fromBranch.name}`,
+      createdAt: todayIso(),
+      createdBy: currentUser().id,
+      branchId: toBranch.id,
+      registerId: null,
+    })
+    pushAudit(state, currentUser().id, 'stock_transfer', transferId, 'created', { productId: product.id, quantity, fromBranchId: fromBranch.id, toBranchId: toBranch.id, note: payload.note || '' })
+    save()
+    return { ok: true, message: 'Transferencia registrada entre sucursales.' }
+  }
+
   const updatePurchaseReceipt = (receiptId, payload) => {
     const receipt = state.purchaseReceipts.find((entry) => entry.id === receiptId)
     if (!receipt) return { ok: false, message: 'Recepcion no encontrada.' }
@@ -1146,18 +1332,22 @@ export const createBrowserDataStore = () => {
   const createInvoice = (payload) => {
     const invoice = {
       id: makeId(),
-      number: payload.number || generateInvoiceNumber(state, payload.type || 'B'),
+      number: payload.number || generateDocumentNumber(state, payload.kind || 'Factura', payload.type || 'B', payload.branchId || getCurrentBranch(state)?.id),
       branchId: payload.branchId || getCurrentBranch(state)?.id || null,
       customerId: payload.customerId || null,
       totalAmount: Number(payload.totalAmount),
       status: payload.status,
       dueDate: payload.dueDate,
       type: payload.type,
+      kind: payload.kind || 'Factura',
+      fiscalStatus: payload.fiscalStatus || 'Pendiente',
+      relatedDocumentId: payload.relatedDocumentId || null,
       saleId: payload.saleId || null,
     }
     state.invoices.unshift(invoice)
     pushAudit(state, currentUser().id, 'invoice', invoice.id, 'created', invoice)
     save()
+    return { ok: true, message: 'Comprobante guardado.' }
   }
 
   const updateInvoice = (invoiceId, payload) => {
@@ -1171,6 +1361,9 @@ export const createBrowserDataStore = () => {
     invoice.status = payload.status
     invoice.dueDate = payload.dueDate
     invoice.type = payload.type
+    invoice.kind = payload.kind || invoice.kind || 'Factura'
+    invoice.fiscalStatus = payload.fiscalStatus || invoice.fiscalStatus || 'Pendiente'
+    invoice.relatedDocumentId = payload.relatedDocumentId || invoice.relatedDocumentId || null
     pushAudit(state, currentUser().id, 'invoice', invoice.id, 'updated', invoice, before)
     save()
     return { ok: true, message: 'Factura actualizada.' }
@@ -1283,8 +1476,12 @@ export const createBrowserDataStore = () => {
     createUser,
     updateUser,
     toggleUserActive,
+    createStockAdjustment,
+    transferStock,
     createSale,
     updateSale,
+    cancelSale,
+    createReturnFromSale,
     createInvoiceFromSale,
     createTicketFromSale,
     createPurchaseReceipt,

@@ -78,6 +78,8 @@ const saleActionButtons = (sale) => `
   <div class="inline-action-group">
     <button type="button" class="inline-action" data-sale-action="edit" data-id="${sale.id}">Editar</button>
     <button type="button" class="inline-action" data-sale-action="invoice" data-id="${sale.id}">Facturar</button>
+    <button type="button" class="inline-action" data-sale-action="return" data-id="${sale.id}">Devolver</button>
+    <button type="button" class="inline-action" data-sale-action="cancel" data-id="${sale.id}">Anular</button>
     <button type="button" class="inline-action" data-sale-action="ticket" data-id="${sale.id}">Ticket</button>
     <button type="button" class="inline-action" data-sale-action="receipt" data-id="${sale.id}">Imprimir</button>
     <button type="button" class="inline-action" data-sale-action="export" data-id="${sale.id}">Exportar</button>
@@ -167,6 +169,9 @@ const getUiState = () => {
     itemSummary: sale.items.map((item) => `${productMap.get(item.productId)?.name || 'Articulo'} x${item.quantity}`).join(', '),
     branchName: branchMap.get(sale.branchId)?.name || 'Sucursal',
     registerName: registerMap.get(sale.registerId)?.name || 'Sin caja',
+    paymentSummary: sale.paymentMethod === 'mixed'
+      ? `Mixto: Ef ${money(sale.paymentBreakdown?.cash || 0)} / Tr ${money(sale.paymentBreakdown?.transfer || 0)} / MP ${money(sale.paymentBreakdown?.mercadoPago || 0)}`
+      : sale.paymentMethod,
   }))
   const filteredSales = byRecentDate(enrichedSales.filter((sale) => sale.branchId === currentBranch?.id && (reportRegisterFilter === 'all' || sale.registerId === reportRegisterFilter)), 'soldAt')
   const reportScopedSales = filteredSales.filter((sale) => isWithinDateRange(sale.soldAt, reportDateFrom, reportDateTo))
@@ -322,11 +327,15 @@ const salesView = (ui) => `
           <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
           <label>Cliente<select name="customerId"><option value="">Mostrador</option>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingSale?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
           <label>Canal<select name="channel"><option ${editingSale?.channel === 'Mostrador' ? 'selected' : ''}>Mostrador</option><option ${editingSale?.channel === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option><option ${editingSale?.channel === 'Transferencia' ? 'selected' : ''}>Transferencia</option><option ${editingSale?.channel === 'Mercado Libre' ? 'selected' : ''}>Mercado Libre</option></select></label>
-          <label>Pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option></select></label>
+          <label>Pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option><option value="mixed" ${editingSale?.paymentMethod === 'mixed' ? 'selected' : ''}>Mixto</option></select></label>
           <label class="checkbox-row"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} />Cobrado</label>
           <label class="checkbox-row"><input type="checkbox" name="autoInvoice" />Generar factura si corresponde</label>
           <label>Descuento<input type="number" min="0" name="discountAmount" value="${editingSale?.discountAmount || 0}" /></label>
           <label>Monto cobrado<input type="number" min="0" name="amountPaid" value="${editingSale?.amountPaid || 0}" /></label>
+          <label>Efectivo<input type="number" min="0" name="cashAmount" value="${editingSale?.paymentBreakdown?.cash || 0}" /></label>
+          <label>Transferencia<input type="number" min="0" name="transferAmount" value="${editingSale?.paymentBreakdown?.transfer || 0}" /></label>
+          <label>Mercado Pago<input type="number" min="0" name="mercadoPagoAmount" value="${editingSale?.paymentBreakdown?.mercadoPago || 0}" /></label>
+          <label>Cuenta corriente<input type="number" min="0" name="accountAmount" value="${editingSale?.paymentBreakdown?.account || 0}" /></label>
           <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Detalle interno, referencia o condicion comercial" /></label>
           <div class="priority-list compact-list full-span">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
@@ -353,7 +362,7 @@ const salesView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Tickets, factura y ticket postventa</p></div></div>
-        ${dataTable(['Cliente', 'Items', 'Caja', 'Cobro', 'Accion'], ui.enrichedSales.map((sale) => `<div class="data-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}</span><span>${sale.branchName} / ${sale.registerName}</span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}
+        ${dataTable(['Cliente', 'Items', 'Caja', 'Cobro', 'Accion'], ui.enrichedSales.map((sale) => `<div class="data-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}</span><span>${sale.branchName} / ${sale.registerName}<br /><small>${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}
       </article>
     </section>
   </section>
@@ -402,7 +411,8 @@ const cashView = (ui) => `
 
 const productsView = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Productos</p><h2>Catalogo y stock</h2></div></div>
-    <section class="content-grid single-focus">
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="dashboard-grid reports-layout">
       <article class="panel"><div class="panel-head"><div><h3>Alta de producto</h3><p>Precio, costo y stock inicial</p></div></div>
         <form class="form-grid" data-form="product">
           <label>Nombre<input type="text" name="name" required /></label>
@@ -415,6 +425,24 @@ const productsView = (ui) => `
           <label>Categoria<input type="text" name="category" required /></label>
           <label class="checkbox-row"><input type="checkbox" name="trackStock" checked />Controlar stock</label>
           <button type="submit">Guardar producto</button>
+        </form>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div></div>
+        <form class="form-grid" data-form="stock-adjustment">
+          <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}">${product.name}</option>`).join('')}</select></label>
+          <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
+          <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
+          <button type="submit">Aplicar ajuste</button>
+        </form>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div></div>
+        <form class="form-grid" data-form="stock-transfer">
+          <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}">${product.name}</option>`).join('')}</select></label>
+          <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
+          <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
+          <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
+          <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
+          <button type="submit">Registrar transferencia</button>
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Inventario</h3><p>Con stock actual</p></div></div>
@@ -477,16 +505,18 @@ const invoicesView = (ui) => `
           <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
           <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejás vacío" /></label>
           <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingInvoice?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
+          <label>Clase<select name="kind"><option ${editingInvoice?.kind === 'Factura' || !editingInvoice ? 'selected' : ''}>Factura</option><option ${editingInvoice?.kind === 'Ticket' ? 'selected' : ''}>Ticket</option><option ${editingInvoice?.kind === 'Presupuesto' ? 'selected' : ''}>Presupuesto</option><option ${editingInvoice?.kind === 'Remito' ? 'selected' : ''}>Remito</option><option ${editingInvoice?.kind === 'Nota de credito' ? 'selected' : ''}>Nota de credito</option></select></label>
           <label>Total<input type="number" min="1" name="totalAmount" value="${editingInvoice?.totalAmount || ''}" required /></label>
           <label>Tipo<select name="type"><option ${editingInvoice?.type === 'A' ? 'selected' : ''}>A</option><option ${editingInvoice?.type === 'B' || !editingInvoice ? 'selected' : ''}>B</option><option ${editingInvoice?.type === 'C' ? 'selected' : ''}>C</option></select></label>
           <label>Vencimiento<input type="date" name="dueDate" value="${editingInvoice?.dueDate || today}" required /></label>
           <label>Estado<select name="status"><option ${editingInvoice?.status === 'Emitida' || !editingInvoice ? 'selected' : ''}>Emitida</option><option ${editingInvoice?.status === 'En revision' ? 'selected' : ''}>En revision</option><option ${editingInvoice?.status === 'Cobrada' ? 'selected' : ''}>Cobrada</option></select></label>
+          <label>Estado fiscal<select name="fiscalStatus"><option ${editingInvoice?.fiscalStatus === 'Pendiente' || !editingInvoice ? 'selected' : ''}>Pendiente</option><option ${editingInvoice?.fiscalStatus === 'Listo para enviar' ? 'selected' : ''}>Listo para enviar</option><option ${editingInvoice?.fiscalStatus === 'Aprobado' ? 'selected' : ''}>Aprobado</option><option ${editingInvoice?.fiscalStatus === 'Rechazado' ? 'selected' : ''}>Rechazado</option><option ${editingInvoice?.fiscalStatus === 'Anulado' ? 'selected' : ''}>Anulado</option></select></label>
           <button type="submit">${editingInvoice ? 'Guardar cambios' : 'Guardar factura'}</button>
           ${editingInvoice ? '<button type="button" class="danger-action" data-action="cancel-invoice-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Facturas</h3><p>Seguimiento de cobro</p></div></div>
-        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}</span><span>${invoice.branchName}</span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+      <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
+        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} · ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
       </article>
     </section>
   </section>
@@ -873,12 +903,20 @@ const handleSubmit = (event) => {
     feedbackMessage = result.message || ''
   }
   if (kind === 'product') store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), barcode: formData.get('barcode'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
+  if (kind === 'stock-adjustment') {
+    const result = store.createStockAdjustment({ productId: formData.get('productId'), quantity: formData.get('quantity'), note: formData.get('note') })
+    feedbackMessage = result.message || ''
+  }
+  if (kind === 'stock-transfer') {
+    const result = store.transferStock({ productId: formData.get('productId'), quantity: formData.get('quantity'), fromBranchId: formData.get('fromBranchId'), toBranchId: formData.get('toBranchId'), note: formData.get('note') })
+    feedbackMessage = result.message || ''
+  }
   if (kind === 'supplier') store.createSupplier({ name: formData.get('name'), contact: formData.get('contact'), phone: formData.get('phone'), balance: formData.get('balance'), lastDelivery: formData.get('lastDelivery'), category: formData.get('category') })
   if (kind === 'invoice') {
     const currentBranchId = getUiState().currentBranch?.id
     const result = formData.get('invoiceId')
-      ? store.updateInvoice(formData.get('invoiceId'), { number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), branchId: currentBranchId })
-      : (store.createInvoice({ number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), branchId: currentBranchId }), { ok: true, message: 'Factura guardada.' })
+      ? store.updateInvoice(formData.get('invoiceId'), { number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
+      : store.createInvoice({ number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
     feedbackMessage = result.message || ''
     invoiceEditingId = ''
   }
@@ -915,7 +953,7 @@ const handleSubmit = (event) => {
     for (const [key, value] of formData.entries()) {
       if (key.startsWith('qty_') && Number(value) > 0) items.push({ productId: key.replace('qty_', ''), quantity: Number(value) })
     }
-    const payload = { customerId: formData.get('customerId'), channel: formData.get('channel'), paymentMethod: formData.get('paymentMethod'), isPaid: formData.get('isPaid') === 'on', autoInvoice: formData.get('autoInvoice') === 'on', discountAmount: formData.get('discountAmount'), amountPaid: formData.get('amountPaid'), note: formData.get('note'), items }
+    const payload = { customerId: formData.get('customerId'), channel: formData.get('channel'), paymentMethod: formData.get('paymentMethod'), isPaid: formData.get('isPaid') === 'on', autoInvoice: formData.get('autoInvoice') === 'on', discountAmount: formData.get('discountAmount'), amountPaid: formData.get('amountPaid'), cashAmount: formData.get('cashAmount'), transferAmount: formData.get('transferAmount'), mercadoPagoAmount: formData.get('mercadoPagoAmount'), accountAmount: formData.get('accountAmount'), note: formData.get('note'), items }
     const result = formData.get('saleId')
       ? store.updateSale(formData.get('saleId'), payload)
       : store.createSale(payload)
@@ -996,7 +1034,11 @@ const bindEvents = () => {
       }
       const result = button.dataset.saleAction === 'invoice'
         ? store.createInvoiceFromSale(button.dataset.id)
-        : store.createTicketFromSale(button.dataset.id)
+        : button.dataset.saleAction === 'ticket'
+          ? store.createTicketFromSale(button.dataset.id)
+          : button.dataset.saleAction === 'cancel'
+            ? store.cancelSale(button.dataset.id)
+            : store.createReturnFromSale(button.dataset.id)
       feedbackMessage = result.message || ''
       render()
     })
