@@ -504,6 +504,42 @@ const customersView = (ui) => `
   </section>
 `
 
+const customersViewV2 = (ui) => `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Clientes</p><h2>Base comercial</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Clientes activos</span><strong>${ui.snapshot.customers.length}</strong><p>Base disponible para ventas y facturas</p></article>
+      <article class="metric-card compact"><span>Saldo total</span><strong>${money(ui.snapshot.customers.reduce((sum, customer) => sum + Number(customer.balance || 0), 0))}</strong><p>Cuentas corrientes acumuladas</p></article>
+      <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genéricos o rápidos</p></article>
+    </section>
+    <section class="module-board customers-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>Alta de cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
+        <form class="form-grid" data-form="customer">
+          <label>Nombre<input type="text" name="fullName" required /></label>
+          <label>Telefono<input type="text" name="phone" required /></label>
+          <label>Email<input type="email" name="email" /></label>
+          <label>Saldo inicial<input type="number" name="balance" min="0" value="0" required /></label>
+          <label class="full-span">Etiqueta<input type="text" name="tag" placeholder="Mayorista, taller, mostrador..." required /></label>
+          <button type="submit">Guardar cliente</button>
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rápida de la cartera actual</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || 'Principal'}</p></div>
+            <div class="priority-item"><strong>Clientes con saldo</strong><p>${ui.snapshot.customers.filter((customer) => Number(customer.balance || 0) > 0).length}</p></div>
+            <div class="priority-item"><strong>Listos para venta</strong><p>${ui.snapshot.customers.length ? 'Base disponible' : 'Sin clientes cargados'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Preparado para cuentas corrientes</p></div></div>
+          ${dataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers.map((customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`))}
+        </article>
+      </div>
+    </section>
+  </section>
+`
+
 const salesView = (ui) => `
   ${(() => {
     const editingSale = ui.snapshot.sales.find((sale) => sale.id === saleEditingId)
@@ -865,6 +901,57 @@ const purchasesView = (ui) => `
 `})()}
 `
 
+const purchasesViewV2 = (ui) => `
+  ${(() => {
+    const editingReceipt = ui.snapshot.purchaseReceipts.find((receipt) => receipt.id === purchaseEditingId)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Compras</p><h2>Proveedores y recepcion</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Proveedores</span><strong>${ui.snapshot.suppliers.length}</strong><p>Base de compras disponible</p></article>
+      <article class="metric-card compact"><span>Recepciones</span><strong>${ui.enrichedReceipts.length}</strong><p>Ingresos registrados</p></article>
+      <article class="metric-card compact"><span>Saldo proveedor</span><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><p>Compromiso comercial actual</p></article>
+    </section>
+    <section class="module-board purchases-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>Alta de proveedor</h3><p>Base comercial de compras</p></div></div>
+        <form class="form-grid" data-form="supplier">
+          <label>Empresa<input type="text" name="name" required /></label>
+          <label>Contacto<input type="text" name="contact" required /></label>
+          <label>Telefono<input type="text" name="phone" required /></label>
+          <label>Saldo pendiente<input type="number" name="balance" min="0" required /></label>
+          <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
+          <label>Categoria<input type="text" name="category" required /></label>
+          <button type="submit">Guardar proveedor</button>
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel"><div class="panel-head"><div><h3>${editingReceipt ? 'Editar recepcion' : 'Recepcion de compra'}</h3><p>${editingReceipt ? 'Recalcula stock y saldo del proveedor' : 'Ingresa stock y costo'}</p></div></div>
+          <form class="form-grid compact-form" data-form="purchase-receipt">
+            <input type="hidden" name="receiptId" value="${editingReceipt?.id || ''}" />
+            <label>Proveedor<select name="supplierId" required>${ui.snapshot.suppliers.map((supplier) => `<option value="${supplier.id}" ${editingReceipt?.supplierId === supplier.id ? 'selected' : ''}>${supplier.name}</option>`).join('')}</select></label>
+            <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}" ${editingReceipt?.productId === product.id ? 'selected' : ''}>${product.name}</option>`).join('')}</select></label>
+            <label>Comprobante<input type="text" name="documentNumber" value="${editingReceipt?.documentNumber || ''}" placeholder="FAC-000123" /></label>
+            <label>Cantidad<input type="number" min="1" name="quantity" value="${editingReceipt?.quantity || ''}" required /></label>
+            <label>Costo unitario<input type="number" min="0" name="unitCost" value="${editingReceipt?.unitCost || ''}" required /></label>
+            <label class="full-span">Observaciones<input type="text" name="note" value="${editingReceipt?.note || ''}" placeholder="Pedido, lote, condicion o referencia" /></label>
+            <button type="submit">${editingReceipt ? 'Guardar cambios' : 'Registrar recepcion'}</button>
+            ${editingReceipt ? '<button type="button" class="danger-action" data-action="cancel-purchase-edit">Cancelar edicion</button>' : ''}
+          </form>
+        </article>
+        <div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Con impacto en stock</p></div></div>
+            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Saldos y categorias</p></div></div>
+            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
+          </article>
+        </div>
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
 const invoicesView = (ui) => `
   ${(() => {
     const editingInvoice = ui.snapshot.invoices.find((invoice) => invoice.id === invoiceEditingId)
@@ -889,6 +976,51 @@ const invoicesView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
         ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} · ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
       </article>
+    </section>
+  </section>
+`})()}
+`
+
+const invoicesViewV2 = (ui) => `
+  ${(() => {
+    const editingInvoice = ui.snapshot.invoices.find((invoice) => invoice.id === invoiceEditingId)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Facturacion</p><h2>Comprobantes</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Comprobantes</span><strong>${ui.enrichedInvoices.length}</strong><p>Emitidos para ${ui.currentBranch?.name || 'esta sucursal'}</p></article>
+      <article class="metric-card compact"><span>Abiertas</span><strong>${ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length}</strong><p>Pendientes de cobro o revision</p></article>
+      <article class="metric-card compact"><span>Monto total</span><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><p>Facturación visible del filtro</p></article>
+    </section>
+    <section class="module-board invoices-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div></div>
+        <form class="form-grid" data-form="invoice">
+          <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
+          <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
+          <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingInvoice?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
+          <label>Clase<select name="kind"><option ${editingInvoice?.kind === 'Factura' || !editingInvoice ? 'selected' : ''}>Factura</option><option ${editingInvoice?.kind === 'Ticket' ? 'selected' : ''}>Ticket</option><option ${editingInvoice?.kind === 'Presupuesto' ? 'selected' : ''}>Presupuesto</option><option ${editingInvoice?.kind === 'Remito' ? 'selected' : ''}>Remito</option><option ${editingInvoice?.kind === 'Nota de credito' ? 'selected' : ''}>Nota de credito</option></select></label>
+          <label>Total<input type="number" min="1" name="totalAmount" value="${editingInvoice?.totalAmount || ''}" required /></label>
+          <label>Tipo<select name="type"><option ${editingInvoice?.type === 'A' ? 'selected' : ''}>A</option><option ${editingInvoice?.type === 'B' || !editingInvoice ? 'selected' : ''}>B</option><option ${editingInvoice?.type === 'C' ? 'selected' : ''}>C</option></select></label>
+          <label>Vencimiento<input type="date" name="dueDate" value="${editingInvoice?.dueDate || today}" required /></label>
+          <label>Estado<select name="status"><option ${editingInvoice?.status === 'Emitida' || !editingInvoice ? 'selected' : ''}>Emitida</option><option ${editingInvoice?.status === 'En revision' ? 'selected' : ''}>En revision</option><option ${editingInvoice?.status === 'Cobrada' ? 'selected' : ''}>Cobrada</option></select></label>
+          <label>Estado fiscal<select name="fiscalStatus"><option ${editingInvoice?.fiscalStatus === 'Pendiente' || !editingInvoice ? 'selected' : ''}>Pendiente</option><option ${editingInvoice?.fiscalStatus === 'Listo para enviar' ? 'selected' : ''}>Listo para enviar</option><option ${editingInvoice?.fiscalStatus === 'Aprobado' ? 'selected' : ''}>Aprobado</option><option ${editingInvoice?.fiscalStatus === 'Rechazado' ? 'selected' : ''}>Rechazado</option><option ${editingInvoice?.fiscalStatus === 'Anulado' ? 'selected' : ''}>Anulado</option></select></label>
+          <button type="submit">${editingInvoice ? 'Guardar cambios' : 'Guardar factura'}</button>
+          ${editingInvoice ? '<button type="button" class="danger-action" data-action="cancel-invoice-edit">Cancelar edicion</button>' : ''}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Estado fiscal</h3><p>Seguimiento comercial y numeracion</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Ultimo estado</strong><p>${ui.enrichedInvoices[0]?.fiscalStatus || 'Sin comprobantes'}</p></div>
+            <div class="priority-item"><strong>Tipo mas usado</strong><p>${ui.enrichedInvoices[0]?.type || 'B'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
+          ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} · ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+        </article>
+      </div>
     </section>
   </section>
 `})()}
@@ -1128,14 +1260,14 @@ const settingsView = (ui) => `
 
 const renderCurrentView = (ui) => {
   switch (activeSection) {
-    case 'clientes': return customersView(ui)
+    case 'clientes': return customersViewV2(ui)
     case 'ventas': return salesViewV2(ui)
     case 'caja': return cashViewV2(ui)
     case 'sucursales': return branchesView(ui)
     case 'cajeros': return registersView(ui)
     case 'productos': return productsView(ui)
-    case 'compras': return purchasesView(ui)
-    case 'facturacion': return invoicesView(ui)
+    case 'compras': return purchasesViewV2(ui)
+    case 'facturacion': return invoicesViewV2(ui)
     case 'tickets': return ticketsView(ui)
     case 'reportes': return reportsView(ui)
     case 'mi-admin': return ui.user?.isOwner ? ownerAdminView(ui) : settingsView(ui)
