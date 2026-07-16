@@ -3,7 +3,7 @@ import { createCloudAuthManager } from './cloud-auth.js'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
-const productName = 'Control'
+const productName = 'PCLAF Control'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
 const dataStorageKey = 'pclaf-control-data'
@@ -234,6 +234,25 @@ const getScopedStock = (product, branchId) => {
   const branchStock = product?.stockByBranch && typeof product.stockByBranch === 'object' ? product.stockByBranch : null
   if (branchId && branchStock) return Number(branchStock[branchId] || 0)
   return Number(product?.stock || 0)
+}
+const buildQuickSearchTargets = (ui) => {
+  const normalizedEntries = []
+  const pushTarget = (section, label, keywords = []) => {
+    normalizedEntries.push({
+      section,
+      label,
+      search: [label, ...keywords].filter(Boolean).join(' ').toLowerCase(),
+    })
+  }
+  for (const item of getAllowedNav(ui)) pushTarget(item.id, item.label, [item.moduleKey])
+  for (const customer of ui.snapshot.customers) pushTarget('clientes', customer.fullName, [customer.email, customer.phone, customer.tag])
+  for (const product of ui.snapshot.products) pushTarget('productos', product.name, [product.sku, product.barcode, product.category])
+  for (const supplier of ui.snapshot.suppliers) pushTarget('compras', supplier.name, [supplier.contact, supplier.phone, supplier.category])
+  for (const invoice of ui.snapshot.invoices) pushTarget('facturacion', invoice.number, [invoice.kind, invoice.type, invoice.status])
+  for (const ticket of ui.snapshot.tickets) pushTarget('tickets', ticket.number, [ticket.device, ticket.issue, ticket.status])
+  for (const branch of ui.snapshot.branches) pushTarget('sucursales', branch.name, [branch.code, branch.address])
+  for (const register of ui.snapshot.registers) pushTarget('cajeros', register.name, [register.code])
+  return normalizedEntries
 }
 const getAllowedNav = (ui) => navItems.filter((item) => (
   store.canAccessModule(item.moduleKey, item.permission)
@@ -950,8 +969,8 @@ const renderApp = (ui) => {
   const edition = String(ui.snapshot.meta?.edition || '').toLowerCase()
   const isLocalMode = edition.includes('local')
   const statusTitle = ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'
-  const statusHint = ui.openCashSession ? `${branchName} · ${registerName}` : `${branchName} · Abri una caja para cobrar`
-  const searchOptions = allowedNav.map((item) => `<option value="${item.label}"></option>`).join('')
+  const statusHint = ui.branchRegisters.length > 1 ? registerName : ''
+  const searchOptions = buildQuickSearchTargets(ui).slice(0, 40).map((item) => `<option value="${item.label}"></option>`).join('')
 
   return `
     <div class="app-shell">
@@ -963,15 +982,15 @@ const renderApp = (ui) => {
         <header class="topbar">
           <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${productName}</h1><span>${branchName}</span></div>
           <div class="topbar-center">
-            <div class="status-card ${ui.openCashSession ? 'is-open' : 'is-closed'}">
-              <span class="status-led" aria-hidden="true"></span>
-              <div class="status-copy"><p>Estado</p><strong>${statusTitle}</strong><span>${statusHint}</span></div>
-            </div>
             <form class="quick-search" data-form="topbar-jump">
               <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
-              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Ir a ventas, clientes, stock o caja" />
+              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Buscar clientes, productos, facturas, tickets o modulos" />
               <datalist id="nav-search-options">${searchOptions}</datalist>
             </form>
+            <button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja">
+              <span class="status-led" aria-hidden="true"></span>
+              <div class="status-copy"><strong>${statusTitle}</strong>${statusHint ? `<span>${statusHint}</span>` : ''}</div>
+            </button>
           </div>
           <div class="topbar-right">
             <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
@@ -1242,16 +1261,17 @@ const handleSubmit = async (event) => {
     topbarSearch = String(formData.get('query') || '').trim()
     if (!topbarSearch) return
     const normalized = topbarSearch.toLowerCase()
-    const allowedNav = getAllowedNav(getUiState())
-    const match = allowedNav.find((item) => item.label.toLowerCase().includes(normalized) || item.id.toLowerCase().includes(normalized))
+    const ui = getUiState()
+    const match = buildQuickSearchTargets(ui).find((item) => item.search.includes(normalized))
     if (match) {
-      activeSection = match.id
+      activeSection = match.section
       topbarSearch = ''
       saveSection()
+      feedbackMessage = `Mostrando ${match.label}.`
       render()
       return
     }
-    feedbackMessage = 'No encontre un modulo con ese nombre.'
+    feedbackMessage = 'No encontre nada con ese termino en esta sesion.'
   }
   if (kind === 'module-preset') {
     const result = store.applyModulePreset(formData.get('presetKey'))

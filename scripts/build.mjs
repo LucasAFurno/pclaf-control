@@ -26,7 +26,7 @@ const html = `<!doctype html>
     <meta name="description" content="Sistema web para comercio con ventas, proveedores, stock y facturacion." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/app.css" />
-    <title>Comercio 360</title>
+    <title>PCLAF Control</title>
     <style>
       #boot-status {
         min-height: 100vh;
