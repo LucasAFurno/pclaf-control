@@ -381,7 +381,7 @@ const loginView = (ui) => `
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
       <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso productivo' : 'Acceso bloqueado'}</p>
       <h1>${productName}</h1>
-      <p class="login-copy">Ingresa con tu usuario para operar ventas, caja, stock y comprobantes sobre la base real.</p>
+      <p class="login-copy">Ingresá con tu usuario para operar ventas, caja, stock y comprobantes sobre la base real.</p>
       <form class="login-form" data-form="login">
         <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" required /></label>
         <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" required /></label>
@@ -391,7 +391,7 @@ const loginView = (ui) => `
       <div class="login-meta">
         <span class="login-meta-label">Acceso</span>
         <div class="login-hints">
-          <span>Los usuarios nuevos se crean desde el panel una vez que ingresa el administrador.</span>
+          <span>Las cuentas nuevas se habilitan desde la instancia administradora o desde el alta comercial inicial.</span>
           <span>${ui.cloudConnection.enabled ? `Instancia activa: ${ui.cloudConnection.instanceKey}` : 'La conexion cloud es obligatoria.'}</span>
         </div>
       </div>
@@ -971,11 +971,22 @@ const renderApp = (ui) => {
   const statusTitle = ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'
   const statusHint = ui.branchRegisters.length > 1 ? registerName : ''
   const searchOptions = buildQuickSearchTargets(ui).slice(0, 40).map((item) => `<option value="${item.label}"></option>`).join('')
+  const userName = ui.user?.fullName || 'Usuario'
+  const userInitials = userName.split(/\s+/).filter(Boolean).slice(0, 2).map((chunk) => chunk[0]?.toUpperCase()).join('') || 'PC'
+  const lowStockCount = ui.lowStock.length
+  const pendingInvoiceCount = ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length
+  const notificationCount = lowStockCount + pendingInvoiceCount + (ui.openCashSession ? 0 : 1)
 
   return `
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="sidebar-brand"><img class="brand-logo" src="/pclaf-logo.png" alt="PCLAF" /></div>
+        <div class="sidebar-brand">
+          <img class="brand-logo" src="/pclaf-logo.png" alt="PCLAF" />
+          <div class="sidebar-brand-copy">
+            <strong>PCLAF</strong>
+            <span>Control</span>
+          </div>
+        </div>
         <nav class="sidebar-nav">${allowedNav.map((item) => `<button class="nav-square ${activeSection === item.id ? 'is-active' : ''}" type="button" data-section="${item.id}" title="${item.label}" aria-label="${item.label}"><span class="nav-icon">${item.icon}</span><span class="nav-label">${item.label}</span></button>`).join('')}</nav>
       </aside>
       <div class="workspace">
@@ -984,15 +995,23 @@ const renderApp = (ui) => {
           <div class="topbar-center">
             <form class="quick-search" data-form="topbar-jump">
               <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
-              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Buscar clientes, productos, facturas, tickets o modulos" />
+              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Buscar ventas, clientes, productos, facturas, tickets, sucursales o cajas" />
               <datalist id="nav-search-options">${searchOptions}</datalist>
             </form>
-            <button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja">
+          </div>
+          <div class="topbar-right">
+            <button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="${statusTitle}">
               <span class="status-led" aria-hidden="true"></span>
               <div class="status-copy"><strong>${statusTitle}</strong>${statusHint ? `<span>${statusHint}</span>` : ''}</div>
             </button>
-          </div>
-          <div class="topbar-right">
+            <button class="topbar-bell" type="button" data-section="reportes" aria-label="Notificaciones">
+              <span class="nav-icon">${icon('<path d="M6 8a6 6 0 0 1 12 0c0 6 2 8 2 8H4s2-2 2-8"/><path d="M10.5 20a2 2 0 0 0 3 0"/>')}</span>
+              ${notificationCount ? `<span class="topbar-badge">${notificationCount}</span>` : ''}
+            </button>
+            <button class="account-card compact-meta" type="button" data-section="${ui.user?.isOwner ? 'mi-admin' : 'ajustes'}" aria-label="Abrir perfil">
+              <span class="account-avatar">${userInitials}</span>
+              <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}</span></span>
+            </button>
             <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
               <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
               <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
