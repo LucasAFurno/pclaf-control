@@ -281,7 +281,7 @@ input, select { outline: none; }
 
 .topbar-center {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
+  grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.1fr);
   gap: 14px;
 }
 
@@ -305,9 +305,10 @@ input, select { outline: none; }
 .status-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   align-items: center;
-  padding: 14px 16px;
+  padding: 10px 14px;
+  min-height: 58px;
 }
 
 .status-card:hover,
@@ -359,7 +360,7 @@ input, select { outline: none; }
 }
 
 .status-copy strong {
-  font-size: 0.96rem;
+  font-size: 0.88rem;
 }
 
 .quick-search {
@@ -401,9 +402,23 @@ input, select { outline: none; }
 }
 
 .topbar-logout {
-  min-width: 96px;
-  min-height: 48px;
+  min-width: 86px;
+  min-height: 42px;
   justify-content: center;
+}
+
+.topbar-runtime {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  font-size: 0.76rem;
+  font-weight: 600;
 }
 
 .user-pill {
@@ -465,9 +480,9 @@ input, select { outline: none; }
   align-items: center;
   gap: 10px;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   color: var(--text);
-  min-height: 48px;
+  min-height: 42px;
 }
 
 .theme-switch-track {
@@ -1184,6 +1199,7 @@ input, select { outline: none; }
   .account-card,
   .mode-badge,
   .theme-switch,
+  .topbar-runtime,
   .topbar-logout {
     width: 100%;
     justify-content: flex-start;

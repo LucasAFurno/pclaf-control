@@ -844,12 +844,9 @@ const renderApp = (ui) => {
   saveSection()
   const branchName = ui.currentBranch?.name || ui.snapshot.business.branch || 'Sucursal'
   const registerName = ui.currentRegister?.name || 'Sin caja asignada'
-  const planName = planLabels[ui.snapshot.business.activePlan] || 'Personalizado'
   const edition = String(ui.snapshot.meta?.edition || '').toLowerCase()
   const isLocalMode = edition.includes('local')
-  const modeName = isLocalMode ? 'Local' : 'Online'
-  const modeHint = isLocalMode ? 'Base instalada' : 'Version web'
-  const statusTitle = ui.openCashSession ? 'Caja abierta y lista para operar' : 'Caja cerrada'
+  const statusTitle = ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'
   const statusHint = ui.openCashSession ? `${branchName} · ${registerName}` : `${branchName} · Abri una caja para cobrar`
   const searchOptions = allowedNav.map((item) => `<option value="${item.label}"></option>`).join('')
 
@@ -869,23 +866,16 @@ const renderApp = (ui) => {
             </div>
             <form class="quick-search" data-form="topbar-jump">
               <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
-              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Ir rapido a ventas, caja o productos" />
+              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Ir a ventas, clientes, stock o caja" />
               <datalist id="nav-search-options">${searchOptions}</datalist>
             </form>
           </div>
           <div class="topbar-right">
-            <div class="account-card compact-meta">
-              <span class="account-avatar">${getInitials(ui.user.fullName)}</span>
-              <div class="account-copy"><strong>${ui.role.name}</strong><span>Plan ${planName}</span></div>
-            </div>
             <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
               <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
               <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
             </button>
-            <div class="mode-badge ${isLocalMode ? 'is-local' : 'is-online'}">
-              <span class="mode-dot" aria-hidden="true"></span>
-              <div class="mode-copy"><strong>${modeName}</strong><span>${modeHint}</span></div>
-            </div>
+            ${isLocalMode ? '<span class="topbar-runtime">Local</span>' : ''}
             <button class="inline-action danger topbar-logout" type="button" data-action="sign-out">Salir</button>
           </div>
         </header>
