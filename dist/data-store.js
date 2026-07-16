@@ -702,14 +702,22 @@ const migrateState = (source) => {
   return migrated
 }
 
-export const createBrowserDataStore = () => {
+export const createBrowserDataStore = (options = {}) => {
   const desktopBridge = globalThis.window?.pclafDesktop
   const isDesktop = Boolean(desktopBridge?.isDesktop)
+  const requireCloud = Boolean(options.requireCloud) && !isDesktop
+  const initialCloudConfig = options.initialCloudConfig && options.initialCloudConfig.url && options.initialCloudConfig.anonKey
+    ? {
+        url: String(options.initialCloudConfig.url || '').trim(),
+        anonKey: String(options.initialCloudConfig.anonKey || '').trim(),
+        instanceKey: String(options.initialCloudConfig.instanceKey || 'principal').trim().toLowerCase(),
+      }
+    : null
   const readCloudConfig = () => {
     if (isDesktop) return null
     try {
       const saved = localStorage.getItem(cloudConfigStorageKey)
-      if (!saved) return null
+      if (!saved) return initialCloudConfig
       const parsed = JSON.parse(saved)
       if (!parsed?.url || !parsed?.anonKey) return null
       return {
@@ -740,6 +748,7 @@ export const createBrowserDataStore = () => {
 
   const readState = () => {
     if (isDesktop) return migrateState(desktopBridge.initialize(defaultState))
+    if (requireCloud && !cloudAdapter) return clone(defaultState)
     const saved = localStorage.getItem(dataStorageKey)
     if (!saved) return clone(defaultState)
     try {
@@ -753,11 +762,11 @@ export const createBrowserDataStore = () => {
   const applyCloudMeta = (mode = 'offline', syncedAt = '') => {
     state.meta = {
       ...state.meta,
-      edition: cloudAdapter ? 'cloud-demo' : (isDesktop ? 'local-desktop' : 'local-demo'),
-      adapter: cloudAdapter ? 'supabase-rest' : (isDesktop ? 'desktop-sqlite' : 'browser-localstorage'),
-      syncStatus: mode,
+      edition: cloudAdapter ? 'cloud-demo' : (isDesktop ? 'local-desktop' : (requireCloud ? 'cloud-required' : 'local-demo')),
+      adapter: cloudAdapter ? 'supabase-rest' : (isDesktop ? 'desktop-sqlite' : (requireCloud ? 'cloud-required' : 'browser-localstorage')),
+      syncStatus: requireCloud && !cloudAdapter ? 'required' : mode,
       lastSyncedAt: syncedAt || state.meta?.lastSyncedAt || '',
-      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || 'local-demo',
+      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || (requireCloud ? 'principal' : 'local-demo'),
     }
   }
   applyCloudMeta()
@@ -766,6 +775,10 @@ export const createBrowserDataStore = () => {
     if (isDesktop) {
       applyCloudMeta()
       state = migrateState(desktopBridge.saveSnapshot(state))
+      return
+    }
+    if (requireCloud && !cloudAdapter) {
+      applyCloudMeta('required')
       return
     }
     applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
@@ -1608,6 +1621,7 @@ export const createBrowserDataStore = () => {
     url: cloudConfig?.url || defaultCloudUrl,
     anonKey: cloudConfig?.anonKey || '',
     instanceKey: cloudConfig?.instanceKey || 'principal',
+    required: requireCloud,
   })
 
   const setCloudConnection = async (config) => {
@@ -1638,6 +1652,8 @@ export const createBrowserDataStore = () => {
     hasPermission,
     canAccessModule,
     isAuthenticated,
+    isCloudRequired: () => requireCloud,
+    isCloudReady: () => isDesktop || !requireCloud || Boolean(cloudAdapter),
     authenticateUser,
     signOut,
     openCashSession,

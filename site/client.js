@@ -7,7 +7,7 @@ const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
 const defaultSupabaseUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
 
-const store = createBrowserDataStore()
+let store = null
 
 const icon = (path) => `
   <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -279,6 +279,26 @@ const loginView = (ui) => `
         <label>Clave<input type="password" name="pin" placeholder="Minimo 6 caracteres" required /></label>
         <button type="submit">Crear cuenta nueva</button>
       </form>
+    </div>
+  </div>
+`
+
+const cloudActivationView = (ui) => `
+  <div class="login-shell">
+    <div class="login-card">
+      <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
+      <p class="kicker">Activacion requerida</p>
+      <h1>${productName}</h1>
+      <p class="login-copy">Esta instalacion necesita Supabase activo antes de permitir ingresos o pruebas con clientes.</p>
+      <div class="info-strip"><strong>Cloud obligatorio</strong><span>Conecta Supabase para habilitar usuarios, ventas y comprobantes.</span></div>
+      <form class="login-form" data-form="cloud-connection">
+        <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
+        <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
+        <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
+        <button type="submit">Activar sistema</button>
+      </form>
+      ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+      <div class="panel-note"><span>Sin esta conexion, la app queda bloqueada para evitar que un cliente trabaje en local por error.</span></div>
     </div>
   </div>
 `
@@ -774,11 +794,27 @@ const renderApp = (ui) => {
 
 const render = () => {
   const ui = getUiState()
-  app.innerHTML = ui.isAuthenticated ? renderApp(ui) : loginView(ui)
+  app.innerHTML = ui.cloudConnection.required && !ui.cloudConnection.enabled
+    ? cloudActivationView(ui)
+    : (ui.isAuthenticated ? renderApp(ui) : loginView(ui))
   bindEvents()
 }
 
+const readSiteCloudConfig = async () => {
+  try {
+    const response = await fetch('/cloud-config.json', { cache: 'no-store' })
+    if (!response.ok) return null
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
 const bootstrap = async () => {
+  store = createBrowserDataStore({
+    initialCloudConfig: await readSiteCloudConfig(),
+    requireCloud: !window.pclafDesktop,
+  })
   try {
     if (store.getCloudConnection().enabled) {
       cloudSyncBusy = true
@@ -1233,3 +1269,4 @@ const bindEvents = () => {
 
 applyTheme()
 bootstrap()
+
