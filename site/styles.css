@@ -797,6 +797,31 @@ input, select { outline: none; }
   align-items: center;
 }
 
+.info-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+}
+
+.info-strip strong {
+  color: var(--text);
+}
+
+.panel-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .session-switcher {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

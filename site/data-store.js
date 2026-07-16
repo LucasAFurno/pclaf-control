@@ -2,6 +2,7 @@ import { createSupabaseSnapshotAdapter } from './cloud-sync.js'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
+const defaultCloudUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
 
 const makeId = () => crypto.randomUUID()
 const todayIso = () => new Date().toISOString()
@@ -1604,7 +1605,7 @@ export const createBrowserDataStore = () => {
 
   const getCloudConnection = () => ({
     enabled: Boolean(cloudAdapter),
-    url: cloudConfig?.url || '',
+    url: cloudConfig?.url || defaultCloudUrl,
     anonKey: cloudConfig?.anonKey || '',
     instanceKey: cloudConfig?.instanceKey || 'principal',
   })

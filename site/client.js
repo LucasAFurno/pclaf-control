@@ -5,6 +5,7 @@ const today = new Date().toISOString().slice(0, 10)
 const productName = 'Control'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
+const defaultSupabaseUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
 
 const store = createBrowserDataStore()
 
@@ -677,13 +678,15 @@ const settingsView = (ui) => `
           `).join('')}
         </div>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Sincroniza esta base con Supabase para pruebas reales</p></div></div>
+      <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Proyecto real listo para conectar con Supabase</p></div></div>
+        <div class="info-strip"><strong>Proyecto:</strong> rfwsnqmjkclxhbmidbkm <span>Solo falta pegar la clave publica y guardar.</span></div>
         <form class="form-grid" data-form="cloud-connection">
-          <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || 'https://rfwsnqmjkclxhbmidbkm.supabase.co'}" placeholder="https://xxxx.supabase.co" required /></label>
+          <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
           <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
           <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
           <button type="submit">${ui.cloudConnection.enabled ? 'Guardar y sincronizar' : 'Conectar Supabase'}</button>
         </form>
+        <div class="panel-note"><span>Busca la publishable key en Supabase: Project Settings > Data API.</span><span>Despues de conectar, esta base queda compartida entre navegadores usando la misma instancia.</span></div>
         <div class="settings-actions">
           <button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button>
           <button type="button" class="danger-action" data-action="disconnect-cloud">Volver a local</button>
