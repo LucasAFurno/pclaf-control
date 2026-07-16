@@ -610,6 +610,136 @@ const cashView = (ui) => `
   </section>
 `
 
+const salesViewV2 = (ui) => `
+  ${(() => {
+    const editingSale = ui.snapshot.sales.find((sale) => sale.id === saleEditingId)
+    if (editingSale && !Object.keys(saleDraftQuantities).length) {
+      saleDraftQuantities = Object.fromEntries((editingSale.items || []).map((item) => [item.productId, item.quantity]))
+    }
+    const quantities = new Map(Object.entries(Object.keys(saleDraftQuantities).length ? saleDraftQuantities : Object.fromEntries((editingSale?.items || []).map((item) => [item.productId, item.quantity]))))
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Ventas</p><h2>Venta multi-item</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Ventas visibles</span><strong>${ui.enrichedSales.length}</strong><p>Operaciones en ${ui.currentBranch?.name || 'esta sucursal'}</p></article>
+      <article class="metric-card compact"><span>Total vendido</span><strong>${money(ui.totalSales)}</strong><p>Ingresos del filtro activo</p></article>
+      <article class="metric-card compact"><span>Por cobrar</span><strong>${money(ui.unpaidSales)}</strong><p>Saldo pendiente comercial</p></article>
+    </section>
+    <section class="module-board sales-board">
+      <article class="panel module-side">
+        <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Nueva venta'}</h3><p>${editingSale ? 'Actualiza stock, cobro y comprobantes' : 'Carga rapida para mostrador o venta asistida'}</p></div></div>
+        <form class="form-grid sales-form" data-form="sale">
+          <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
+          <label>Cliente<select name="customerId"><option value="">Mostrador</option>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingSale?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
+          <label>Canal<select name="channel"><option ${editingSale?.channel === 'Mostrador' ? 'selected' : ''}>Mostrador</option><option ${editingSale?.channel === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option><option ${editingSale?.channel === 'Transferencia' ? 'selected' : ''}>Transferencia</option><option ${editingSale?.channel === 'Mercado Libre' ? 'selected' : ''}>Mercado Libre</option></select></label>
+          <label>Pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option><option value="mixed" ${editingSale?.paymentMethod === 'mixed' ? 'selected' : ''}>Mixto</option></select></label>
+          <div class="toggle-grid full-span">
+            <label class="checkbox-row compact-toggle"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} /><span>Cobrado</span></label>
+            <label class="checkbox-row compact-toggle"><input type="checkbox" name="autoInvoice" /><span>Generar factura</span></label>
+          </div>
+          <label>Descuento<input type="number" min="0" name="discountAmount" value="${editingSale?.discountAmount || 0}" /></label>
+          <label>Monto cobrado<input type="number" min="0" name="amountPaid" value="${editingSale?.amountPaid || 0}" /></label>
+          <details class="sales-payment-detail full-span">
+            <summary>Desglose de pago mixto</summary>
+            <div class="payment-split-grid">
+              <label>Efectivo<input type="number" min="0" name="cashAmount" value="${editingSale?.paymentBreakdown?.cash || 0}" /></label>
+              <label>Transferencia<input type="number" min="0" name="transferAmount" value="${editingSale?.paymentBreakdown?.transfer || 0}" /></label>
+              <label>Mercado Pago<input type="number" min="0" name="mercadoPagoAmount" value="${editingSale?.paymentBreakdown?.mercadoPago || 0}" /></label>
+              <label>Cuenta corriente<input type="number" min="0" name="accountAmount" value="${editingSale?.paymentBreakdown?.account || 0}" /></label>
+            </div>
+          </details>
+          <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Detalle interno, referencia o condicion comercial" /></label>
+          <div class="priority-list compact-list full-span sales-status-strip">
+            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</p></div>
+            <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Caja lista para vender' : 'Solo cobros sin efectivo'}</p></div>
+          </div>
+          <div class="full-span sales-scanner-box">
+            <div class="panel-head"><div><h3>Escaner rapido</h3><p>Lee codigo de barras, SKU o nombre exacto</p></div></div>
+            <div class="inline-action-group scanner-row">
+              <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" placeholder="Escanea o escribe codigo" />
+              <button type="button" class="primary-action" data-action="quick-add-sale">Agregar</button>
+            </div>
+          </div>
+          <p class="form-note full-span">Las ventas en efectivo solo se pueden registrar con una caja abierta. Los reportes toman sucursal y caja actual.</p>
+          <div class="full-span cart-builder">
+            ${ui.scopedProducts.map((product) => `
+              <div class="cart-line ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} · stock ${product.scopedStock} · cod. ${product.barcode || '-'}</p></div>
+                <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
+              </div>`).join('')}
+          </div>
+          <button type="submit">${editingSale ? 'Guardar cambios' : 'Registrar venta'}</button>
+          ${editingSale ? '<button type="button" class="danger-action" data-action="cancel-sale-edit">Cancelar edicion</button>' : ''}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Operacion rapida</h3><p>Resumen de la sesion actual</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession ? 'Abierta y ligada a ventas' : 'Cerrada para efectivo'}</p></div>
+            <div class="priority-item"><strong>Canal sugerido</strong><p>${editingSale?.channel || 'Mostrador'}</p></div>
+            <div class="priority-item"><strong>Cliente</strong><p>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
+          <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} · ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
+        </article>
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
+const cashViewV2 = (ui) => `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div></div>
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Estado</span><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
+      <article class="metric-card compact"><span>Efectivo esperado</span><strong>${money(ui.expectedCash)}</strong><p>Incluye ventas cash y ajustes</p></article>
+      <article class="metric-card compact"><span>Movimientos</span><strong>${ui.enrichedCashMovements.length}</strong><p>Bitacora visible del turno</p></article>
+    </section>
+    <section class="module-board cash-board">
+      <article class="panel module-side">
+        <div class="panel-head"><div><h3>Estado actual</h3><p>Control diario de efectivo</p></div></div>
+        <div class="priority-list">
+          <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</p></div>
+          <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+          <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegí una caja')}</p></div>
+          <div class="priority-item"><strong>Fondo inicial</strong><p>${money(ui.openCashSession?.openingAmount || 0)}</p></div>
+          <div class="priority-item"><strong>Ajustes manuales</strong><p>${money(ui.sessionCashMovementTotal)}</p></div>
+          <div class="priority-item"><strong>Efectivo esperado</strong><p>${money(ui.expectedCash)}</p></div>
+        </div>
+      </article>
+      <div class="module-main">
+        <div class="compact-form-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informá el efectivo contado' : 'Definí el fondo inicial'}</p></div></div>
+            <form class="form-grid compact-form" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
+              ${ui.openCashSession ? '' : `<label>Caja<select name="registerId" required>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${ui.currentRegister?.id === register.id ? 'selected' : ''}>${register.name} (${register.code})</option>`).join('')}</select></label>`}
+              <label>${ui.openCashSession ? 'Efectivo contado' : 'Monto inicial'}<input type="number" min="0" name="${ui.openCashSession ? 'countedAmount' : 'openingAmount'}" value="${ui.openCashSession ? ui.expectedCash : 0}" required /></label>
+              <button type="submit">${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</button>
+            </form>
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Movimiento manual</h3><p>Ingresos, gastos y retiros</p></div></div>
+            ${ui.openCashSession ? `<form class="form-grid compact-form" data-form="cash-movement">
+              <label>Tipo<select name="kind"><option value="income">Ingreso</option><option value="deposit">Deposito</option><option value="expense">Gasto</option><option value="withdrawal">Retiro</option></select></label>
+              <label>Importe<input type="number" min="1" name="amount" required /></label>
+              <label class="full-span">Detalle<input type="text" name="note" placeholder="Motivo del movimiento" required /></label>
+              <button type="submit">Registrar movimiento</button>
+            </form>` : '<p class="empty-state">Abrí una caja para registrar movimientos manuales.</p>'}
+          </article>
+        </div>
+        <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
+          ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavía no hay cierres para este filtro.</p>'}
+        </div></article>
+        <article class="panel"><div class="panel-head"><div><h3>Bitacora de caja</h3><p>Impacta en el arqueo esperado</p></div></div><div class="timeline-list">
+          ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} · ${money(movement.signedAmount)} · ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavía no hay movimientos manuales.</p>'}
+        </div></article>
+      </div>
+    </section>
+  </section>
+`
+
 const productsView = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Productos</p><h2>Catalogo y stock</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
@@ -999,8 +1129,8 @@ const settingsView = (ui) => `
 const renderCurrentView = (ui) => {
   switch (activeSection) {
     case 'clientes': return customersView(ui)
-    case 'ventas': return salesView(ui)
-    case 'caja': return cashView(ui)
+    case 'ventas': return salesViewV2(ui)
+    case 'caja': return cashViewV2(ui)
     case 'sucursales': return branchesView(ui)
     case 'cajeros': return registersView(ui)
     case 'productos': return productsView(ui)
