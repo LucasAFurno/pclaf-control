@@ -83,3 +83,11 @@ await writeFile(path.join(serverDir, 'index.js'), serverCode)
 await writeFile(path.join(hostingDir, 'hosting.json'), hostingJson)
 await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'favicon.svg'))
 await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(dist, 'pclaf-logo.png'))
+
+// Keep the repository root deployable as a plain static site for Sites source deployments.
+await writeFile(path.join(root, 'index.html'), html)
+await writeFile(path.join(root, 'app.css'), stylesCss)
+await writeFile(path.join(root, 'app.js'), clientJs)
+await writeFile(path.join(root, 'data-store.js'), dataStoreJs)
+await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(root, 'favicon.svg'))
+await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(root, 'pclaf-logo.png'))
