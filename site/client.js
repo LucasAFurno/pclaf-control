@@ -5,9 +5,35 @@ const today = new Date().toISOString().slice(0, 10)
 const productName = 'Control'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
+const dataStorageKey = 'pclaf-control-data'
+const cloudConfigStorageKey = 'pclaf-control-cloud-config'
 const defaultSupabaseUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
 
 let store = null
+const safeStorage = {
+  getItem(key, fallback = '') {
+    try {
+      const value = globalThis.localStorage?.getItem(key)
+      return value ?? fallback
+    } catch {
+      return fallback
+    }
+  },
+  setItem(key, value) {
+    try {
+      globalThis.localStorage?.setItem(key, value)
+    } catch {
+      // Ignore storage write failures in restricted browsers
+    }
+  },
+  removeItem(key) {
+    try {
+      globalThis.localStorage?.removeItem(key)
+    } catch {
+      // Ignore storage cleanup failures in restricted browsers
+    }
+  },
+}
 
 const icon = (path) => `
   <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -32,8 +58,8 @@ const navItems = [
 
 const app = document.querySelector('#app')
 const bootStatus = document.querySelector('#boot-status')
-let theme = localStorage.getItem(themeStorageKey) || 'dark'
-let activeSection = localStorage.getItem(sectionStorageKey) || 'dashboard'
+let theme = safeStorage.getItem(themeStorageKey, 'dark') || 'dark'
+let activeSection = safeStorage.getItem(sectionStorageKey, 'dashboard') || 'dashboard'
 let loginMessage = ''
 let feedbackMessage = ''
 let saleEditingId = ''
@@ -57,7 +83,11 @@ const markBootComplete = () => {
   window.__pclafBooted = true
   bootStatus?.remove()
 }
-const saveSection = () => localStorage.setItem(sectionStorageKey, activeSection)
+const saveSection = () => safeStorage.setItem(sectionStorageKey, activeSection)
+const resetBrokenBrowserState = () => {
+  safeStorage.removeItem(dataStorageKey)
+  safeStorage.removeItem(cloudConfigStorageKey)
+}
 const byRecentDate = (items, key) => items.slice().sort((a, b) => String(b[key]).localeCompare(String(a[key])))
 const isWithinDateRange = (value, from, to) => {
   const normalized = String(value || '').slice(0, 10)
@@ -820,10 +850,12 @@ const readSiteCloudConfig = async () => {
 }
 
 const bootstrap = async () => {
-  store = createBrowserDataStore({
-    initialCloudConfig: await readSiteCloudConfig(),
+  const initialCloudConfig = await readSiteCloudConfig()
+  const storeOptions = {
+    initialCloudConfig,
     requireCloud: !window.pclafDesktop,
-  })
+  }
+  store = createBrowserDataStore(storeOptions)
   try {
     if (store.getCloudConnection().enabled) {
       cloudSyncBusy = true
@@ -834,7 +866,14 @@ const bootstrap = async () => {
     feedbackMessage = `La web arrancó en modo local porque fallo la conexion cloud. ${error.message || ''}`.trim()
   } finally {
     cloudSyncBusy = false
-    render()
+    try {
+      render()
+    } catch (error) {
+      resetBrokenBrowserState()
+      store = createBrowserDataStore(storeOptions)
+      feedbackMessage = 'Se restauraron los datos locales para recuperar la sesion.'
+      render()
+    }
   }
 }
 
@@ -1249,7 +1288,7 @@ const bindEvents = () => {
   }
 
   const themeToggle = document.querySelector('[data-action="toggle-theme"]')
-  if (themeToggle) themeToggle.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; localStorage.setItem(themeStorageKey, theme); applyTheme(); render() })
+  if (themeToggle) themeToggle.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; safeStorage.setItem(themeStorageKey, theme); applyTheme(); render() })
   const exportButton = document.querySelector('[data-action="export-data"]')
   if (exportButton) exportButton.addEventListener('click', exportData)
   const exportReportButton = document.querySelector('[data-action="export-report"]')

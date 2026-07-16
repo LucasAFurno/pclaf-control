@@ -4,10 +4,46 @@ const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
 const defaultCloudUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
 
-const makeId = () => crypto.randomUUID()
+const fallbackId = () => `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+const makeId = () => {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  } catch {
+    // Fallback for browsers or webviews without crypto.randomUUID
+  }
+  return fallbackId()
+}
 const todayIso = () => new Date().toISOString()
 const todayDate = () => todayIso().slice(0, 10)
-const clone = (value) => structuredClone(value)
+const clone = (value) => {
+  if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value)
+  return JSON.parse(JSON.stringify(value))
+}
+const safeStorage = {
+  getItem(key) {
+    try {
+      return globalThis.localStorage?.getItem(key) ?? null
+    } catch {
+      return null
+    }
+  },
+  setItem(key, value) {
+    try {
+      globalThis.localStorage?.setItem(key, value)
+      return true
+    } catch {
+      return false
+    }
+  },
+  removeItem(key) {
+    try {
+      globalThis.localStorage?.removeItem(key)
+      return true
+    } catch {
+      return false
+    }
+  },
+}
 
 const permissionCatalog = {
   dashboard: 'dashboard:view',
@@ -716,7 +752,7 @@ export const createBrowserDataStore = (options = {}) => {
   const readCloudConfig = () => {
     if (isDesktop) return null
     try {
-      const saved = localStorage.getItem(cloudConfigStorageKey)
+      const saved = safeStorage.getItem(cloudConfigStorageKey)
       if (!saved) return initialCloudConfig
       const parsed = JSON.parse(saved)
       if (!parsed?.url || !parsed?.anonKey) return null
@@ -732,7 +768,7 @@ export const createBrowserDataStore = (options = {}) => {
   const writeCloudConfig = (config) => {
     if (isDesktop) return null
     if (!config?.url || !config?.anonKey) {
-      localStorage.removeItem(cloudConfigStorageKey)
+      safeStorage.removeItem(cloudConfigStorageKey)
       return null
     }
     const normalized = {
@@ -740,7 +776,7 @@ export const createBrowserDataStore = (options = {}) => {
       anonKey: String(config.anonKey || '').trim(),
       instanceKey: String(config.instanceKey || 'principal').trim().toLowerCase(),
     }
-    localStorage.setItem(cloudConfigStorageKey, JSON.stringify(normalized))
+    safeStorage.setItem(cloudConfigStorageKey, JSON.stringify(normalized))
     return normalized
   }
   let cloudConfig = readCloudConfig()
@@ -749,7 +785,7 @@ export const createBrowserDataStore = (options = {}) => {
   const readState = () => {
     if (isDesktop) return migrateState(desktopBridge.initialize(defaultState))
     if (requireCloud && !cloudAdapter) return clone(defaultState)
-    const saved = localStorage.getItem(dataStorageKey)
+    const saved = safeStorage.getItem(dataStorageKey)
     if (!saved) return clone(defaultState)
     try {
       return migrateState(JSON.parse(saved))
@@ -782,7 +818,7 @@ export const createBrowserDataStore = (options = {}) => {
       return
     }
     applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
-    localStorage.setItem(dataStorageKey, JSON.stringify(state))
+    safeStorage.setItem(dataStorageKey, JSON.stringify(state))
     if (cloudAdapter) {
       queueMicrotask(() => {
         syncToCloud().catch(() => {})
@@ -796,7 +832,7 @@ export const createBrowserDataStore = (options = {}) => {
     applyCloudMeta('syncing')
     const row = await cloudAdapter.save(payload)
     applyCloudMeta('online', row?.updated_at || todayIso())
-    localStorage.setItem(dataStorageKey, JSON.stringify(state))
+    safeStorage.setItem(dataStorageKey, JSON.stringify(state))
     return { ok: true, message: 'Sincronizacion completada.' }
   }
 
@@ -807,7 +843,7 @@ export const createBrowserDataStore = (options = {}) => {
     if (row?.state_json) {
       state = migrateState(row.state_json)
       applyCloudMeta('online', row.updated_at || todayIso())
-      localStorage.setItem(dataStorageKey, JSON.stringify(state))
+      safeStorage.setItem(dataStorageKey, JSON.stringify(state))
       return { ok: true, message: 'Base remota cargada.' }
     }
     await syncToCloud()
