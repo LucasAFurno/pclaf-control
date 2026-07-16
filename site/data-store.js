@@ -76,9 +76,10 @@ const moduleCatalog = {
 }
 
 const modulePresets = {
-  basic: ['dashboard', 'customers', 'sales', 'cash', 'products', 'reports', 'settings'],
-  retail: ['dashboard', 'customers', 'sales', 'cash', 'branches', 'registers', 'products', 'purchases', 'invoices', 'reports', 'settings'],
-  full: Object.keys(moduleCatalog),
+  basic: ['dashboard', 'products', 'purchases', 'invoices', 'settings'],
+  retail: ['dashboard', 'customers', 'sales', 'cash', 'products', 'invoices', 'settings'],
+  full: ['dashboard', 'customers', 'sales', 'cash', 'products', 'purchases', 'invoices', 'reports', 'settings'],
+  multi: Object.keys(moduleCatalog),
 }
 
 const roles = [

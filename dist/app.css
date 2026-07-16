@@ -604,6 +604,75 @@ input, select { outline: none; }
   margin-top: 0;
 }
 
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.preset-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+}
+
+.preset-card.is-active {
+  border-color: rgba(214, 16, 16, 0.32);
+  box-shadow: 0 14px 28px rgba(214, 16, 16, 0.08);
+}
+
+.preset-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.preset-card-head strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.1rem;
+}
+
+.preset-card-head span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.preset-card p,
+.preset-card small {
+  margin: 0;
+  color: var(--muted);
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.module-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.module-chip.is-active {
+  border-color: rgba(214, 16, 16, 0.26);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+
 .reports-layout {
   margin-top: 0;
 }
@@ -1122,7 +1191,8 @@ input, select { outline: none; }
 @media (max-width: 1180px) {
   .metrics-grid,
   .dashboard-grid,
-  .content-grid {
+  .content-grid,
+  .preset-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1169,7 +1239,8 @@ input, select { outline: none; }
   .metrics-grid,
   .dashboard-grid,
   .content-grid,
-  .form-grid {
+  .form-grid,
+  .preset-grid {
     grid-template-columns: 1fr;
   }
 

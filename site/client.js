@@ -55,6 +55,7 @@ const navItems = [
   { id: 'facturacion', moduleKey: 'invoices', label: 'Facturas', permission: 'invoices:view', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>') },
   { id: 'tickets', moduleKey: 'tickets', label: 'Tickets', permission: 'tickets:view', icon: icon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/><path d="M10 15v4"/><path d="M14 15v4"/>') },
   { id: 'reportes', moduleKey: 'reports', label: 'Reportes', permission: 'reports:view', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>') },
+  { id: 'mi-admin', moduleKey: 'settings', label: 'Mi admin', permission: 'settings:view', ownerOnly: true, icon: icon('<path d="M4 19.5v-9l8-5 8 5v9"/><path d="M9 19.5v-4h6v4"/><path d="M8 9h8"/><path d="M12 3v3"/>') },
   { id: 'ajustes', moduleKey: 'settings', label: 'Ajustes', permission: 'settings:view', icon: icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1 .33H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.51 1.34Z"/>') },
 ]
 
@@ -178,10 +179,50 @@ const userActionButtons = (user) => `
   </div>
 `
 const planLabels = {
-  basic: 'Basico',
-  retail: 'Retail',
-  full: 'Full',
+  basic: 'Gestion base',
+  retail: 'Mostrador',
+  full: 'Operacion',
+  multi: 'Multi sucursal',
   custom: 'Personalizado',
+}
+const planCatalog = {
+  basic: {
+    name: 'Gestion base',
+    description: 'Para el cliente que quiere empezar simple con proveedores, productos y facturacion.',
+    idealFor: 'Prueba inicial, servicio tecnico o gestion sin mostrador.',
+    modules: ['products', 'purchases', 'invoices'],
+  },
+  retail: {
+    name: 'Mostrador',
+    description: 'Para un local con una sola caja y venta diaria sin abrumar con sucursales.',
+    idealFor: 'Negocio chico con una caja.',
+    modules: ['customers', 'sales', 'cash', 'products', 'invoices'],
+  },
+  full: {
+    name: 'Operacion',
+    description: 'Suma compras, reportes y control operativo para un comercio que ya trabaja a diario.',
+    idealFor: 'Comercio estable con stock y seguimiento.',
+    modules: ['customers', 'sales', 'cash', 'products', 'purchases', 'invoices', 'reports'],
+  },
+  multi: {
+    name: 'Multi sucursal',
+    description: 'Habilita toda la estructura para varias cajas, sucursales, tickets y reportes completos.',
+    idealFor: 'Locales con crecimiento o varias cajas.',
+    modules: Object.keys({
+      dashboard: true,
+      customers: true,
+      sales: true,
+      cash: true,
+      branches: true,
+      registers: true,
+      products: true,
+      purchases: true,
+      invoices: true,
+      tickets: true,
+      reports: true,
+      settings: true,
+    }),
+  },
 }
 const getInitials = (name) => String(name || '')
   .split(' ')
@@ -194,6 +235,10 @@ const getScopedStock = (product, branchId) => {
   if (branchId && branchStock) return Number(branchStock[branchId] || 0)
   return Number(product?.stock || 0)
 }
+const getAllowedNav = (ui) => navItems.filter((item) => (
+  store.canAccessModule(item.moduleKey, item.permission)
+  && (!item.ownerOnly || ui.user?.isOwner)
+))
 
 const getUiState = () => {
   const snapshot = store.getSnapshot()
@@ -745,6 +790,63 @@ const reportsView = (ui) => `
   </section>
 `
 
+const ownerAdminView = (ui) => {
+  const currentPlanKey = ui.snapshot.business.activePlan || 'custom'
+  const currentPlanName = planLabels[currentPlanKey] || currentPlanKey
+  const activeModules = Object.values(ui.moduleCatalog).filter((module) => ui.snapshot.business.enabledModules.includes(module.key))
+  const activeUsers = ui.snapshot.users.filter((user) => user.isActive).length
+  return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="metrics-grid">
+      <article class="metric-card"><span>Comercio actual</span><strong>${ui.commerceContext?.commerce_name || ui.snapshot.business.name || 'Sin nombre'}</strong><p>${ui.currentBranch?.name || 'Sucursal'} activa</p></article>
+      <article class="metric-card"><span>Pack aplicado</span><strong>${currentPlanName}</strong><p>${activeModules.length} modulos visibles</p></article>
+      <article class="metric-card"><span>Usuarios activos</span><strong>${activeUsers}</strong><p>${ui.snapshot.users.length} cuentas cargadas</p></article>
+      <article class="metric-card"><span>Estructura</span><strong>${ui.snapshot.branches.length} / ${ui.snapshot.registers.length}</strong><p>Sucursales y cajas configuradas</p></article>
+    </section>
+    <section class="dashboard-grid">
+      <article class="panel"><div class="panel-head"><div><h3>Flujo del cliente</h3><p>Como conviene entregarlo para no abrumar</p></div></div>
+        <div class="timeline-list">
+          <div class="timeline-item"><strong>1. Vos armas la base</strong><p>Creas comercio, sucursal inicial, caja y primer usuario administrador.</p><span>El cliente no deberia tocar configuracion tecnica al inicio.</span></div>
+          <div class="timeline-item"><strong>2. Elegis el pack</strong><p>Mostras solo los modulos que ese negocio necesita hoy.</p><span>Si despues crece, le habilitas mas sin rehacer el sistema.</span></div>
+          <div class="timeline-item"><strong>3. Alta de equipo</strong><p>Vos o el admin del comercio crean usuarios, roles y permisos.</p><span>No hace falta que cualquiera se autocree cuenta.</span></div>
+          <div class="timeline-item"><strong>4. Operacion diaria</strong><p>El cliente entra y ve un menu corto, claro y util para su rubro.</p><span>Menos botones, menos errores, mejor adopcion.</span></div>
+        </div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h3>Vista actual del cliente</h3><p>Esto es lo que hoy le queda habilitado</p></div></div>
+        <div class="chip-grid">${activeModules.map((module) => `<span class="module-chip is-active">${module.name}</span>`).join('') || '<p class="empty-state">No hay modulos activos.</p>'}</div>
+        <div class="panel-note"><span>Si el negocio tiene una sola caja, evita mostrar Sucursales, Cajas multiples y Tickets.</span><span>Si no usa proveedores, tambien conviene ocultar Compras hasta que lo necesite.</span></div>
+      </article>
+    </section>
+    <section class="content-grid single-focus">
+      <article class="panel"><div class="panel-head"><div><h3>Packs por necesidad</h3><p>No por precio: cada comercio ve solo lo justo</p></div></div>
+        <div class="preset-grid">
+          ${Object.entries(planCatalog).map(([key, plan]) => {
+            const isCurrent = currentPlanKey === key
+            const modules = plan.modules.map((moduleKey) => ui.moduleCatalog[moduleKey]?.name || moduleKey).filter(Boolean)
+            return `<div class="preset-card ${isCurrent ? 'is-active' : ''}">
+              <div class="preset-card-head"><strong>${plan.name}</strong><span>${isCurrent ? 'Actual' : 'Disponible'}</span></div>
+              <p>${plan.description}</p>
+              <small>${plan.idealFor}</small>
+              <div class="chip-grid">${modules.map((module) => `<span class="module-chip">${module}</span>`).join('')}</div>
+              <div class="settings-actions"><button type="button" class="${isCurrent ? 'inline-action' : 'primary-action'}" data-plan-apply="${key}">${isCurrent ? 'Ya activo' : 'Aplicar pack'}</button></div>
+            </div>`
+          }).join('')}
+        </div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h3>Que revisar despues</h3><p>Proximos pasos para venderlo mejor</p></div></div>
+        <div class="timeline-list">
+          <div class="timeline-item"><strong>Onboarding por rubro</strong><p>Crear asistentes iniciales para kiosco, servicio tecnico, ferreteria o local general.</p><span>Cada uno deberia arrancar con un pack distinto.</span></div>
+          <div class="timeline-item"><strong>Limites por plan</strong><p>No por precio bruto, sino por complejidad: 1 caja, varias cajas, varias sucursales, tickets, reportes avanzados.</p><span>Eso hace mas facil venderlo y explicarlo.</span></div>
+          <div class="timeline-item"><strong>Invitaciones y aprobacion</strong><p>Agregar alta guiada de usuarios con invitacion o PIN temporal.</p><span>Asi el cliente suma gente sin tocar configuraciones delicadas.</span></div>
+          <div class="timeline-item"><strong>Panel central tuyo</strong><p>Mas adelante conviene un superadmin global para ver todos tus clientes, planes activos y modulos habilitados.</p><span>Eso ya seria tu consola de revendedor.</span></div>
+        </div>
+      </article>
+    </section>
+  </section>
+`
+}
+
 const settingsView = (ui) => `
   ${(() => {
     const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
@@ -765,10 +867,10 @@ const settingsView = (ui) => `
           <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
           <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
           <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
-          <label>Plan<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${ui.commerceContext?.active_plan === 'basic' ? 'selected' : ''}>Basico</option><option value="retail" ${ui.commerceContext?.active_plan === 'retail' ? 'selected' : ''}>Retail</option><option value="full" ${!ui.commerceContext?.active_plan || ui.commerceContext?.active_plan === 'full' ? 'selected' : ''}>Full</option><option value="custom" ${ui.commerceContext?.active_plan === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
+          <label>Pack<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${(!(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) || (ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'full') ? 'selected' : ''}>Operacion</option><option value="multi" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'multi' ? 'selected' : ''}>Multi sucursal</option><option value="custom" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
           <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
         </form>
-        <div class="panel-note"><span>El mail dueño ahora se puede cambiar desde aca sin tocar SQL.</span><span>Cuando migres el snapshot, ventas, caja, stock y comprobantes pasan a tablas reales.</span></div>
+        <div class="panel-note"><span>El mail dueño ahora se puede cambiar desde aca sin tocar SQL.</span><span>Elegi un pack para que el cliente no vea herramientas que todavia no necesita.</span></div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
@@ -782,12 +884,12 @@ const settingsView = (ui) => `
           <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
           ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
         </form>
-        <div class="panel-note"><span>Alta inicial: cada persona crea su cuenta desde la pantalla de acceso.</span><span>Despues vos la habilitas y le asignas rol, o la dejas pendiente.</span></div>
+        <div class="panel-note"><span>Las cuentas las crea el dueño o el administrador desde este panel.</span><span>Despues definis rol, caja y nivel de acceso para cada persona.</span></div>
         ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
         <form class="form-grid" data-form="module-preset">
-          <label>Preset<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Basico</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Retail</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Full</option></select></label>
+          <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
           <button type="submit">Aplicar preset</button>
         </form>
         <div class="timeline-list">
@@ -833,13 +935,14 @@ const renderCurrentView = (ui) => {
     case 'facturacion': return invoicesView(ui)
     case 'tickets': return ticketsView(ui)
     case 'reportes': return reportsView(ui)
+    case 'mi-admin': return ui.user?.isOwner ? ownerAdminView(ui) : settingsView(ui)
     case 'ajustes': return settingsView(ui)
     default: return dashboardView(ui)
   }
 }
 
 const renderApp = (ui) => {
-  const allowedNav = navItems.filter((item) => store.canAccessModule(item.moduleKey, item.permission))
+  const allowedNav = getAllowedNav(ui)
   if (!allowedNav.some((item) => item.id === activeSection)) activeSection = allowedNav[0]?.id || 'dashboard'
   saveSection()
   const branchName = ui.currentBranch?.name || ui.snapshot.business.branch || 'Sucursal'
@@ -1139,7 +1242,7 @@ const handleSubmit = async (event) => {
     topbarSearch = String(formData.get('query') || '').trim()
     if (!topbarSearch) return
     const normalized = topbarSearch.toLowerCase()
-    const allowedNav = navItems.filter((item) => store.canAccessModule(item.moduleKey, item.permission))
+    const allowedNav = getAllowedNav(getUiState())
     const match = allowedNav.find((item) => item.label.toLowerCase().includes(normalized) || item.id.toLowerCase().includes(normalized))
     if (match) {
       activeSection = match.id
@@ -1152,6 +1255,10 @@ const handleSubmit = async (event) => {
   }
   if (kind === 'module-preset') {
     const result = store.applyModulePreset(formData.get('presetKey'))
+    commerceContext = {
+      ...(commerceContext || {}),
+      active_plan: String(formData.get('presetKey') || '').trim() || commerceContext?.active_plan || 'custom',
+    }
     feedbackMessage = result.message || ''
   }
   if (kind === 'commerce-profile') {
@@ -1286,6 +1393,17 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-module-toggle]')) {
     button.addEventListener('click', () => {
       const result = store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
+      feedbackMessage = result.message || ''
+      render()
+    })
+  }
+  for (const button of document.querySelectorAll('[data-plan-apply]')) {
+    button.addEventListener('click', () => {
+      const result = store.applyModulePreset(button.dataset.planApply)
+      commerceContext = {
+        ...(commerceContext || {}),
+        active_plan: String(button.dataset.planApply || '').trim() || commerceContext?.active_plan || 'custom',
+      }
       feedbackMessage = result.message || ''
       render()
     })
