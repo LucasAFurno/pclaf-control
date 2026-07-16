@@ -1052,6 +1052,48 @@ const ticketsView = (ui) => `
 `})()}
 `
 
+const ticketsViewV2 = (ui) => `
+  ${(() => {
+    const editingTicket = ui.snapshot.tickets.find((ticket) => ticket.id === ticketEditingId)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Tickets</p><h2>Seguimiento operativo</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Tickets activos</span><strong>${ui.enrichedTickets.length}</strong><p>Casos visibles de la sucursal</p></article>
+      <article class="metric-card compact"><span>En curso</span><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'En curso').length}</strong><p>Equipos en trabajo</p></article>
+      <article class="metric-card compact"><span>Listos</span><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'Listo para entregar').length}</strong><p>Entregas pendientes</p></article>
+    </section>
+    <section class="module-board tickets-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div></div>
+        <form class="form-grid" data-form="ticket">
+          <input type="hidden" name="ticketId" value="${editingTicket?.id || ''}" />
+          <label>Numero<input type="text" name="number" value="${editingTicket?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
+          <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingTicket?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
+          <label>Equipo<input type="text" name="device" value="${editingTicket?.device || ''}" required /></label>
+          <label>Estado<select name="status"><option ${editingTicket?.status === 'Recibido' || !editingTicket ? 'selected' : ''}>Recibido</option><option ${editingTicket?.status === 'En curso' ? 'selected' : ''}>En curso</option><option ${editingTicket?.status === 'Esperando aprobacion' ? 'selected' : ''}>Esperando aprobacion</option><option ${editingTicket?.status === 'Listo para entregar' ? 'selected' : ''}>Listo para entregar</option></select></label>
+          <label class="full-span">Detalle<input type="text" name="issue" value="${editingTicket?.issue || ''}" required /></label>
+          <button type="submit">${editingTicket ? 'Guardar cambios' : 'Guardar ticket'}</button>
+          ${editingTicket ? '<button type="button" class="danger-action" data-action="cancel-ticket-edit">Cancelar edicion</button>' : ''}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Estado del taller</h3><p>Vista rápida del flujo operativo</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Ultimo ticket</strong><p>${ui.enrichedTickets[0]?.number || 'Sin tickets'}</p></div>
+            <div class="priority-item"><strong>Cliente reciente</strong><p>${ui.enrichedTickets[0]?.customerName || 'Sin actividad'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Tickets activos</h3><p>Historial rapido</p></div></div>
+          ${dataTable(['Ticket', 'Cliente', 'Sucursal', 'Actualizado', 'Accion'], ui.enrichedTickets.map((ticket) => `<div class="data-row"><span>${ticket.number}<br /><small>${ticket.device}</small></span><span>${ticket.customerName}<br /><small>${ticket.status}</small></span><span>${ticket.branchName}</span><span>${ticket.updatedAt}</span><span>${ticketActionButtons(ticket)}</span></div>`))}
+        </article>
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
 const branchesView = (ui) => `
   ${(() => {
     const editingBranch = ui.snapshot.branches.find((branch) => branch.id === branchEditingId)
@@ -1072,6 +1114,46 @@ const branchesView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>Sucursales</h3><p>Actual: ${ui.currentBranch?.name || '-'}</p></div></div>
         ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
       </article>
+    </section>
+  </section>
+`})()}
+`
+
+const branchesViewV2 = (ui) => `
+  ${(() => {
+    const editingBranch = ui.snapshot.branches.find((branch) => branch.id === branchEditingId)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Sucursales</p><h2>Locales y numeracion</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Sucursales</span><strong>${ui.snapshot.branches.length}</strong><p>Estructura comercial disponible</p></article>
+      <article class="metric-card compact"><span>Caja actual</span><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><p>Ligada a ${ui.currentBranch?.name || 'sin sucursal'}</p></article>
+      <article class="metric-card compact"><span>Sucursal activa</span><strong>${ui.currentBranch?.name || '-'}</strong><p>Define numeracion y reportes</p></article>
+    </section>
+    <section class="module-board branches-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>${editingBranch ? 'Editar sucursal' : 'Nueva sucursal'}</h3><p>La sucursal actual define la numeracion</p></div></div>
+        <form class="form-grid" data-form="branch">
+          <input type="hidden" name="branchId" value="${editingBranch?.id || ''}" />
+          <label>Nombre<input type="text" name="name" value="${editingBranch?.name || ''}" required /></label>
+          <label>Codigo<input type="text" name="code" value="${editingBranch?.code || ''}" required /></label>
+          <label class="full-span">Direccion<input type="text" name="address" value="${editingBranch?.address || ''}" required /></label>
+          <button type="submit">${editingBranch ? 'Guardar cambios' : 'Guardar sucursal'}</button>
+          ${editingBranch ? '<button type="button" class="danger-action" data-action="cancel-branch-edit">Cancelar edicion</button>' : ''}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Operacion por sucursal</h3><p>Contexto actual del comercio</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Actual</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Cajas ligadas</strong><p>${ui.branchRegisters.length}</p></div>
+            <div class="priority-item"><strong>Direccion</strong><p>${ui.currentBranch?.address || 'Sin direccion'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Sucursales</h3><p>Actual: ${ui.currentBranch?.name || '-'}</p></div></div>
+          ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
+        </article>
+      </div>
     </section>
   </section>
 `})()}
@@ -1098,6 +1180,47 @@ const registersView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>Cajas</h3><p>Preparado para varias cajas por sucursal</p></div></div>
         ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
       </article>
+    </section>
+  </section>
+`})()}
+`
+
+const registersViewV2 = (ui) => `
+  ${(() => {
+    const editingRegister = ui.snapshot.registers.find((register) => register.id === registerEditingId)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Cajas</p><h2>Cajeros y puestos de cobro</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Cajas</span><strong>${ui.enrichedRegisters.length}</strong><p>Puestos de cobro configurados</p></article>
+      <article class="metric-card compact"><span>Caja activa</span><strong>${ui.currentRegister?.name || '-'}</strong><p>${ui.currentBranch?.name || 'Sin sucursal'}</p></article>
+      <article class="metric-card compact"><span>Cajeros</span><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><p>Usuarios vinculados a cajas</p></article>
+    </section>
+    <section class="module-board registers-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>${editingRegister ? 'Editar caja' : 'Nueva caja'}</h3><p>Asignacion por sucursal y cajero</p></div></div>
+        <form class="form-grid" data-form="register">
+          <input type="hidden" name="registerId" value="${editingRegister?.id || ''}" />
+          <label>Sucursal<select name="branchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${editingRegister?.branchId === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
+          <label>Nombre<input type="text" name="name" value="${editingRegister?.name || ''}" required /></label>
+          <label>Codigo<input type="text" name="code" value="${editingRegister?.code || ''}" required /></label>
+          <label>Cajero<select name="cashierUserId">${ui.snapshot.users.map((user) => `<option value="${user.id}" ${editingRegister?.cashierUserId === user.id ? 'selected' : ''}>${user.fullName}</option>`).join('')}</select></label>
+          <button type="submit">${editingRegister ? 'Guardar cambios' : 'Guardar caja'}</button>
+          ${editingRegister ? '<button type="button" class="danger-action" data-action="cancel-register-edit">Cancelar edicion</button>' : ''}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Uso operativo</h3><p>Control de puestos de cobro</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Sesion abierta</strong><p>${ui.openCashSession ? 'Si' : 'No'}</p></div>
+            <div class="priority-item"><strong>Caja actual</strong><p>${ui.currentRegister?.name || 'Sin asignar'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Cajas</h3><p>Preparado para varias cajas por sucursal</p></div></div>
+          ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
+        </article>
+      </div>
     </section>
   </section>
 `})()}
@@ -1182,6 +1305,60 @@ const ownerAdminView = (ui) => {
 `
 }
 
+const ownerAdminViewV2 = (ui) => {
+  const currentPlanKey = ui.snapshot.business.activePlan || 'custom'
+  const currentPlanName = planLabels[currentPlanKey] || currentPlanKey
+  const activeModules = Object.values(ui.moduleCatalog).filter((module) => ui.snapshot.business.enabledModules.includes(module.key))
+  const activeUsers = ui.snapshot.users.filter((user) => user.isActive).length
+  return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Comercio actual</span><strong>${ui.commerceContext?.commerce_name || ui.snapshot.business.name || 'Sin nombre'}</strong><p>${ui.currentBranch?.name || 'Sucursal'} activa</p></article>
+      <article class="metric-card compact"><span>Pack aplicado</span><strong>${currentPlanName}</strong><p>${activeModules.length} modulos visibles</p></article>
+      <article class="metric-card compact"><span>Usuarios activos</span><strong>${activeUsers}</strong><p>${ui.snapshot.users.length} cuentas cargadas</p></article>
+    </section>
+    <section class="module-board admin-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>Flujo de entrega</h3><p>Como conviene vender y habilitar la herramienta</p></div></div>
+        <div class="timeline-list">
+          <div class="timeline-item"><strong>1. Base inicial</strong><p>Creas comercio, sucursal inicial, caja y primer usuario administrador.</p><span>El cliente no toca configuracion tecnica al inicio.</span></div>
+          <div class="timeline-item"><strong>2. Pack por necesidad</strong><p>Mostras solo los modulos que ese negocio necesita hoy.</p><span>Si despues crece, habilitas mas sin rehacer el sistema.</span></div>
+          <div class="timeline-item"><strong>3. Operacion guiada</strong><p>El cliente entra y ve un panel corto, claro y util para su rubro.</p><span>Menos botones, menos errores, mejor adopcion.</span></div>
+        </div>
+      </article>
+      <div class="module-main">
+        <article class="panel"><div class="panel-head"><div><h3>Vista actual del cliente</h3><p>Esto es lo que hoy le queda habilitado</p></div></div>
+          <div class="chip-grid">${activeModules.map((module) => `<span class="module-chip is-active">${module.name}</span>`).join('') || '<p class="empty-state">No hay modulos activos.</p>'}</div>
+          <div class="panel-note"><span>Si el negocio tiene una sola caja, evita mostrar Sucursales, Cajas multiples y Tickets.</span><span>Si no usa proveedores, tambien conviene ocultar Compras hasta que lo necesite.</span></div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Packs por necesidad</h3><p>No por precio: cada comercio ve solo lo justo</p></div></div>
+          <div class="preset-grid">
+            ${Object.entries(planCatalog).map(([key, plan]) => {
+              const isCurrent = currentPlanKey === key
+              const modules = plan.modules.map((moduleKey) => ui.moduleCatalog[moduleKey]?.name || moduleKey).filter(Boolean)
+              return `<div class="preset-card ${isCurrent ? 'is-active' : ''}">
+                <div class="preset-card-head"><strong>${plan.name}</strong><span>${isCurrent ? 'Actual' : 'Disponible'}</span></div>
+                <p>${plan.description}</p>
+                <small>${plan.idealFor}</small>
+                <div class="chip-grid">${modules.map((module) => `<span class="module-chip">${module}</span>`).join('')}</div>
+                <div class="settings-actions"><button type="button" class="${isCurrent ? 'inline-action' : 'primary-action'}" data-plan-apply="${key}">${isCurrent ? 'Ya activo' : 'Aplicar pack'}</button></div>
+              </div>`
+            }).join('')}
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Proximos pasos de negocio</h3><p>Para venderlo mejor</p></div></div>
+          <div class="timeline-list">
+            <div class="timeline-item"><strong>Onboarding por rubro</strong><p>Asistentes iniciales para kiosco, servicio técnico o local general.</p><span>Cada uno deberia arrancar con un pack distinto.</span></div>
+            <div class="timeline-item"><strong>Limites por plan</strong><p>1 caja, varias cajas, varias sucursales, tickets, reportes avanzados.</p><span>Eso hace mas facil venderlo y explicarlo.</span></div>
+            <div class="timeline-item"><strong>Consola tuya</strong><p>Mas adelante conviene un superadmin global para ver todos tus clientes.</p><span>Eso ya seria tu consola PCLAF.</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </section>
+`
+}
+
 const settingsView = (ui) => `
   ${(() => {
     const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
@@ -1258,20 +1435,113 @@ const settingsView = (ui) => `
 `})()}
 `
 
+const settingsViewV2 = (ui) => `
+  ${(() => {
+    const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
+    const canManageUsers = ui.user?.isOwner || ui.role?.key === 'admin'
+    const syncLabel = ui.snapshot.meta.syncStatus === 'online'
+      ? 'Cloud operativa'
+      : ui.snapshot.meta.syncStatus === 'syncing'
+        ? 'Sincronizando'
+        : ui.snapshot.meta.syncStatus === 'pending'
+          ? 'Pendiente'
+          : ui.snapshot.meta.syncStatus || 'offline'
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Sesion</span><strong>${ui.user.fullName}</strong><p>${ui.role.name}</p></article>
+      <article class="metric-card compact"><span>Cloud</span><strong>${syncLabel}</strong><p>${ui.cloudConnection.instanceKey}</p></article>
+      <article class="metric-card compact"><span>Modulos</span><strong>${ui.snapshot.business.enabledModules.length}</strong><p>Visibles para este cliente</p></article>
+    </section>
+    <section class="module-board settings-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div>
+        <div class="priority-list">
+          <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div>
+          <div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}</p></div>
+          <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}</p></div>
+          <div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div>
+        </div>
+        <div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
+      </article>
+      <div class="module-main">
+        <div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura negocio, dueño y pack</p></div></div>
+            <form class="form-grid compact-form" data-form="commerce-profile">
+              <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+              <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+              <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
+              <label>Pack<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${(!(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) || (ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'full') ? 'selected' : ''}>Operacion</option><option value="multi" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'multi' ? 'selected' : ''}>Multi sucursal</option><option value="custom" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
+              <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
+            </form>
+            <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Instancia real de Supabase</p></div></div>
+            <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} · ${syncLabel}</span></div>
+            <form class="form-grid compact-form" data-form="cloud-connection">
+              <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
+              <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
+              <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
+              <button type="submit">${ui.cloudConnection.enabled ? 'Guardar conexion' : 'Conectar Supabase'}</button>
+            </form>
+            <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button></div>
+          </article>
+        </div>
+        <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
+          ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
+          <form class="form-grid" data-form="user">
+            <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
+            <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+            <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" disabled /></label>
+            <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
+            <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} />Cuenta habilitada</label>
+            <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
+            ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
+          </form>
+          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
+        </article>
+        <div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
+            <form class="form-grid compact-form" data-form="module-preset">
+              <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
+              <button type="submit">Aplicar preset</button>
+            </form>
+            <div class="timeline-list">
+              ${Object.values(ui.moduleCatalog).map((module) => `
+                <div class="timeline-item">
+                  <strong>${module.name}</strong>
+                  <p>${module.description}</p>
+                  <span>${ui.snapshot.business.enabledModules.includes(module.key) ? 'Habilitado' : 'Oculto para este cliente'}</span>
+                  <div class="settings-actions"><button type="button" class="inline-action" data-module-toggle="${module.key}" data-enabled="${ui.snapshot.business.enabledModules.includes(module.key) ? 'true' : 'false'}">${ui.snapshot.business.enabledModules.includes(module.key) ? 'Deshabilitar' : 'Habilitar'}</button></div>
+                </div>
+              `).join('')}
+            </div>
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Backup y auditoria</h3><p>Respaldo manual y eventos recientes</p></div></div>
+            <div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label></div>
+            <div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
 const renderCurrentView = (ui) => {
   switch (activeSection) {
     case 'clientes': return customersViewV2(ui)
     case 'ventas': return salesViewV2(ui)
     case 'caja': return cashViewV2(ui)
-    case 'sucursales': return branchesView(ui)
-    case 'cajeros': return registersView(ui)
+    case 'sucursales': return branchesViewV2(ui)
+    case 'cajeros': return registersViewV2(ui)
     case 'productos': return productsView(ui)
     case 'compras': return purchasesViewV2(ui)
     case 'facturacion': return invoicesViewV2(ui)
-    case 'tickets': return ticketsView(ui)
+    case 'tickets': return ticketsViewV2(ui)
     case 'reportes': return reportsView(ui)
-    case 'mi-admin': return ui.user?.isOwner ? ownerAdminView(ui) : settingsView(ui)
-    case 'ajustes': return settingsView(ui)
+    case 'mi-admin': return ui.user?.isOwner ? ownerAdminViewV2(ui) : settingsViewV2(ui)
+    case 'ajustes': return settingsViewV2(ui)
     default: return dashboardView(ui)
   }
 }
