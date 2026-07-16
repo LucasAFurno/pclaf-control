@@ -79,29 +79,22 @@ let saleQuickAddCode = ''
 let topbarSearch = ''
 let cloudSyncBusy = false
 let commerceContext = null
+let setupStatus = null
 
-const loadCloudAccess = async (fullName = '') => {
+const loadCloudAccess = async (sessionPayload = null) => {
   if (!authManager) throw new Error('La conexion cloud no esta lista.')
-  const bootstrapProfile = await authManager.bootstrapProfile(fullName)
-  const users = await authManager.listControlUsers()
-  commerceContext = await authManager.getCommerceContext()
-  const profile = users.find((entry) => entry.id === bootstrapProfile.id) || bootstrapProfile
-  store.setCloudAccessToken(authManager.getSession()?.access_token || '')
-  const activeProfile = store.setCloudAuthSession(profile, users)
-  if (!activeProfile || activeProfile.status !== 'active') {
+  const currentSession = sessionPayload || authManager.getSession()
+  if (!currentSession?.sessionToken) throw new Error('No hay sesion valida para sincronizar.')
+  commerceContext = currentSession.commerceContext || null
+  store.setCloudAccessToken(currentSession.sessionToken)
+  await store.syncFromCloud()
+  const activeProfile = store.setCloudAuthSession(currentSession.profile, [])
+  if (!activeProfile) {
     commerceContext = null
     store.clearCloudAuthSession()
-    await authManager.signOut()
-    throw new Error(activeProfile?.status === 'disabled'
-      ? 'Tu cuenta fue deshabilitada por el administrador.'
-      : 'Tu cuenta quedo pendiente de aprobacion del administrador.')
+    throw new Error('No se pudo activar la sesion del usuario.')
   }
-  try {
-    await store.syncFromCloud()
-  } catch (error) {
-    feedbackMessage = `No se pudo cargar la base sincronizada. Seguimos con la sesion cloud activa. ${error.message || ''}`.trim()
-  }
-  return { profile: activeProfile, users }
+  return activeProfile
 }
 
 const money = (value) => currency.format(Number(value) || 0)
@@ -322,11 +315,11 @@ const loginView = (ui) => `
   <div class="login-shell">
     <div class="login-card">
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
-      <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso cloud' : 'Acceso bloqueado'}</p>
+      <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso productivo' : 'Acceso bloqueado'}</p>
       <h1>${productName}</h1>
-      <p class="login-copy">Ingresa con tu cuenta para operar ventas, caja, compras y control en la base real.</p>
+      <p class="login-copy">Ingresa con tu usuario para operar ventas, caja, stock y comprobantes sobre la base real.</p>
       <form class="login-form" data-form="login">
-        <label>Email<input type="email" name="identifier" placeholder="tu@email.com" required /></label>
+        <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" required /></label>
         <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Ingresar</button>
@@ -334,16 +327,33 @@ const loginView = (ui) => `
       <div class="login-meta">
         <span class="login-meta-label">Acceso</span>
         <div class="login-hints">
-          <span>Solo ingresan cuentas aprobadas para esta instancia.</span>
+          <span>Los usuarios nuevos se crean desde el panel una vez que ingresa el administrador.</span>
           <span>${ui.cloudConnection.enabled ? `Instancia activa: ${ui.cloudConnection.instanceKey}` : 'La conexion cloud es obligatoria.'}</span>
         </div>
       </div>
-      <form class="login-form secondary-login-form" data-form="public-register">
-        <p class="kicker">Crear cuenta</p>
-        <label>Nombre completo<input type="text" name="fullName" placeholder="Juan Perez" required /></label>
-        <label>Email<input type="email" name="email" placeholder="juan@negocio.com" required /></label>
-        <label>Clave<input type="password" name="pin" placeholder="Minimo 6 caracteres" required /></label>
-        <button type="submit">Solicitar acceso</button>
+    </div>
+  </div>
+`
+
+const setupView = (ui) => `
+  <div class="login-shell">
+    <div class="login-card">
+      <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
+      <p class="kicker">Configuracion inicial</p>
+      <h1>${productName}</h1>
+      <p class="login-copy">No hay usuarios ni comercio creados todavia. Cargamos la cuenta administradora, la primera sucursal y la primera caja para arrancar desde cero sobre tablas reales.</p>
+      <form class="login-form" data-form="instance-setup">
+        <label>Nombre del comercio<input type="text" name="commerceName" placeholder="PCLAF Control" required /></label>
+        <label>Administrador<input type="text" name="ownerName" placeholder="Lucas Furno" required /></label>
+        <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" required /></label>
+        <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" /></label>
+        <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" required /></label>
+        <label>Sucursal inicial<input type="text" name="branchName" placeholder="Casa central" required /></label>
+        <label>Codigo sucursal<input type="text" name="branchCode" value="CASA" required /></label>
+        <label>Caja inicial<input type="text" name="registerName" value="Caja 1" required /></label>
+        <label>Codigo caja<input type="text" name="registerCode" value="CAJA-01" required /></label>
+        ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+        <button type="submit">Crear instancia</button>
       </form>
     </div>
   </div>
@@ -888,7 +898,7 @@ const render = () => {
   const ui = getUiState()
   app.innerHTML = ui.cloudConnection.required && !ui.cloudConnection.enabled
     ? cloudActivationView(ui)
-    : (ui.isAuthenticated ? renderApp(ui) : loginView(ui))
+    : ((!setupStatus?.initialized) ? setupView(ui) : (ui.isAuthenticated ? renderApp(ui) : loginView(ui)))
   markBootComplete()
   bindEvents()
 }
@@ -911,23 +921,19 @@ const bootstrap = async () => {
   }
   store = createBrowserDataStore(storeOptions)
   authManager = initialCloudConfig?.url && initialCloudConfig?.anonKey
-    ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey })
+    ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey, instanceKey: initialCloudConfig.instanceKey })
     : null
   try {
     if (store.getCloudConnection().enabled && authManager) {
+      setupStatus = await authManager.getSetupStatus()
+    }
+    if (store.getCloudConnection().enabled && authManager && setupStatus?.initialized) {
       const restoredSession = await authManager.restoreSession()
-      if (restoredSession?.access_token) {
-        store.setCloudAccessToken(restoredSession.access_token)
+      if (restoredSession?.sessionToken) {
+        store.setCloudAccessToken(restoredSession.sessionToken)
       }
     }
-    if (store.getCloudConnection().enabled) {
-      try {
-        await store.syncFromCloud()
-      } catch (error) {
-        feedbackMessage = `No se pudo cargar la base cloud al iniciar. ${error.message || ''}`.trim()
-      }
-    }
-    if (store.getCloudConnection().enabled && authManager?.getSession()?.access_token) {
+    if (store.getCloudConnection().enabled && authManager?.getSession()?.sessionToken) {
       cloudSyncBusy = true
       await loadCloudAccess()
       if (!feedbackMessage) feedbackMessage = 'Sesion cloud restaurada correctamente.'
@@ -945,7 +951,7 @@ const bootstrap = async () => {
       resetBrokenBrowserState()
       store = createBrowserDataStore(storeOptions)
       authManager = initialCloudConfig?.url && initialCloudConfig?.anonKey
-        ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey })
+        ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey, instanceKey: initialCloudConfig.instanceKey })
         : null
       loginMessage = 'La aplicacion se recupero y reinicio la sesion.'
       render()
@@ -1062,66 +1068,37 @@ const handleSubmit = async (event) => {
     try {
       const identifier = String(formData.get('identifier') || '').trim()
       const pin = String(formData.get('pin') || '')
-      let cloudError = ''
-      if (authManager) {
-        try {
-          await authManager.signIn({ email: identifier, password: pin })
-          await loadCloudAccess()
-        } catch (error) {
-          cloudError = error.message || 'No se pudo iniciar sesion cloud.'
-        }
-      }
-      if (!store.isAuthenticated()) {
-        const result = store.authenticateUser(identifier, pin)
-        if (!result.ok) throw new Error(cloudError || result.message || 'No se pudo iniciar sesion.')
-        feedbackMessage = cloudError
-          ? `Acceso listo en modo de prueba sobre Supabase snapshot. ${cloudError}`.trim()
-          : 'Sesion iniciada correctamente.'
-      }
+      if (!authManager) throw new Error('La conexion cloud no esta lista.')
+      const sessionPayload = await authManager.signIn({ identifier, pin })
+      await loadCloudAccess(sessionPayload)
+      feedbackMessage = 'Sesion iniciada correctamente.'
     } catch (error) {
       loginMessage = error.message || 'No se pudo iniciar sesion.'
     }
     render()
     return
   }
-  if (kind === 'public-register') {
+  if (kind === 'instance-setup') {
     loginMessage = ''
     feedbackMessage = ''
     try {
-      const payload = {
-        fullName: String(formData.get('fullName') || '').trim(),
-        email: String(formData.get('email') || '').trim(),
-        pin: String(formData.get('pin') || ''),
-      }
-      let cloudError = ''
-      if (authManager) {
-        try {
-          const result = await authManager.signUp({
-            fullName: payload.fullName,
-            email: payload.email,
-            password: payload.pin,
-          })
-          if (result?.session?.access_token) {
-            await loadCloudAccess(payload.fullName)
-            feedbackMessage = 'Cuenta cloud creada correctamente.'
-            render()
-            return
-          }
-          cloudError = 'Supabase pidio confirmacion externa para la cuenta.'
-        } catch (error) {
-          cloudError = error.message || 'No se pudo crear la cuenta cloud.'
-        }
-      }
-      const result = store.registerPublicUser(payload)
-      if (!result.ok) throw new Error(cloudError || result.message || 'No se pudo crear la cuenta.')
-      feedbackMessage = cloudError
-        ? `Cuenta creada en modo de prueba sobre Supabase snapshot. ${cloudError}`.trim()
-        : (result.message || 'Cuenta creada. Ya podes ingresar.')
-      if (!cloudError) {
-        store.authenticateUser(payload.email || payload.fullName, payload.pin)
-      }
+      if (!authManager) throw new Error('La conexion cloud no esta lista.')
+      const sessionPayload = await authManager.setupInstance({
+        commerceName: String(formData.get('commerceName') || '').trim(),
+        ownerName: String(formData.get('ownerName') || '').trim(),
+        ownerLogin: String(formData.get('ownerLogin') || '').trim(),
+        ownerEmail: String(formData.get('ownerEmail') || '').trim(),
+        ownerPin: String(formData.get('ownerPin') || ''),
+        branchName: String(formData.get('branchName') || '').trim(),
+        branchCode: String(formData.get('branchCode') || '').trim(),
+        registerName: String(formData.get('registerName') || '').trim(),
+        registerCode: String(formData.get('registerCode') || '').trim(),
+      })
+      setupStatus = await authManager.getSetupStatus()
+      await loadCloudAccess(sessionPayload)
+      feedbackMessage = 'Instancia creada y lista para operar.'
     } catch (error) {
-      loginMessage = error.message || 'No se pudo crear la cuenta.'
+      loginMessage = error.message || 'No se pudo crear la instancia.'
     }
     render()
     return
@@ -1143,22 +1120,22 @@ const handleSubmit = async (event) => {
     registerEditingId = ''
   }
   if (kind === 'user') {
-    try {
-      if (!authManager) throw new Error('La gestion cloud no esta disponible.')
-      if (!formData.get('userId')) throw new Error('Los usuarios nuevos se registran desde la pantalla de acceso.')
-      const role = getUiState().snapshot.roles.find((entry) => entry.id === formData.get('roleId'))
-      const rows = await authManager.updateControlUser(formData.get('userId'), {
-        full_name: String(formData.get('fullName') || '').trim(),
-        role_key: role?.key || 'cashier',
-        status: formData.get('isActive') === 'on' ? 'active' : 'disabled',
+    const result = formData.get('userId')
+      ? store.updateUser(formData.get('userId'), {
+        fullName: String(formData.get('fullName') || '').trim(),
+        roleId: formData.get('roleId'),
+        email: String(formData.get('email') || '').trim(),
+        pin: String(formData.get('pin') || ''),
+        isActive: formData.get('isActive') === 'on',
       })
-      const users = await authManager.listControlUsers()
-      const currentProfile = users.find((entry) => entry.id === store.currentUser().id) || rows?.[0]
-      store.setCloudAuthSession(currentProfile, users)
-      feedbackMessage = 'Permisos actualizados.'
-    } catch (error) {
-      feedbackMessage = error.message || 'No se pudo actualizar el usuario.'
-    }
+      : store.createUser({
+        fullName: String(formData.get('fullName') || '').trim(),
+        roleId: formData.get('roleId'),
+        email: String(formData.get('email') || '').trim(),
+        pin: String(formData.get('pin') || ''),
+        isActive: formData.get('isActive') === 'on',
+      })
+    feedbackMessage = result.message || ''
     userEditingId = ''
   }
   if (kind === 'report-filter') {
@@ -1187,24 +1164,19 @@ const handleSubmit = async (event) => {
     feedbackMessage = result.message || ''
   }
   if (kind === 'commerce-profile') {
-    try {
-      if (!authManager) throw new Error('La gestion cloud no esta disponible.')
-      const result = await authManager.updateCommerceProfile({
-        p_name: String(formData.get('name') || '').trim(),
-        p_owner_email: String(formData.get('ownerEmail') || '').trim().toLowerCase(),
-        p_legal_name: String(formData.get('legalName') || '').trim(),
-        p_active_plan: String(formData.get('activePlan') || '').trim(),
-      })
-      commerceContext = {
-        ...(commerceContext || {}),
-        commerce_name: result?.name || commerceContext?.commerce_name || '',
-        owner_email: result?.owner_email || commerceContext?.owner_email || '',
-        active_plan: result?.active_plan || commerceContext?.active_plan || 'full',
-      }
-      feedbackMessage = 'Perfil del comercio actualizado.'
-    } catch (error) {
-      feedbackMessage = error.message || 'No se pudo actualizar el comercio.'
+    const result = store.updateBusinessProfile({
+      name: String(formData.get('name') || '').trim(),
+      ownerEmail: String(formData.get('ownerEmail') || '').trim().toLowerCase(),
+      legalName: String(formData.get('legalName') || '').trim(),
+      activePlan: String(formData.get('activePlan') || '').trim(),
+    })
+    commerceContext = {
+      ...(commerceContext || {}),
+      commerce_name: String(formData.get('name') || commerceContext?.commerce_name || '').trim(),
+      owner_email: String(formData.get('ownerEmail') || commerceContext?.owner_email || '').trim().toLowerCase(),
+      active_plan: String(formData.get('activePlan') || commerceContext?.active_plan || 'full').trim() || 'full',
     }
+    feedbackMessage = result.message || ''
   }
   if (kind === 'cloud-connection') {
     cloudSyncBusy = true
@@ -1345,20 +1317,9 @@ const bindEvents = () => {
   }
   const importCoreButton = document.querySelector('[data-action="import-core"]')
   if (importCoreButton) {
-    importCoreButton.addEventListener('click', async () => {
-      try {
-        if (!authManager) throw new Error('La gestion cloud no esta disponible.')
-        cloudSyncBusy = true
-        render()
-        const result = await authManager.importSnapshotToCore(store.getCloudConnection().instanceKey || 'principal')
-        commerceContext = await authManager.getCommerceContext()
-        feedbackMessage = result?.ok ? 'Snapshot migrado a tablas reales en Supabase.' : 'La migracion termino sin confirmar estado.'
-      } catch (error) {
-        feedbackMessage = error.message || 'No se pudo migrar el snapshot.'
-      } finally {
-        cloudSyncBusy = false
-        render()
-      }
+    importCoreButton.addEventListener('click', () => {
+      feedbackMessage = 'La app ya esta operando sobre tablas core de Supabase.'
+      render()
     })
   }
   const disconnectCloudButton = document.querySelector('[data-action="disconnect-cloud"]')
@@ -1458,29 +1419,16 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-user-action]')) {
-    button.addEventListener('click', async () => {
+    button.addEventListener('click', () => {
       if (button.dataset.userAction === 'edit') {
         userEditingId = button.dataset.id
         feedbackMessage = 'Usuario cargado para edicion.'
         render()
         return
       }
-      try {
-        if (!authManager) throw new Error('La gestion cloud no esta disponible.')
-        const target = store.getSnapshot().users.find((entry) => entry.id === button.dataset.id)
-        const nextStatus = button.dataset.active !== 'true' ? 'active' : 'disabled'
-        await authManager.updateControlUser(button.dataset.id, {
-          full_name: target?.fullName || 'Usuario',
-          role_key: target?.roleKey || 'cashier',
-          status: nextStatus,
-        })
-        const users = await authManager.listControlUsers()
-        const currentProfile = users.find((entry) => entry.id === store.currentUser().id)
-        store.setCloudAuthSession(currentProfile, users)
-        feedbackMessage = `Usuario ${nextStatus === 'active' ? 'habilitado' : 'deshabilitado'}.`
-      } catch (error) {
-        feedbackMessage = error.message || 'No se pudo actualizar el acceso.'
-      }
+      const nextActive = button.dataset.active !== 'true'
+      const result = store.toggleUserActive(button.dataset.id, nextActive)
+      feedbackMessage = result.message || ''
       render()
     })
   }

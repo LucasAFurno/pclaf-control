@@ -82,9 +82,9 @@ const modulePresets = {
 }
 
 const roles = [
-  { id: makeId(), key: 'admin', name: 'Administrador', permissions: Object.values(permissionCatalog) },
+  { id: 'role-admin', key: 'admin', name: 'Administrador', permissions: Object.values(permissionCatalog) },
   {
-    id: makeId(),
+    id: 'role-cashier',
     key: 'cashier',
     name: 'Caja',
     permissions: [
@@ -97,7 +97,7 @@ const roles = [
     ],
   },
   {
-    id: makeId(),
+    id: 'role-warehouse',
     key: 'warehouse',
     name: 'Deposito',
     permissions: [
@@ -907,7 +907,7 @@ export const createBrowserDataStore = (options = {}) => {
       state.session.authenticated = false
       return null
     }
-    const normalizedUsers = replaceCloudUsers(users)
+    const normalizedUsers = users.length ? replaceCloudUsers(users) : state.users
     if (!normalizedUsers.some((entry) => entry.id === normalizedProfile.id)) {
       state.users = [normalizedProfile, ...state.users.filter((entry) => entry.id !== normalizedProfile.id)]
     }
@@ -1065,6 +1065,17 @@ export const createBrowserDataStore = (options = {}) => {
     pushAudit(state, currentUser().id, 'business_plan', presetKey, 'preset_applied', { presetKey, modules: preset })
     save()
     return { ok: true, message: `Plan ${presetKey} aplicado.` }
+  }
+
+  const updateBusinessProfile = (payload) => {
+    const before = clone(state.business)
+    state.business.name = String(payload.name || state.business.name || '').trim() || state.business.name
+    state.business.legalName = String(payload.legalName || state.business.legalName || '').trim()
+    state.business.ownerEmail = String(payload.ownerEmail || state.business.ownerEmail || '').trim().toLowerCase()
+    state.business.activePlan = String(payload.activePlan || state.business.activePlan || 'full').trim() || 'full'
+    pushAudit(state, currentUser().id, 'business', null, 'updated', clone(state.business), before)
+    save()
+    return { ok: true, message: 'Perfil del comercio actualizado.' }
   }
 
   const createProduct = (payload) => {
@@ -1774,6 +1785,7 @@ export const createBrowserDataStore = (options = {}) => {
     updateRegister,
     setModuleEnabled,
     applyModulePreset,
+    updateBusinessProfile,
     createProduct,
     findProductByCode: (code) => findProductByCode(state, code),
     createSupplier,

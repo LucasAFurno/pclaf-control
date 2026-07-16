@@ -1,6 +1,6 @@
-const buildHeaders = (anonKey, accessToken = '') => ({
+const buildHeaders = (anonKey) => ({
   apikey: anonKey,
-  Authorization: `Bearer ${accessToken || anonKey}`,
+  Authorization: `Bearer ${anonKey}`,
   'Content-Type': 'application/json',
 })
 
@@ -10,40 +10,43 @@ export const createSupabaseSnapshotAdapter = (config) => {
   const baseUrl = normalizeUrl(config?.url)
   const anonKey = String(config?.anonKey || '').trim()
   const instanceKey = String(config?.instanceKey || 'default').trim().toLowerCase()
-  const readAccessToken = typeof config?.getAccessToken === 'function' ? config.getAccessToken : () => ''
+  const readSessionToken = typeof config?.getAccessToken === 'function' ? config.getAccessToken : () => ''
 
   if (!baseUrl || !anonKey || !instanceKey) return null
 
-  const endpoint = `${baseUrl}/rest/v1/app_snapshots`
+  const rpc = async (fnName, body) => {
+    const response = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
+      method: 'POST',
+      headers: buildHeaders(anonKey),
+      body: JSON.stringify(body),
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(payload?.message || payload?.hint || payload?.details || `${fnName} failed (${response.status})`)
+    return payload
+  }
 
   return {
     instanceKey,
     async load() {
-      const query = `${endpoint}?instance_key=eq.${encodeURIComponent(instanceKey)}&select=instance_key,state_json,updated_at&limit=1`
-      const response = await fetch(query, {
-        method: 'GET',
-        headers: buildHeaders(anonKey, readAccessToken()),
+      const stateJson = await rpc('app_public_export_snapshot', {
+        p_session_token: readSessionToken(),
       })
-      if (!response.ok) throw new Error(`Supabase load failed (${response.status})`)
-      const rows = await response.json()
-      return rows[0] || null
+      return {
+        instance_key: instanceKey,
+        state_json: stateJson,
+        updated_at: new Date().toISOString(),
+      }
     },
     async save(state) {
-      const response = await fetch(`${endpoint}?on_conflict=instance_key`, {
-        method: 'POST',
-        headers: {
-          ...buildHeaders(anonKey, readAccessToken()),
-          Prefer: 'resolution=merge-duplicates,return=representation',
-        },
-        body: JSON.stringify([{
-          instance_key: instanceKey,
-          state_json: state,
-          updated_at: new Date().toISOString(),
-        }]),
+      const result = await rpc('app_public_save_snapshot', {
+        p_session_token: readSessionToken(),
+        p_state_json: state,
       })
-      if (!response.ok) throw new Error(`Supabase save failed (${response.status})`)
-      const rows = await response.json()
-      return rows[0] || null
+      return {
+        instance_key: instanceKey,
+        state_json: state,
+        updated_at: result?.saved_at || new Date().toISOString(),
+      }
     },
   }
 }
