@@ -112,14 +112,14 @@ const dataTable = (headers, rows) => `
 
 const actionButton = (entity, id) => `<button type="button" class="inline-action" data-delete="${entity}" data-id="${id}">Eliminar</button>`
 const saleActionButtons = (sale) => `
-  <div class="inline-action-group">
-    <button type="button" class="inline-action" data-sale-action="edit" data-id="${sale.id}">Editar</button>
-    <button type="button" class="inline-action" data-sale-action="invoice" data-id="${sale.id}">Facturar</button>
-    <button type="button" class="inline-action" data-sale-action="return" data-id="${sale.id}">Devolver</button>
-    <button type="button" class="inline-action" data-sale-action="cancel" data-id="${sale.id}">Anular</button>
+  <div class="inline-action-group sale-actions-compact">
+    <button type="button" class="inline-action is-strong" data-sale-action="edit" data-id="${sale.id}">Editar</button>
+    <button type="button" class="inline-action" data-sale-action="invoice" data-id="${sale.id}">Factura</button>
     <button type="button" class="inline-action" data-sale-action="ticket" data-id="${sale.id}">Ticket</button>
     <button type="button" class="inline-action" data-sale-action="receipt" data-id="${sale.id}">Imprimir</button>
     <button type="button" class="inline-action" data-sale-action="export" data-id="${sale.id}">Exportar</button>
+    <button type="button" class="inline-action" data-sale-action="return" data-id="${sale.id}">Devol.</button>
+    <button type="button" class="inline-action" data-sale-action="cancel" data-id="${sale.id}">Anular</button>
     <button type="button" class="inline-action danger" data-delete="sale" data-id="${sale.id}">Eliminar</button>
   </div>
 `
@@ -400,29 +400,36 @@ const salesView = (ui) => `
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="content-grid single-focus">
       <article class="panel">
-        <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Ticket de venta'}</h3><p>${editingSale ? 'Recalcula stock y saldos al guardar' : 'Elegí cantidades y el sistema calcula el total'}</p></div></div>
-        <form class="form-grid" data-form="sale">
+        <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Nueva venta'}</h3><p>${editingSale ? 'Actualiza stock, cobro y comprobantes' : 'Carga rapida para mostrador o venta asistida'}</p></div></div>
+        <form class="form-grid sales-form" data-form="sale">
           <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
           <label>Cliente<select name="customerId"><option value="">Mostrador</option>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingSale?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
           <label>Canal<select name="channel"><option ${editingSale?.channel === 'Mostrador' ? 'selected' : ''}>Mostrador</option><option ${editingSale?.channel === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option><option ${editingSale?.channel === 'Transferencia' ? 'selected' : ''}>Transferencia</option><option ${editingSale?.channel === 'Mercado Libre' ? 'selected' : ''}>Mercado Libre</option></select></label>
           <label>Pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option><option value="mixed" ${editingSale?.paymentMethod === 'mixed' ? 'selected' : ''}>Mixto</option></select></label>
-          <label class="checkbox-row"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} />Cobrado</label>
-          <label class="checkbox-row"><input type="checkbox" name="autoInvoice" />Generar factura si corresponde</label>
+          <div class="toggle-grid full-span">
+            <label class="checkbox-row compact-toggle"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} /><span>Cobrado</span></label>
+            <label class="checkbox-row compact-toggle"><input type="checkbox" name="autoInvoice" /><span>Generar factura</span></label>
+          </div>
           <label>Descuento<input type="number" min="0" name="discountAmount" value="${editingSale?.discountAmount || 0}" /></label>
           <label>Monto cobrado<input type="number" min="0" name="amountPaid" value="${editingSale?.amountPaid || 0}" /></label>
-          <label>Efectivo<input type="number" min="0" name="cashAmount" value="${editingSale?.paymentBreakdown?.cash || 0}" /></label>
-          <label>Transferencia<input type="number" min="0" name="transferAmount" value="${editingSale?.paymentBreakdown?.transfer || 0}" /></label>
-          <label>Mercado Pago<input type="number" min="0" name="mercadoPagoAmount" value="${editingSale?.paymentBreakdown?.mercadoPago || 0}" /></label>
-          <label>Cuenta corriente<input type="number" min="0" name="accountAmount" value="${editingSale?.paymentBreakdown?.account || 0}" /></label>
+          <details class="sales-payment-detail full-span">
+            <summary>Desglose de pago mixto</summary>
+            <div class="payment-split-grid">
+              <label>Efectivo<input type="number" min="0" name="cashAmount" value="${editingSale?.paymentBreakdown?.cash || 0}" /></label>
+              <label>Transferencia<input type="number" min="0" name="transferAmount" value="${editingSale?.paymentBreakdown?.transfer || 0}" /></label>
+              <label>Mercado Pago<input type="number" min="0" name="mercadoPagoAmount" value="${editingSale?.paymentBreakdown?.mercadoPago || 0}" /></label>
+              <label>Cuenta corriente<input type="number" min="0" name="accountAmount" value="${editingSale?.paymentBreakdown?.account || 0}" /></label>
+            </div>
+          </details>
           <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Detalle interno, referencia o condicion comercial" /></label>
-          <div class="priority-list compact-list full-span">
+          <div class="priority-list compact-list full-span sales-status-strip">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
             <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</p></div>
             <div class="priority-item"><strong>Modo</strong><p>${ui.openCashSession ? 'Venta ligada a caja abierta' : 'Transferencia o cuenta sin caja'}</p></div>
           </div>
           <div class="full-span">
             <div class="panel-head"><div><h3>Escaner rapido</h3><p>Lee codigo de barras, SKU o nombre exacto</p></div></div>
-            <div class="inline-action-group">
+            <div class="inline-action-group scanner-row">
               <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" placeholder="Escanea o escribe codigo" />
               <button type="button" class="primary-action" data-action="quick-add-sale">Agregar</button>
             </div>
@@ -431,7 +438,7 @@ const salesView = (ui) => `
           <div class="full-span cart-builder">
             ${ui.scopedProducts.map((product) => `
               <div class="cart-line">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} - stock ${product.scopedStock} en ${ui.currentBranch?.name || 'sucursal'} - cod. ${product.barcode || '-'}</p></div>
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} · stock ${product.scopedStock} · cod. ${product.barcode || '-'}</p></div>
                 <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
               </div>`).join('')}
           </div>
@@ -439,8 +446,8 @@ const salesView = (ui) => `
           ${editingSale ? '<button type="button" class="danger-action" data-action="cancel-sale-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Tickets, factura y ticket postventa</p></div></div>
-        ${dataTable(['Cliente', 'Items', 'Caja', 'Cobro', 'Accion'], ui.enrichedSales.map((sale) => `<div class="data-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}</span><span>${sale.branchName} / ${sale.registerName}<br /><small>${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}
+      <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
+        <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} · ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
       </article>
     </section>
   </section>
