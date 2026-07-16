@@ -78,15 +78,18 @@ let saleDraftQuantities = {}
 let saleQuickAddCode = ''
 let topbarSearch = ''
 let cloudSyncBusy = false
+let commerceContext = null
 
 const loadCloudAccess = async (fullName = '') => {
   if (!authManager) throw new Error('La conexion cloud no esta lista.')
   const bootstrapProfile = await authManager.bootstrapProfile(fullName)
   const users = await authManager.listControlUsers()
+  commerceContext = await authManager.getCommerceContext()
   const profile = users.find((entry) => entry.id === bootstrapProfile.id) || bootstrapProfile
   store.setCloudAccessToken(authManager.getSession()?.access_token || '')
   const activeProfile = store.setCloudAuthSession(profile, users)
   if (!activeProfile || activeProfile.status !== 'active') {
+    commerceContext = null
     store.clearCloudAuthSession()
     await authManager.signOut()
     throw new Error(activeProfile?.status === 'disabled'
@@ -254,6 +257,7 @@ const getUiState = () => {
     modulePresets: store.modulePresets,
     user,
     role,
+    commerceContext,
     cloudConnection: store.getCloudConnection(),
     isAuthenticated: store.isAuthenticated(),
     openCashSession,
@@ -741,7 +745,18 @@ const settingsView = (ui) => `
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
     <section class="dashboard-grid reports-layout">
-      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div><div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}${ui.user.isOwner ? '<br /><small>Propietario de la instancia</small>' : `<br /><small>Plan ${planLabels[ui.snapshot.business.activePlan] || 'Full'}</small>`}</p></div><div class="priority-item"><strong>Base</strong><p>${ui.cloudConnection.instanceKey}<br /><small>${ui.cloudConnection.url.replace('https://', '')}</small></p></div><div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div><div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}${ui.user.isOwner ? '<br /><small>Propietario de la instancia</small>' : `<br /><small>Plan ${ui.commerceContext?.active_plan ? (planLabels[ui.commerceContext.active_plan] || ui.commerceContext.active_plan) : (planLabels[ui.snapshot.business.activePlan] || 'Full')}</small>`}</p></div><div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}<br /><small>${ui.commerceContext?.owner_email || ui.cloudConnection.instanceKey}</small></p></div><div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura el negocio, el mail dueño y la migracion a tablas reales</p></div></div>
+        <form class="form-grid" data-form="commerce-profile">
+          <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+          <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+          <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
+          <label>Plan<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${ui.commerceContext?.active_plan === 'basic' ? 'selected' : ''}>Basico</option><option value="retail" ${ui.commerceContext?.active_plan === 'retail' ? 'selected' : ''}>Retail</option><option value="full" ${!ui.commerceContext?.active_plan || ui.commerceContext?.active_plan === 'full' ? 'selected' : ''}>Full</option><option value="custom" ${ui.commerceContext?.active_plan === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
+          <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
+        </form>
+        <div class="panel-note"><span>El mail dueño ahora se puede cambiar desde aca sin tocar SQL.</span><span>Cuando migres el snapshot, ventas, caja, stock y comprobantes pasan a tablas reales.</span></div>
+        <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
+      </article>
       <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
         ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
         <form class="form-grid" data-form="user">
@@ -909,6 +924,7 @@ const bootstrap = async () => {
   } catch (error) {
     loginMessage = error.message || 'No se pudo iniciar la sesion cloud.'
     feedbackMessage = ''
+    commerceContext = null
     store.clearCloudAuthSession()
   } finally {
     cloudSyncBusy = false
@@ -1132,6 +1148,26 @@ const handleSubmit = async (event) => {
     const result = store.applyModulePreset(formData.get('presetKey'))
     feedbackMessage = result.message || ''
   }
+  if (kind === 'commerce-profile') {
+    try {
+      if (!authManager) throw new Error('La gestion cloud no esta disponible.')
+      const result = await authManager.updateCommerceProfile({
+        p_name: String(formData.get('name') || '').trim(),
+        p_owner_email: String(formData.get('ownerEmail') || '').trim().toLowerCase(),
+        p_legal_name: String(formData.get('legalName') || '').trim(),
+        p_active_plan: String(formData.get('activePlan') || '').trim(),
+      })
+      commerceContext = {
+        ...(commerceContext || {}),
+        commerce_name: result?.name || commerceContext?.commerce_name || '',
+        owner_email: result?.owner_email || commerceContext?.owner_email || '',
+        active_plan: result?.active_plan || commerceContext?.active_plan || 'full',
+      }
+      feedbackMessage = 'Perfil del comercio actualizado.'
+    } catch (error) {
+      feedbackMessage = error.message || 'No se pudo actualizar el comercio.'
+    }
+  }
   if (kind === 'cloud-connection') {
     cloudSyncBusy = true
     try {
@@ -1263,6 +1299,24 @@ const bindEvents = () => {
         feedbackMessage = result.message || ''
       } catch (error) {
         feedbackMessage = `No se pudo sincronizar. ${error.message || ''}`.trim()
+      } finally {
+        cloudSyncBusy = false
+        render()
+      }
+    })
+  }
+  const importCoreButton = document.querySelector('[data-action="import-core"]')
+  if (importCoreButton) {
+    importCoreButton.addEventListener('click', async () => {
+      try {
+        if (!authManager) throw new Error('La gestion cloud no esta disponible.')
+        cloudSyncBusy = true
+        render()
+        const result = await authManager.importSnapshotToCore(store.getCloudConnection().instanceKey || 'principal')
+        commerceContext = await authManager.getCommerceContext()
+        feedbackMessage = result?.ok ? 'Snapshot migrado a tablas reales en Supabase.' : 'La migracion termino sin confirmar estado.'
+      } catch (error) {
+        feedbackMessage = error.message || 'No se pudo migrar el snapshot.'
       } finally {
         cloudSyncBusy = false
         render()
@@ -1408,6 +1462,7 @@ const bindEvents = () => {
     if (authManager) await authManager.signOut()
     store.signOut()
     store.clearCloudAuthSession()
+    commerceContext = null
     loginMessage = ''
     feedbackMessage = ''
     render()

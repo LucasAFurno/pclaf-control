@@ -143,7 +143,28 @@ export const createCloudAuthManager = ({ url, anonKey }) => {
   const bootstrapProfile = async (fullName = '') => restRequest('/rest/v1/rpc/bootstrap_control_user', {
     method: 'POST',
     token: session?.access_token || '',
-    body: { p_full_name: fullName || null },
+    body: { p_full_name: fullName || null, p_commerce_name: 'PCLAF Control' },
+  })
+
+  const getCommerceContext = async () => {
+    const rows = await restRequest('/rest/v1/rpc/current_commerce_context', {
+      method: 'POST',
+      token: session?.access_token || '',
+      body: {},
+    })
+    return Array.isArray(rows) ? (rows[0] || null) : rows
+  }
+
+  const updateCommerceProfile = async (payload) => restRequest('/rest/v1/rpc/upsert_commerce_profile', {
+    method: 'POST',
+    token: session?.access_token || '',
+    body: payload,
+  })
+
+  const importSnapshotToCore = async (instanceKey = 'principal') => restRequest('/rest/v1/rpc/import_snapshot_to_core', {
+    method: 'POST',
+    token: session?.access_token || '',
+    body: { p_instance_key: instanceKey },
   })
 
   const listControlUsers = async () => restRequest('/rest/v1/control_users?select=id,email,full_name,role_key,status,is_owner,created_at,updated_at&order=created_at.asc', {
@@ -165,6 +186,9 @@ export const createCloudAuthManager = ({ url, anonKey }) => {
     signOut,
     getUser,
     bootstrapProfile,
+    getCommerceContext,
+    updateCommerceProfile,
+    importSnapshotToCore,
     listControlUsers,
     updateControlUser,
   }
