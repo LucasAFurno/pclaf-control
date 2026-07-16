@@ -1,6 +1,6 @@
-const buildHeaders = (anonKey) => ({
+const buildHeaders = (anonKey, accessToken = '') => ({
   apikey: anonKey,
-  Authorization: `Bearer ${anonKey}`,
+  Authorization: `Bearer ${accessToken || anonKey}`,
   'Content-Type': 'application/json',
 })
 
@@ -10,6 +10,7 @@ export const createSupabaseSnapshotAdapter = (config) => {
   const baseUrl = normalizeUrl(config?.url)
   const anonKey = String(config?.anonKey || '').trim()
   const instanceKey = String(config?.instanceKey || 'default').trim().toLowerCase()
+  const readAccessToken = typeof config?.getAccessToken === 'function' ? config.getAccessToken : () => ''
 
   if (!baseUrl || !anonKey || !instanceKey) return null
 
@@ -21,7 +22,7 @@ export const createSupabaseSnapshotAdapter = (config) => {
       const query = `${endpoint}?instance_key=eq.${encodeURIComponent(instanceKey)}&select=instance_key,state_json,updated_at&limit=1`
       const response = await fetch(query, {
         method: 'GET',
-        headers: buildHeaders(anonKey),
+        headers: buildHeaders(anonKey, readAccessToken()),
       })
       if (!response.ok) throw new Error(`Supabase load failed (${response.status})`)
       const rows = await response.json()
@@ -31,7 +32,7 @@ export const createSupabaseSnapshotAdapter = (config) => {
       const response = await fetch(`${endpoint}?on_conflict=instance_key`, {
         method: 'POST',
         headers: {
-          ...buildHeaders(anonKey),
+          ...buildHeaders(anonKey, readAccessToken()),
           Prefer: 'resolution=merge-duplicates,return=representation',
         },
         body: JSON.stringify([{

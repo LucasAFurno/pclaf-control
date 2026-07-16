@@ -111,6 +111,7 @@ const roles = [
 ]
 
 const roleIds = Object.fromEntries(roles.map((role) => [role.key, role.id]))
+const roleKeysById = Object.fromEntries(roles.map((role) => [role.id, role.key]))
 
 const seedData = {
   meta: {
@@ -780,7 +781,30 @@ export const createBrowserDataStore = (options = {}) => {
     return normalized
   }
   let cloudConfig = readCloudConfig()
-  let cloudAdapter = createSupabaseSnapshotAdapter(cloudConfig)
+  let cloudAccessToken = ''
+  let cloudAdapter = createSupabaseSnapshotAdapter({
+    ...cloudConfig,
+    getAccessToken: () => cloudAccessToken,
+  })
+  let cloudAuthProfile = null
+
+  const normalizeCloudUser = (entry) => {
+    if (!entry) return null
+    const roleKey = entry.role_key || roleKeysById[entry.roleId] || 'cashier'
+    return {
+      id: entry.id,
+      fullName: entry.full_name || entry.fullName || 'Usuario',
+      email: String(entry.email || '').trim().toLowerCase(),
+      roleKey,
+      roleId: roleIds[roleKey] || roleIds.cashier,
+      pin: '',
+      isActive: entry.status ? entry.status === 'active' : entry.isActive !== false,
+      status: entry.status || (entry.isActive === false ? 'disabled' : 'active'),
+      isOwner: Boolean(entry.is_owner || entry.isOwner),
+      createdAt: entry.created_at || entry.createdAt || todayIso(),
+      updatedAt: entry.updated_at || entry.updatedAt || todayIso(),
+    }
+  }
 
   const readState = () => {
     if (isDesktop) return migrateState(desktopBridge.initialize(defaultState))
@@ -798,7 +822,7 @@ export const createBrowserDataStore = (options = {}) => {
   const applyCloudMeta = (mode = 'offline', syncedAt = '') => {
     state.meta = {
       ...state.meta,
-      edition: cloudAdapter ? 'cloud-demo' : (isDesktop ? 'local-desktop' : (requireCloud ? 'cloud-required' : 'local-demo')),
+      edition: cloudAdapter ? 'cloud-web' : (isDesktop ? 'local-desktop' : (requireCloud ? 'cloud-required' : 'offline-blocked')),
       adapter: cloudAdapter ? 'supabase-rest' : (isDesktop ? 'desktop-sqlite' : (requireCloud ? 'cloud-required' : 'browser-localstorage')),
       syncStatus: requireCloud && !cloudAdapter ? 'required' : mode,
       lastSyncedAt: syncedAt || state.meta?.lastSyncedAt || '',
@@ -852,13 +876,54 @@ export const createBrowserDataStore = (options = {}) => {
 
   const getRole = (roleId) => state.roles.find((role) => role.id === roleId) || state.roles[0]
   const getUser = (userId) => state.users.find((user) => user.id === userId) || state.users[0]
-  const currentUser = () => currentUserFromState(state)
-  const currentRole = () => getRole(currentUser().roleId)
+  const currentUser = () => cloudAuthProfile || currentUserFromState(state)
+  const currentRole = () => cloudAuthProfile
+    ? (state.roles.find((role) => role.key === cloudAuthProfile.roleKey) || state.roles[0])
+    : getRole(currentUser().roleId)
   const hasPermission = (permission) => currentRole().permissions.includes(permission)
   const canAccessModule = (moduleKey, permission) => isModuleEnabled(state, moduleKey) && hasPermission(permission)
   const isAuthenticated = () => Boolean(state.session.authenticated && state.session.userId)
 
+  const replaceCloudUsers = (users = []) => {
+    const normalized = users.map(normalizeCloudUser).filter(Boolean)
+    if (normalized.length) state.users = normalized
+    return normalized
+  }
+
+  const setCloudAccessToken = (token = '') => {
+    cloudAccessToken = String(token || '').trim()
+    cloudAdapter = createSupabaseSnapshotAdapter({
+      ...cloudConfig,
+      getAccessToken: () => cloudAccessToken,
+    })
+    applyCloudMeta(cloudAdapter ? 'pending' : 'required')
+  }
+
+  const setCloudAuthSession = (profile, users = []) => {
+    const normalizedProfile = normalizeCloudUser(profile)
+    cloudAuthProfile = normalizedProfile
+    if (!normalizedProfile) {
+      state.session.userId = ''
+      state.session.authenticated = false
+      return null
+    }
+    const normalizedUsers = replaceCloudUsers(users)
+    if (!normalizedUsers.some((entry) => entry.id === normalizedProfile.id)) {
+      state.users = [normalizedProfile, ...state.users.filter((entry) => entry.id !== normalizedProfile.id)]
+    }
+    state.session.userId = normalizedProfile.id
+    state.session.authenticated = normalizedProfile.status === 'active'
+    return normalizedProfile
+  }
+
+  const clearCloudAuthSession = () => {
+    cloudAuthProfile = null
+    state.session.userId = ''
+    state.session.authenticated = false
+  }
+
   const authenticateUser = (identifier, pin) => {
+    if (cloudConfig?.url && cloudConfig?.anonKey) return { ok: false, message: 'Este acceso ahora usa email y clave cloud.' }
     const normalized = String(identifier || '').trim().toLowerCase()
     const user = state.users.find((entry) => (
       entry.isActive
@@ -880,6 +945,8 @@ export const createBrowserDataStore = (options = {}) => {
 
   const signOut = () => {
     const user = currentUser()
+    cloudAuthProfile = null
+    cloudAccessToken = ''
     state.session.authenticated = false
     state.session.userId = ''
     pushAudit(state, user.id, 'session', user.id, 'sign_out', { userId: user.id })
@@ -1662,17 +1729,21 @@ export const createBrowserDataStore = (options = {}) => {
 
   const setCloudConnection = async (config) => {
     cloudConfig = writeCloudConfig(config)
-    cloudAdapter = createSupabaseSnapshotAdapter(cloudConfig)
+    cloudAdapter = createSupabaseSnapshotAdapter({
+      ...cloudConfig,
+      getAccessToken: () => cloudAccessToken,
+    })
     applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
     save()
-    if (cloudAdapter) return syncFromCloud()
-    return { ok: true, message: 'Modo local activado.' }
+    return { ok: true, message: cloudAdapter ? 'Conexion cloud guardada.' : 'Conexion cloud desactivada.' }
   }
 
   const clearCloudConnection = async () => {
     writeCloudConfig(null)
     cloudConfig = null
     cloudAdapter = null
+    cloudAuthProfile = null
+    cloudAccessToken = ''
     applyCloudMeta('offline', '')
     save()
     return { ok: true, message: 'Conexion cloud desactivada.' }
@@ -1714,6 +1785,10 @@ export const createBrowserDataStore = (options = {}) => {
     getCloudConnection,
     setCloudConnection,
     clearCloudConnection,
+    setCloudAccessToken,
+    setCloudAuthSession,
+    clearCloudAuthSession,
+    replaceCloudUsers,
     syncFromCloud,
     syncToCloud,
     createStockAdjustment,

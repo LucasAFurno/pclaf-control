@@ -11,6 +11,7 @@ const hostingDir = path.join(dist, '.openai')
 const clientJs = await readFile(path.join(root, 'site', 'client.js'), 'utf8')
 const dataStoreJs = await readFile(path.join(root, 'site', 'data-store.js'), 'utf8')
 const cloudSyncJs = await readFile(path.join(root, 'site', 'cloud-sync.js'), 'utf8')
+const cloudAuthJs = await readFile(path.join(root, 'site', 'cloud-auth.js'), 'utf8')
 const stylesCss = await readFile(path.join(root, 'site', 'styles.css'), 'utf8')
 const cloudConfigJson = await readFile(path.join(root, 'site', 'cloud-config.json'), 'utf8')
 const hostingJson = await readFile(path.join(root, '.openai', 'hosting.json'), 'utf8')
@@ -98,6 +99,7 @@ const css = ${JSON.stringify(stylesCss)};
 const js = ${JSON.stringify(clientJs)};
 const dataStore = ${JSON.stringify(dataStoreJs)};
 const cloudSync = ${JSON.stringify(cloudSyncJs)};
+const cloudAuth = ${JSON.stringify(cloudAuthJs)};
 const cloudConfig = ${JSON.stringify(cloudConfigJson)};
 const favicon = ${JSON.stringify(faviconSvg)};
 const logo = ${JSON.stringify([...pclafLogo])};
@@ -126,6 +128,7 @@ export default {
     if (url.pathname === '/app.js') return asset(js, 'application/javascript; charset=utf-8');
     if (url.pathname === '/data-store.js') return asset(dataStore, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-sync.js') return asset(cloudSync, 'application/javascript; charset=utf-8');
+    if (url.pathname === '/cloud-auth.js') return asset(cloudAuth, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-config.json') return asset(cloudConfig, 'application/json; charset=utf-8');
     if (url.pathname === '/favicon.svg') return asset(favicon, 'image/svg+xml');
     if (url.pathname === '/pclaf-logo.png') return asset(Uint8Array.from(logo), 'image/png');
@@ -145,6 +148,7 @@ await writeFile(path.join(dist, 'app.css'), stylesCss)
 await writeFile(path.join(dist, 'app.js'), clientJs)
 await writeFile(path.join(dist, 'data-store.js'), dataStoreJs)
 await writeFile(path.join(dist, 'cloud-sync.js'), cloudSyncJs)
+await writeFile(path.join(dist, 'cloud-auth.js'), cloudAuthJs)
 await writeFile(path.join(dist, 'cloud-config.json'), cloudConfigJson)
 await writeFile(path.join(serverDir, 'index.js'), serverCode)
 await writeFile(path.join(hostingDir, 'hosting.json'), hostingJson)
@@ -157,6 +161,7 @@ await writeFile(path.join(root, 'app.css'), stylesCss)
 await writeFile(path.join(root, 'app.js'), clientJs)
 await writeFile(path.join(root, 'data-store.js'), dataStoreJs)
 await writeFile(path.join(root, 'cloud-sync.js'), cloudSyncJs)
+await writeFile(path.join(root, 'cloud-auth.js'), cloudAuthJs)
 await writeFile(path.join(root, 'cloud-config.json'), cloudConfigJson)
 await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(root, 'favicon.svg'))
 await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(root, 'pclaf-logo.png'))

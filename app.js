@@ -1,4 +1,5 @@
 import { createBrowserDataStore } from './data-store.js'
+import { createCloudAuthManager } from './cloud-auth.js'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
@@ -10,6 +11,7 @@ const cloudConfigStorageKey = 'pclaf-control-cloud-config'
 const defaultSupabaseUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
 
 let store = null
+let authManager = null
 const safeStorage = {
   getItem(key, fallback = '') {
     try {
@@ -76,6 +78,24 @@ let saleDraftQuantities = {}
 let saleQuickAddCode = ''
 let topbarSearch = ''
 let cloudSyncBusy = false
+
+const loadCloudAccess = async (fullName = '') => {
+  if (!authManager) throw new Error('La conexion cloud no esta lista.')
+  const bootstrapProfile = await authManager.bootstrapProfile(fullName)
+  const users = await authManager.listControlUsers()
+  const profile = users.find((entry) => entry.id === bootstrapProfile.id) || bootstrapProfile
+  store.setCloudAccessToken(authManager.getSession()?.access_token || '')
+  const activeProfile = store.setCloudAuthSession(profile, users)
+  if (!activeProfile || activeProfile.status !== 'active') {
+    store.clearCloudAuthSession()
+    await authManager.signOut()
+    throw new Error(activeProfile?.status === 'disabled'
+      ? 'Tu cuenta fue deshabilitada por el administrador.'
+      : 'Tu cuenta quedo pendiente de aprobacion del administrador.')
+  }
+  await store.syncFromCloud()
+  return { profile: activeProfile, users }
+}
 
 const money = (value) => currency.format(Number(value) || 0)
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
@@ -294,28 +314,28 @@ const loginView = (ui) => `
   <div class="login-shell">
     <div class="login-card">
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
-      <p class="kicker">${ui.cloudConnection.enabled ? 'Edicion cloud' : 'Edicion local'}</p>
+      <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso cloud' : 'Acceso bloqueado'}</p>
       <h1>${productName}</h1>
-      <p class="login-copy">Ingresá con usuario y PIN para operar ventas, caja, compras y control.</p>
+      <p class="login-copy">Ingresa con tu cuenta para operar ventas, caja, compras y control en la base real.</p>
       <form class="login-form" data-form="login">
-        <label>Usuario o email<input type="text" name="identifier" placeholder="Tu usuario o email" required /></label>
-        <label>Clave<input type="password" name="pin" placeholder="Ingresa tu clave" required /></label>
+        <label>Email<input type="email" name="identifier" placeholder="tu@email.com" required /></label>
+        <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Ingresar</button>
       </form>
       <div class="login-meta">
         <span class="login-meta-label">Acceso</span>
         <div class="login-hints">
-          <span>Usa una cuenta habilitada para esta instancia.</span>
-          <span>${ui.cloudConnection.enabled ? `Instancia compartida: ${ui.cloudConnection.instanceKey}` : 'Modo local de prueba activo'}</span>
+          <span>Solo ingresan cuentas aprobadas para esta instancia.</span>
+          <span>${ui.cloudConnection.enabled ? `Instancia activa: ${ui.cloudConnection.instanceKey}` : 'La conexion cloud es obligatoria.'}</span>
         </div>
       </div>
       <form class="login-form secondary-login-form" data-form="public-register">
         <p class="kicker">Crear cuenta</p>
         <label>Nombre completo<input type="text" name="fullName" placeholder="Juan Perez" required /></label>
-        <label>Email o login<input type="text" name="email" placeholder="juan@negocio.com" required /></label>
+        <label>Email<input type="email" name="email" placeholder="juan@negocio.com" required /></label>
         <label>Clave<input type="password" name="pin" placeholder="Minimo 6 caracteres" required /></label>
-        <button type="submit">Crear cuenta nueva</button>
+        <button type="submit">Solicitar acceso</button>
       </form>
     </div>
   </div>
@@ -710,22 +730,31 @@ const reportsView = (ui) => `
 const settingsView = (ui) => `
   ${(() => {
     const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
+    const canManageUsers = ui.user?.isOwner || ui.role?.key === 'admin'
+    const syncLabel = ui.snapshot.meta.syncStatus === 'online'
+      ? 'Cloud operativa'
+      : ui.snapshot.meta.syncStatus === 'syncing'
+        ? 'Sincronizando'
+        : ui.snapshot.meta.syncStatus === 'pending'
+          ? 'Pendiente'
+          : ui.snapshot.meta.syncStatus || 'offline'
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
     <section class="dashboard-grid reports-layout">
-      <article class="panel"><div class="panel-head"><div><h3>Sesion actual</h3><p>Usuario autenticado</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}</p></div><div class="priority-item"><strong>Rol</strong><p>${ui.role.name}</p></div><div class="priority-item"><strong>Persistencia</strong><p>${ui.snapshot.meta.adapter}</p></div><div class="priority-item"><strong>Sincronizacion</strong><p>${ui.snapshot.meta.syncStatus || 'offline'}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar usuario' : 'Usuarios y accesos'}</h3><p>Alta de administradores, cajas y deposito</p></div></div>
+      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div><div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}${ui.user.isOwner ? '<br /><small>Propietario de la instancia</small>' : `<br /><small>Plan ${planLabels[ui.snapshot.business.activePlan] || 'Full'}</small>`}</p></div><div class="priority-item"><strong>Base</strong><p>${ui.cloudConnection.instanceKey}<br /><small>${ui.cloudConnection.url.replace('https://', '')}</small></p></div><div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
+        ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
         <form class="form-grid" data-form="user">
           <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
-          <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" required /></label>
-          <label>Email o login<input type="text" name="email" value="${editingUser?.email || ''}" placeholder="usuario@pclaf.local" /></label>
-          <label>Rol<select name="roleId" required>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
-          <label>PIN ${editingUser ? '<small>(deja vacio para no cambiarlo)</small>' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Nueva clave' : 'Bandido.2178'}" ${editingUser ? '' : 'required'} /></label>
-          <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} />Usuario activo</label>
-          <button type="submit">${editingUser ? 'Guardar usuario' : 'Crear usuario'}</button>
+          <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+          <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" disabled /></label>
+          <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
+          <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} />Cuenta habilitada</label>
+          <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
           ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
         </form>
-        ${dataTable(['Usuario', 'Rol', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.isActive ? 'Activo' : 'Inactivo'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : 'Disponible'}</span><span>${userActionButtons(entry)}</span></div>`))}
+        <div class="panel-note"><span>Alta inicial: cada persona crea su cuenta desde la pantalla de acceso.</span><span>Despues vos la habilitas y le asignas rol, o la dejas pendiente.</span></div>
+        ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
         <form class="form-grid" data-form="module-preset">
@@ -743,21 +772,20 @@ const settingsView = (ui) => `
           `).join('')}
         </div>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Proyecto real listo para conectar con Supabase</p></div></div>
-        <div class="info-strip"><strong>Proyecto:</strong> rfwsnqmjkclxhbmidbkm <span>Solo falta pegar la clave publica y guardar.</span></div>
+      <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Instancia real donde se guardan usuarios, ventas y comprobantes</p></div></div>
+        <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} · ${syncLabel}</span></div>
         <form class="form-grid" data-form="cloud-connection">
           <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
           <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
           <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
-          <button type="submit">${ui.cloudConnection.enabled ? 'Guardar y sincronizar' : 'Conectar Supabase'}</button>
+          <button type="submit">${ui.cloudConnection.enabled ? 'Guardar conexion' : 'Conectar Supabase'}</button>
         </form>
-        <div class="panel-note"><span>Busca la publishable key en Supabase: Project Settings > Data API.</span><span>Despues de conectar, esta base queda compartida entre navegadores usando la misma instancia.</span></div>
+        <div class="panel-note"><span>La app ya no trabaja en demo local cuando esta en web.</span><span>Todo lo que se use aca debe terminar guardado en Supabase.</span></div>
         <div class="settings-actions">
           <button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button>
-          <button type="button" class="danger-action" data-action="disconnect-cloud">Volver a local</button>
         </div>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Backup local</h3><p>Exporta o restaura los datos</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label><button type="button" class="danger-action" data-action="reset-data">Restaurar demo</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Backup operativo</h3><p>Exporta e importa respaldo manual de esta instancia</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label></div></article>
       <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimos eventos</p></div></div><div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div></article>
     </section>
   </section>
@@ -863,14 +891,25 @@ const bootstrap = async () => {
     requireCloud: !window.pclafDesktop,
   }
   store = createBrowserDataStore(storeOptions)
+  authManager = initialCloudConfig?.url && initialCloudConfig?.anonKey
+    ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey })
+    : null
   try {
-    if (store.getCloudConnection().enabled) {
+    if (store.getCloudConnection().enabled && authManager) {
+      const restoredSession = await authManager.restoreSession()
+      if (restoredSession?.access_token) {
+        store.setCloudAccessToken(restoredSession.access_token)
+      }
+    }
+    if (store.getCloudConnection().enabled && authManager?.getSession()?.access_token) {
       cloudSyncBusy = true
-      await store.syncFromCloud()
-      feedbackMessage = 'Base cloud cargada correctamente.'
+      await loadCloudAccess()
+      feedbackMessage = 'Sesion cloud restaurada correctamente.'
     }
   } catch (error) {
-    feedbackMessage = `La web arrancó en modo local porque fallo la conexion cloud. ${error.message || ''}`.trim()
+    loginMessage = error.message || 'No se pudo iniciar la sesion cloud.'
+    feedbackMessage = ''
+    store.clearCloudAuthSession()
   } finally {
     cloudSyncBusy = false
     try {
@@ -878,7 +917,10 @@ const bootstrap = async () => {
     } catch (error) {
       resetBrokenBrowserState()
       store = createBrowserDataStore(storeOptions)
-      feedbackMessage = 'Se restauraron los datos locales para recuperar la sesion.'
+      authManager = initialCloudConfig?.url && initialCloudConfig?.anonKey
+        ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey })
+        : null
+      loginMessage = 'La aplicacion se recupero y reinicio la sesion.'
       render()
     }
   }
@@ -988,16 +1030,45 @@ const handleSubmit = async (event) => {
   const kind = form.dataset.form
 
   if (kind === 'login') {
-    const result = store.authenticateUser(formData.get('identifier'), formData.get('pin'))
-    loginMessage = result.ok ? '' : result.message
+    loginMessage = ''
     feedbackMessage = ''
+    try {
+      if (!authManager) throw new Error('La conexion cloud no esta lista.')
+      await authManager.signIn({
+        email: String(formData.get('identifier') || '').trim(),
+        password: String(formData.get('pin') || ''),
+      })
+      await loadCloudAccess()
+    } catch (error) {
+      loginMessage = error.message || 'No se pudo iniciar sesion.'
+    }
     render()
     return
   }
   if (kind === 'public-register') {
-    const result = store.registerPublicUser({ fullName: formData.get('fullName'), email: formData.get('email'), pin: formData.get('pin') })
-    loginMessage = result.ok ? '' : result.message
-    feedbackMessage = result.ok ? result.message : ''
+    loginMessage = ''
+    feedbackMessage = ''
+    try {
+      if (!authManager) throw new Error('La conexion cloud no esta lista.')
+      const result = await authManager.signUp({
+        fullName: String(formData.get('fullName') || '').trim(),
+        email: String(formData.get('email') || '').trim(),
+        password: String(formData.get('pin') || ''),
+      })
+      if (result?.session?.access_token) {
+        try {
+          await loadCloudAccess(String(formData.get('fullName') || '').trim())
+          feedbackMessage = 'Cuenta creada. Quedo pendiente de aprobacion del administrador.'
+          loginMessage = 'Tu cuenta fue creada, pero necesita aprobacion antes de ingresar.'
+        } catch (error) {
+          loginMessage = error.message || 'La cuenta se creo, pero no pudo habilitarse.'
+        }
+      } else {
+        feedbackMessage = 'Cuenta creada. Revisa tu correo si Supabase pide confirmacion y luego espera aprobacion.'
+      }
+    } catch (error) {
+      loginMessage = error.message || 'No se pudo crear la cuenta.'
+    }
     render()
     return
   }
@@ -1018,10 +1089,22 @@ const handleSubmit = async (event) => {
     registerEditingId = ''
   }
   if (kind === 'user') {
-    const result = formData.get('userId')
-      ? store.updateUser(formData.get('userId'), { fullName: formData.get('fullName'), email: formData.get('email'), roleId: formData.get('roleId'), pin: formData.get('pin'), isActive: formData.get('isActive') === 'on' })
-      : store.createUser({ fullName: formData.get('fullName'), email: formData.get('email'), roleId: formData.get('roleId'), pin: formData.get('pin'), isActive: formData.get('isActive') === 'on' })
-    feedbackMessage = result.message || ''
+    try {
+      if (!authManager) throw new Error('La gestion cloud no esta disponible.')
+      if (!formData.get('userId')) throw new Error('Los usuarios nuevos se registran desde la pantalla de acceso.')
+      const role = getUiState().snapshot.roles.find((entry) => entry.id === formData.get('roleId'))
+      const rows = await authManager.updateControlUser(formData.get('userId'), {
+        full_name: String(formData.get('fullName') || '').trim(),
+        role_key: role?.key || 'cashier',
+        status: formData.get('isActive') === 'on' ? 'active' : 'disabled',
+      })
+      const users = await authManager.listControlUsers()
+      const currentProfile = users.find((entry) => entry.id === store.currentUser().id) || rows?.[0]
+      store.setCloudAuthSession(currentProfile, users)
+      feedbackMessage = 'Permisos actualizados.'
+    } catch (error) {
+      feedbackMessage = error.message || 'No se pudo actualizar el usuario.'
+    }
     userEditingId = ''
   }
   if (kind === 'report-filter') {
@@ -1053,6 +1136,7 @@ const handleSubmit = async (event) => {
     cloudSyncBusy = true
     try {
       const result = await store.setCloudConnection({ url: formData.get('url'), anonKey: formData.get('anonKey'), instanceKey: formData.get('instanceKey') })
+      authManager = createCloudAuthManager({ url: formData.get('url'), anonKey: formData.get('anonKey') })
       feedbackMessage = result.message || (result.ok ? 'Conexion cloud actualizada.' : '')
     } catch (error) {
       feedbackMessage = `No se pudo conectar con Supabase. ${error.message || ''}`.trim()
@@ -1188,6 +1272,7 @@ const bindEvents = () => {
   const disconnectCloudButton = document.querySelector('[data-action="disconnect-cloud"]')
   if (disconnectCloudButton) {
     disconnectCloudButton.addEventListener('click', async () => {
+      if (authManager) await authManager.signOut()
       const result = await store.clearCloudConnection()
       feedbackMessage = result.message || ''
       render()
@@ -1281,15 +1366,29 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-user-action]')) {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       if (button.dataset.userAction === 'edit') {
         userEditingId = button.dataset.id
         feedbackMessage = 'Usuario cargado para edicion.'
         render()
         return
       }
-      const result = store.toggleUserActive(button.dataset.id, button.dataset.active !== 'true')
-      feedbackMessage = result.message || ''
+      try {
+        if (!authManager) throw new Error('La gestion cloud no esta disponible.')
+        const target = store.getSnapshot().users.find((entry) => entry.id === button.dataset.id)
+        const nextStatus = button.dataset.active !== 'true' ? 'active' : 'disabled'
+        await authManager.updateControlUser(button.dataset.id, {
+          full_name: target?.fullName || 'Usuario',
+          role_key: target?.roleKey || 'cashier',
+          status: nextStatus,
+        })
+        const users = await authManager.listControlUsers()
+        const currentProfile = users.find((entry) => entry.id === store.currentUser().id)
+        store.setCloudAuthSession(currentProfile, users)
+        feedbackMessage = `Usuario ${nextStatus === 'active' ? 'habilitado' : 'deshabilitado'}.`
+      } catch (error) {
+        feedbackMessage = error.message || 'No se pudo actualizar el acceso.'
+      }
       render()
     })
   }
@@ -1305,7 +1404,14 @@ const bindEvents = () => {
   const resetButton = document.querySelector('[data-action="reset-data"]')
   if (resetButton) resetButton.addEventListener('click', () => { store.resetData(); feedbackMessage = 'Demo restaurada.'; render() })
   const signOutButton = document.querySelector('[data-action="sign-out"]')
-  if (signOutButton) signOutButton.addEventListener('click', () => { store.signOut(); loginMessage = ''; feedbackMessage = ''; render() })
+  if (signOutButton) signOutButton.addEventListener('click', async () => {
+    if (authManager) await authManager.signOut()
+    store.signOut()
+    store.clearCloudAuthSession()
+    loginMessage = ''
+    feedbackMessage = ''
+    render()
+  })
   const cancelSaleEdit = document.querySelector('[data-action="cancel-sale-edit"]')
   if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; saleDraftQuantities = {}; saleQuickAddCode = ''; feedbackMessage = 'Edicion de venta cancelada.'; render() })
   const cancelPurchaseEdit = document.querySelector('[data-action="cancel-purchase-edit"]')
