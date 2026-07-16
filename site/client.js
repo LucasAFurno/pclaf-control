@@ -886,6 +886,7 @@ const renderApp = (ui) => {
               <span class="mode-dot" aria-hidden="true"></span>
               <div class="mode-copy"><strong>${modeName}</strong><span>${modeHint}</span></div>
             </div>
+            <button class="inline-action danger topbar-logout" type="button" data-action="sign-out">Salir</button>
           </div>
         </header>
         <main class="page">${renderCurrentView(ui)}</main>

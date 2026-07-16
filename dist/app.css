@@ -400,6 +400,12 @@ input, select { outline: none; }
   flex-wrap: wrap;
 }
 
+.topbar-logout {
+  min-width: 96px;
+  min-height: 48px;
+  justify-content: center;
+}
+
 .user-pill {
   display: inline-grid;
   gap: 4px;
@@ -1177,7 +1183,8 @@ input, select { outline: none; }
 
   .account-card,
   .mode-badge,
-  .theme-switch {
+  .theme-switch,
+  .topbar-logout {
     width: 100%;
     justify-content: flex-start;
   }
