@@ -429,7 +429,7 @@ const loginView = (ui) => `
         <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
           <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
           <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Kiosco Marti" autocomplete="organization" required /></label>
-          <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del duenio" autocomplete="name" required /></label>
+          <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" autocomplete="name" required /></label>
           <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
           <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
           <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
@@ -460,8 +460,8 @@ const setupView = (ui) => `
       <p class="login-copy">No hay usuarios ni comercio creados todavia. Cargamos la cuenta administradora, la primera sucursal y la primera caja para arrancar desde cero sobre tablas reales.</p>
       <form class="login-form" data-form="instance-setup" autocomplete="off">
         <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-        <label>Nombre del comercio<input type="text" name="commerceName" placeholder="PCLAF Control" required /></label>
-        <label>Administrador<input type="text" name="ownerName" placeholder="Lucas Furno" required /></label>
+        <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Mi comercio" required /></label>
+        <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" required /></label>
         <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
         <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
         <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
@@ -1515,14 +1515,12 @@ const settingsViewV2 = (ui) => `
             </form>
             <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Instancia real de Supabase</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Configuracion protegida del entorno</p></div></div>
             <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} Â· ${syncLabel}</span></div>
-            <form class="form-grid compact-form" data-form="cloud-connection">
-              <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
-              <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
-              <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
-              <button type="submit">${ui.cloudConnection.enabled ? 'Guardar conexion' : 'Conectar Supabase'}</button>
-            </form>
+            <div class="timeline-list">
+              <div class="timeline-item"><strong>Credenciales ocultas</strong><p>La URL del proyecto y la publishable key ya no se muestran dentro del panel.</p><span>Quedan fuera del alcance del personal operativo.</span></div>
+              <div class="timeline-item"><strong>Sesion protegida</strong><p>La app trabaja con la instancia activa sin exponer configuracion tecnica.</p><span>Solo se usa para cargar y guardar datos del comercio.</span></div>
+            </div>
             <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button></div>
           </article>
         </div>
@@ -1587,7 +1585,7 @@ const basicSettingsView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>Seguridad</h3><p>Lo tecnico queda oculto para usuarios del comercio</p></div></div>
         <div class="timeline-list">
           <div class="timeline-item"><strong>Conexion protegida</strong><p>No mostramos URL de base, publishable key ni configuracion cloud.</p><span>Solo el propietario accede a esa capa.</span></div>
-          <div class="timeline-item"><strong>Permisos centralizados</strong><p>Los roles, usuarios y niveles de acceso los administra PCLAF o el propietario.</p><span>Esta cuenta usa solo lo necesario para operar.</span></div>
+          <div class="timeline-item"><strong>Permisos centralizados</strong><p>Los roles, usuarios y niveles de acceso los administra el propietario del comercio.</p><span>Esta cuenta usa solo lo necesario para operar.</span></div>
           <div class="timeline-item"><strong>Soporte directo</strong><p>Si algo falla o necesitas ayuda, te llevamos al WhatsApp oficial.</p><span>Sin pasar por menus tecnicos.</span></div>
         </div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Hablar con soporte</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>

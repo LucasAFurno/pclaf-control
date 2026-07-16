@@ -125,7 +125,7 @@ const seedData = {
   },
   business: {
     name: 'Panel comercial',
-    organization: 'PCLAF',
+    organization: 'Demo local',
     currentBranchId: '',
     currentRegisterId: '',
     enabledModules: modulePresets.full,
@@ -144,15 +144,15 @@ const seedData = {
     },
   },
   branches: [
-    { id: makeId(), name: 'Floresta', code: 'FLO', address: 'Campana 51, CABA', isActive: true },
-    { id: makeId(), name: 'Caballito', code: 'CAB', address: 'Sucursal demo', isActive: true },
+    { id: makeId(), name: 'Sucursal demo', code: 'SUC', address: 'Configuracion local', isActive: true },
+    { id: makeId(), name: 'Deposito demo', code: 'DEP', address: 'Configuracion local', isActive: true },
   ],
   registers: [],
   roles,
   users: [
-    { id: makeId(), fullName: 'Admin PCLAF', roleId: roleIds.admin, email: 'admin@pclaf.control', pin: 'Bandido.2178', isActive: true },
-    { id: makeId(), fullName: 'Mica Caja', roleId: roleIds.cashier, email: 'caja@pclaf.local', pin: '1111', isActive: true },
-    { id: makeId(), fullName: 'Leo Deposito', roleId: roleIds.warehouse, email: 'deposito@pclaf.local', pin: '2222', isActive: true },
+    { id: makeId(), fullName: 'Administrador demo', roleId: roleIds.admin, email: 'admin@demo.local', pin: 'demo1234', isActive: true },
+    { id: makeId(), fullName: 'Caja demo', roleId: roleIds.cashier, email: 'caja@demo.local', pin: 'demo1111', isActive: true },
+    { id: makeId(), fullName: 'Deposito demo', roleId: roleIds.warehouse, email: 'deposito@demo.local', pin: 'demo2222', isActive: true },
   ],
   session: {
     userId: '',

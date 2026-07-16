@@ -27,11 +27,6 @@ Entrar a `Ajustes > Conexion cloud` y completar:
 
 Luego usar `Conectar Supabase` y despues `Sincronizar ahora`.
 
-## 4. Login demo actual
-
-- usuario: `admin`
-- clave: `Bandido.2178`
-
-## 5. Nota
+## 4. Nota
 
 Esta conexion actual sincroniza el snapshot completo de la app para pruebas entre navegadores. El siguiente paso profesional es migrar a tablas reales de `usuarios`, `ventas`, `stock`, `caja`, `comprobantes` y `auditoria`.

@@ -77,7 +77,7 @@ declare
   v_uid uuid := auth.uid();
   v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   v_name text := nullif(trim(coalesce(p_full_name, '')), '');
-  v_owner_email constant text := 'sirdurotan@gmail.com';
+  v_owner_email constant text := '';
   v_row public.control_users;
 begin
   if v_uid is null then
@@ -104,9 +104,9 @@ begin
     v_uid,
     v_email,
     v_name,
-    case when v_email = v_owner_email then 'admin' else 'cashier' end,
-    case when v_email = v_owner_email then 'active' else 'pending' end,
-    v_email = v_owner_email
+    case when v_owner_email <> '' and v_email = v_owner_email then 'admin' else 'cashier' end,
+    case when v_owner_email <> '' and v_email = v_owner_email then 'active' else 'pending' end,
+    v_owner_email <> '' and v_email = v_owner_email
   )
   on conflict (id) do update
   set
