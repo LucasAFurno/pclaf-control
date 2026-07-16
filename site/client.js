@@ -47,6 +47,7 @@ let reportDateTo = ''
 let saleDraftQuantities = {}
 let saleQuickAddCode = ''
 let topbarSearch = ''
+let cloudSyncBusy = false
 
 const money = (value) => currency.format(Number(value) || 0)
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
@@ -197,6 +198,7 @@ const getUiState = () => {
     modulePresets: store.modulePresets,
     user,
     role,
+    cloudConnection: store.getCloudConnection(),
     isAuthenticated: store.isAuthenticated(),
     openCashSession,
     cashSalesTotal,
@@ -256,20 +258,26 @@ const loginView = (ui) => `
   <div class="login-shell">
     <div class="login-card">
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
-      <p class="kicker">Edicion local</p>
+      <p class="kicker">${ui.cloudConnection.enabled ? 'Edicion cloud' : 'Edicion local'}</p>
       <h1>${productName}</h1>
       <p class="login-copy">Ingresá con usuario y PIN para operar ventas, caja, compras y control.</p>
       <form class="login-form" data-form="login">
         <label>Usuario o email<input type="text" name="identifier" placeholder="admin" required /></label>
-        <label>PIN<input type="password" name="pin" placeholder="1234" required /></label>
+        <label>Clave<input type="password" name="pin" placeholder="Bandido.2178" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Ingresar</button>
       </form>
       <div class="login-hints">
-        <span>Admin: admin / 1234</span>
-        <span>Caja: caja@pclaf.local / 1111</span>
-        <span>Deposito: deposito@pclaf.local / 2222</span>
+        <span>Admin: admin / Bandido.2178</span>
+        <span>${ui.cloudConnection.enabled ? `Instancia compartida: ${ui.cloudConnection.instanceKey}` : 'Modo local de prueba activo'}</span>
       </div>
+      <form class="login-form secondary-login-form" data-form="public-register">
+        <p class="kicker">Crear cuenta</p>
+        <label>Nombre completo<input type="text" name="fullName" placeholder="Juan Perez" required /></label>
+        <label>Email o login<input type="text" name="email" placeholder="juan@negocio.com" required /></label>
+        <label>Clave<input type="password" name="pin" placeholder="Minimo 6 caracteres" required /></label>
+        <button type="submit">Crear cuenta nueva</button>
+      </form>
     </div>
   </div>
 `
@@ -639,14 +647,14 @@ const settingsView = (ui) => `
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
     <section class="dashboard-grid reports-layout">
-      <article class="panel"><div class="panel-head"><div><h3>Sesion actual</h3><p>Usuario autenticado</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}</p></div><div class="priority-item"><strong>Rol</strong><p>${ui.role.name}</p></div><div class="priority-item"><strong>Persistencia</strong><p>${ui.snapshot.meta.adapter}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Sesion actual</h3><p>Usuario autenticado</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}</p></div><div class="priority-item"><strong>Rol</strong><p>${ui.role.name}</p></div><div class="priority-item"><strong>Persistencia</strong><p>${ui.snapshot.meta.adapter}</p></div><div class="priority-item"><strong>Sincronizacion</strong><p>${ui.snapshot.meta.syncStatus || 'offline'}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
       <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar usuario' : 'Usuarios y accesos'}</h3><p>Alta de administradores, cajas y deposito</p></div></div>
         <form class="form-grid" data-form="user">
           <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
           <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" required /></label>
           <label>Email o login<input type="text" name="email" value="${editingUser?.email || ''}" placeholder="usuario@pclaf.local" /></label>
           <label>Rol<select name="roleId" required>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
-          <label>PIN ${editingUser ? '<small>(deja vacio para no cambiarlo)</small>' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Nuevo PIN' : '1234'}" ${editingUser ? '' : 'required'} /></label>
+          <label>PIN ${editingUser ? '<small>(deja vacio para no cambiarlo)</small>' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Nueva clave' : 'Bandido.2178'}" ${editingUser ? '' : 'required'} /></label>
           <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} />Usuario activo</label>
           <button type="submit">${editingUser ? 'Guardar usuario' : 'Crear usuario'}</button>
           ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
@@ -667,6 +675,18 @@ const settingsView = (ui) => `
               <div class="settings-actions"><button type="button" class="inline-action" data-module-toggle="${module.key}" data-enabled="${ui.snapshot.business.enabledModules.includes(module.key) ? 'true' : 'false'}">${ui.snapshot.business.enabledModules.includes(module.key) ? 'Deshabilitar' : 'Habilitar'}</button></div>
             </div>
           `).join('')}
+        </div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Sincroniza esta base con Supabase para pruebas reales</p></div></div>
+        <form class="form-grid" data-form="cloud-connection">
+          <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || 'https://rfwsnqmjkclxhbmidbkm.supabase.co'}" placeholder="https://xxxx.supabase.co" required /></label>
+          <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
+          <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
+          <button type="submit">${ui.cloudConnection.enabled ? 'Guardar y sincronizar' : 'Conectar Supabase'}</button>
+        </form>
+        <div class="settings-actions">
+          <button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button>
+          <button type="button" class="danger-action" data-action="disconnect-cloud">Volver a local</button>
         </div>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Backup local</h3><p>Exporta o restaura los datos</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label><button type="button" class="danger-action" data-action="reset-data">Restaurar demo</button></div></article>
@@ -753,6 +773,21 @@ const render = () => {
   const ui = getUiState()
   app.innerHTML = ui.isAuthenticated ? renderApp(ui) : loginView(ui)
   bindEvents()
+}
+
+const bootstrap = async () => {
+  try {
+    if (store.getCloudConnection().enabled) {
+      cloudSyncBusy = true
+      await store.syncFromCloud()
+      feedbackMessage = 'Base cloud cargada correctamente.'
+    }
+  } catch (error) {
+    feedbackMessage = `La web arrancó en modo local porque fallo la conexion cloud. ${error.message || ''}`.trim()
+  } finally {
+    cloudSyncBusy = false
+    render()
+  }
 }
 
 const getReceiptDocument = (saleId) => {
@@ -852,7 +887,7 @@ const importData = async (event) => {
   }
 }
 
-const handleSubmit = (event) => {
+const handleSubmit = async (event) => {
   event.preventDefault()
   const form = event.currentTarget
   const formData = new FormData(form)
@@ -862,6 +897,13 @@ const handleSubmit = (event) => {
     const result = store.authenticateUser(formData.get('identifier'), formData.get('pin'))
     loginMessage = result.ok ? '' : result.message
     feedbackMessage = ''
+    render()
+    return
+  }
+  if (kind === 'public-register') {
+    const result = store.registerPublicUser({ fullName: formData.get('fullName'), email: formData.get('email'), pin: formData.get('pin') })
+    loginMessage = result.ok ? '' : result.message
+    feedbackMessage = result.ok ? result.message : ''
     render()
     return
   }
@@ -912,6 +954,17 @@ const handleSubmit = (event) => {
   if (kind === 'module-preset') {
     const result = store.applyModulePreset(formData.get('presetKey'))
     feedbackMessage = result.message || ''
+  }
+  if (kind === 'cloud-connection') {
+    cloudSyncBusy = true
+    try {
+      const result = await store.setCloudConnection({ url: formData.get('url'), anonKey: formData.get('anonKey'), instanceKey: formData.get('instanceKey') })
+      feedbackMessage = result.message || (result.ok ? 'Conexion cloud actualizada.' : '')
+    } catch (error) {
+      feedbackMessage = `No se pudo conectar con Supabase. ${error.message || ''}`.trim()
+    } finally {
+      cloudSyncBusy = false
+    }
   }
   if (kind === 'product') store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), barcode: formData.get('barcode'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
   if (kind === 'stock-adjustment') {
@@ -1018,6 +1071,30 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-module-toggle]')) {
     button.addEventListener('click', () => {
       const result = store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
+      feedbackMessage = result.message || ''
+      render()
+    })
+  }
+  const syncCloudButton = document.querySelector('[data-action="sync-cloud"]')
+  if (syncCloudButton) {
+    syncCloudButton.addEventListener('click', async () => {
+      cloudSyncBusy = true
+      render()
+      try {
+        const result = await store.syncToCloud()
+        feedbackMessage = result.message || ''
+      } catch (error) {
+        feedbackMessage = `No se pudo sincronizar. ${error.message || ''}`.trim()
+      } finally {
+        cloudSyncBusy = false
+        render()
+      }
+    })
+  }
+  const disconnectCloudButton = document.querySelector('[data-action="disconnect-cloud"]')
+  if (disconnectCloudButton) {
+    disconnectCloudButton.addEventListener('click', async () => {
+      const result = await store.clearCloudConnection()
       feedbackMessage = result.message || ''
       render()
     })
@@ -1152,4 +1229,4 @@ const bindEvents = () => {
 }
 
 applyTheme()
-render()
+bootstrap()

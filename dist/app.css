@@ -87,6 +87,12 @@ input, select { outline: none; }
   margin-top: 18px;
 }
 
+.secondary-login-form {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 .login-form label {
   display: grid;
   gap: 7px;

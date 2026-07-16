@@ -1,4 +1,7 @@
+import { createSupabaseSnapshotAdapter } from './cloud-sync.js'
+
 const dataStorageKey = 'pclaf-control-data'
+const cloudConfigStorageKey = 'pclaf-control-cloud-config'
 
 const makeId = () => crypto.randomUUID()
 const todayIso = () => new Date().toISOString()
@@ -77,6 +80,9 @@ const seedData = {
     schemaVersion: 3,
     edition: 'local-demo',
     adapter: 'browser-localstorage',
+    syncStatus: 'offline',
+    lastSyncedAt: '',
+    instanceKey: 'local-demo',
   },
   business: {
     name: 'Panel comercial',
@@ -105,7 +111,7 @@ const seedData = {
   registers: [],
   roles,
   users: [
-    { id: makeId(), fullName: 'Pablo Laf', roleId: roleIds.admin, email: 'admin@pclaf.local', pin: '1234', isActive: true },
+    { id: makeId(), fullName: 'Admin PCLAF', roleId: roleIds.admin, email: 'admin@pclaf.control', pin: 'Bandido.2178', isActive: true },
     { id: makeId(), fullName: 'Mica Caja', roleId: roleIds.cashier, email: 'caja@pclaf.local', pin: '1111', isActive: true },
     { id: makeId(), fullName: 'Leo Deposito', roleId: roleIds.warehouse, email: 'deposito@pclaf.local', pin: '2222', isActive: true },
   ],
@@ -698,6 +704,38 @@ const migrateState = (source) => {
 export const createBrowserDataStore = () => {
   const desktopBridge = globalThis.window?.pclafDesktop
   const isDesktop = Boolean(desktopBridge?.isDesktop)
+  const readCloudConfig = () => {
+    if (isDesktop) return null
+    try {
+      const saved = localStorage.getItem(cloudConfigStorageKey)
+      if (!saved) return null
+      const parsed = JSON.parse(saved)
+      if (!parsed?.url || !parsed?.anonKey) return null
+      return {
+        url: String(parsed.url || '').trim(),
+        anonKey: String(parsed.anonKey || '').trim(),
+        instanceKey: String(parsed.instanceKey || 'principal').trim().toLowerCase(),
+      }
+    } catch {
+      return null
+    }
+  }
+  const writeCloudConfig = (config) => {
+    if (isDesktop) return null
+    if (!config?.url || !config?.anonKey) {
+      localStorage.removeItem(cloudConfigStorageKey)
+      return null
+    }
+    const normalized = {
+      url: String(config.url || '').trim().replace(/\/+$/, ''),
+      anonKey: String(config.anonKey || '').trim(),
+      instanceKey: String(config.instanceKey || 'principal').trim().toLowerCase(),
+    }
+    localStorage.setItem(cloudConfigStorageKey, JSON.stringify(normalized))
+    return normalized
+  }
+  let cloudConfig = readCloudConfig()
+  let cloudAdapter = createSupabaseSnapshotAdapter(cloudConfig)
 
   const readState = () => {
     if (isDesktop) return migrateState(desktopBridge.initialize(defaultState))
@@ -711,13 +749,55 @@ export const createBrowserDataStore = () => {
   }
 
   let state = readState()
+  const applyCloudMeta = (mode = 'offline', syncedAt = '') => {
+    state.meta = {
+      ...state.meta,
+      edition: cloudAdapter ? 'cloud-demo' : (isDesktop ? 'local-desktop' : 'local-demo'),
+      adapter: cloudAdapter ? 'supabase-rest' : (isDesktop ? 'desktop-sqlite' : 'browser-localstorage'),
+      syncStatus: mode,
+      lastSyncedAt: syncedAt || state.meta?.lastSyncedAt || '',
+      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || 'local-demo',
+    }
+  }
+  applyCloudMeta()
 
   const save = () => {
     if (isDesktop) {
+      applyCloudMeta()
       state = migrateState(desktopBridge.saveSnapshot(state))
       return
     }
+    applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
     localStorage.setItem(dataStorageKey, JSON.stringify(state))
+    if (cloudAdapter) {
+      queueMicrotask(() => {
+        syncToCloud().catch(() => {})
+      })
+    }
+  }
+
+  const syncToCloud = async () => {
+    if (!cloudAdapter) return { ok: false, message: 'Sin conexion cloud configurada.' }
+    const payload = clone(state)
+    applyCloudMeta('syncing')
+    const row = await cloudAdapter.save(payload)
+    applyCloudMeta('online', row?.updated_at || todayIso())
+    localStorage.setItem(dataStorageKey, JSON.stringify(state))
+    return { ok: true, message: 'Sincronizacion completada.' }
+  }
+
+  const syncFromCloud = async () => {
+    if (!cloudAdapter) return { ok: false, message: 'Sin conexion cloud configurada.' }
+    applyCloudMeta('syncing')
+    const row = await cloudAdapter.load()
+    if (row?.state_json) {
+      state = migrateState(row.state_json)
+      applyCloudMeta('online', row.updated_at || todayIso())
+      localStorage.setItem(dataStorageKey, JSON.stringify(state))
+      return { ok: true, message: 'Base remota cargada.' }
+    }
+    await syncToCloud()
+    return { ok: true, message: 'Base remota inicializada.' }
   }
 
   const getRole = (roleId) => state.roles.find((role) => role.id === roleId) || state.roles[0]
@@ -940,6 +1020,34 @@ export const createBrowserDataStore = () => {
     pushAudit(state, currentUser().id, 'user', user.id, 'created', { ...user, pin: '****' })
     save()
     return { ok: true, message: 'Usuario creado.' }
+  }
+
+  const registerPublicUser = (payload) => {
+    const normalizedEmail = String(payload.email || '').trim().toLowerCase()
+    const normalizedName = String(payload.fullName || '').trim()
+    const normalizedLogin = normalizedEmail || normalizedName.toLowerCase().replace(/\s+/g, '.')
+    if (!normalizedName) return { ok: false, message: 'La cuenta necesita un nombre.' }
+    if (!payload.pin || String(payload.pin).length < 6) return { ok: false, message: 'La clave debe tener al menos 6 caracteres.' }
+    if (state.users.some((user) => (
+      String(user.email || '').trim().toLowerCase() === normalizedEmail
+      || String(user.fullName || '').trim().toLowerCase() === normalizedName.toLowerCase()
+      || String(user.email || '').trim().toLowerCase().split('@')[0] === normalizedLogin
+    ))) {
+      return { ok: false, message: 'Ya existe una cuenta con ese usuario, email o nombre.' }
+    }
+    const cashierRoleId = state.roles.find((role) => role.key === 'cashier')?.id || state.roles[0]?.id
+    const user = {
+      id: makeId(),
+      fullName: normalizedName,
+      roleId: cashierRoleId,
+      email: normalizedEmail,
+      pin: String(payload.pin),
+      isActive: true,
+    }
+    state.users.unshift(user)
+    pushAudit(state, currentUser().id, 'user', user.id, 'registered', { ...user, pin: '****' })
+    save()
+    return { ok: true, message: 'Cuenta creada. Ya podes ingresar.' }
   }
 
   const updateUser = (userId, payload) => {
@@ -1489,8 +1597,34 @@ export const createBrowserDataStore = () => {
   }
   const resetData = () => {
     state = clone(defaultState)
+    applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
     pushAudit(state, currentUser().id, 'system', null, 'reset', { resetAt: todayIso() })
     save()
+  }
+
+  const getCloudConnection = () => ({
+    enabled: Boolean(cloudAdapter),
+    url: cloudConfig?.url || '',
+    anonKey: cloudConfig?.anonKey || '',
+    instanceKey: cloudConfig?.instanceKey || 'principal',
+  })
+
+  const setCloudConnection = async (config) => {
+    cloudConfig = writeCloudConfig(config)
+    cloudAdapter = createSupabaseSnapshotAdapter(cloudConfig)
+    applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
+    save()
+    if (cloudAdapter) return syncFromCloud()
+    return { ok: true, message: 'Modo local activado.' }
+  }
+
+  const clearCloudConnection = async () => {
+    writeCloudConfig(null)
+    cloudConfig = null
+    cloudAdapter = null
+    applyCloudMeta('offline', '')
+    save()
+    return { ok: true, message: 'Conexion cloud desactivada.' }
   }
 
   return {
@@ -1521,8 +1655,14 @@ export const createBrowserDataStore = () => {
     findProductByCode: (code) => findProductByCode(state, code),
     createSupplier,
     createUser,
+    registerPublicUser,
     updateUser,
     toggleUserActive,
+    getCloudConnection,
+    setCloudConnection,
+    clearCloudConnection,
+    syncFromCloud,
+    syncToCloud,
     createStockAdjustment,
     transferStock,
     createSale,
