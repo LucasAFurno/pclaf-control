@@ -96,7 +96,11 @@ const loadCloudAccess = async (fullName = '') => {
       ? 'Tu cuenta fue deshabilitada por el administrador.'
       : 'Tu cuenta quedo pendiente de aprobacion del administrador.')
   }
-  await store.syncFromCloud()
+  try {
+    await store.syncFromCloud()
+  } catch (error) {
+    feedbackMessage = `No se pudo cargar la base sincronizada. Seguimos con la sesion cloud activa. ${error.message || ''}`.trim()
+  }
   return { profile: activeProfile, users }
 }
 
@@ -916,10 +920,17 @@ const bootstrap = async () => {
         store.setCloudAccessToken(restoredSession.access_token)
       }
     }
+    if (store.getCloudConnection().enabled) {
+      try {
+        await store.syncFromCloud()
+      } catch (error) {
+        feedbackMessage = `No se pudo cargar la base cloud al iniciar. ${error.message || ''}`.trim()
+      }
+    }
     if (store.getCloudConnection().enabled && authManager?.getSession()?.access_token) {
       cloudSyncBusy = true
       await loadCloudAccess()
-      feedbackMessage = 'Sesion cloud restaurada correctamente.'
+      if (!feedbackMessage) feedbackMessage = 'Sesion cloud restaurada correctamente.'
     }
   } catch (error) {
     loginMessage = error.message || 'No se pudo iniciar la sesion cloud.'
@@ -1049,12 +1060,24 @@ const handleSubmit = async (event) => {
     loginMessage = ''
     feedbackMessage = ''
     try {
-      if (!authManager) throw new Error('La conexion cloud no esta lista.')
-      await authManager.signIn({
-        email: String(formData.get('identifier') || '').trim(),
-        password: String(formData.get('pin') || ''),
-      })
-      await loadCloudAccess()
+      const identifier = String(formData.get('identifier') || '').trim()
+      const pin = String(formData.get('pin') || '')
+      let cloudError = ''
+      if (authManager) {
+        try {
+          await authManager.signIn({ email: identifier, password: pin })
+          await loadCloudAccess()
+        } catch (error) {
+          cloudError = error.message || 'No se pudo iniciar sesion cloud.'
+        }
+      }
+      if (!store.isAuthenticated()) {
+        const result = store.authenticateUser(identifier, pin)
+        if (!result.ok) throw new Error(cloudError || result.message || 'No se pudo iniciar sesion.')
+        feedbackMessage = cloudError
+          ? `Acceso listo en modo de prueba sobre Supabase snapshot. ${cloudError}`.trim()
+          : 'Sesion iniciada correctamente.'
+      }
     } catch (error) {
       loginMessage = error.message || 'No se pudo iniciar sesion.'
     }
@@ -1065,22 +1088,37 @@ const handleSubmit = async (event) => {
     loginMessage = ''
     feedbackMessage = ''
     try {
-      if (!authManager) throw new Error('La conexion cloud no esta lista.')
-      const result = await authManager.signUp({
+      const payload = {
         fullName: String(formData.get('fullName') || '').trim(),
         email: String(formData.get('email') || '').trim(),
-        password: String(formData.get('pin') || ''),
-      })
-      if (result?.session?.access_token) {
+        pin: String(formData.get('pin') || ''),
+      }
+      let cloudError = ''
+      if (authManager) {
         try {
-          await loadCloudAccess(String(formData.get('fullName') || '').trim())
-          feedbackMessage = 'Cuenta creada. Quedo pendiente de aprobacion del administrador.'
-          loginMessage = 'Tu cuenta fue creada, pero necesita aprobacion antes de ingresar.'
+          const result = await authManager.signUp({
+            fullName: payload.fullName,
+            email: payload.email,
+            password: payload.pin,
+          })
+          if (result?.session?.access_token) {
+            await loadCloudAccess(payload.fullName)
+            feedbackMessage = 'Cuenta cloud creada correctamente.'
+            render()
+            return
+          }
+          cloudError = 'Supabase pidio confirmacion externa para la cuenta.'
         } catch (error) {
-          loginMessage = error.message || 'La cuenta se creo, pero no pudo habilitarse.'
+          cloudError = error.message || 'No se pudo crear la cuenta cloud.'
         }
-      } else {
-        feedbackMessage = 'Cuenta creada. Revisa tu correo si Supabase pide confirmacion y luego espera aprobacion.'
+      }
+      const result = store.registerPublicUser(payload)
+      if (!result.ok) throw new Error(cloudError || result.message || 'No se pudo crear la cuenta.')
+      feedbackMessage = cloudError
+        ? `Cuenta creada en modo de prueba sobre Supabase snapshot. ${cloudError}`.trim()
+        : (result.message || 'Cuenta creada. Ya podes ingresar.')
+      if (!cloudError) {
+        store.authenticateUser(payload.email || payload.fullName, payload.pin)
       }
     } catch (error) {
       loginMessage = error.message || 'No se pudo crear la cuenta.'

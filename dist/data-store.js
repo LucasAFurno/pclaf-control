@@ -923,7 +923,6 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const authenticateUser = (identifier, pin) => {
-    if (cloudConfig?.url && cloudConfig?.anonKey) return { ok: false, message: 'Este acceso ahora usa email y clave cloud.' }
     const normalized = String(identifier || '').trim().toLowerCase()
     const user = state.users.find((entry) => (
       entry.isActive
