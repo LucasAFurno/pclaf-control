@@ -4,6 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
+const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
 const instanceStorageKey = 'pclaf-control-instance'
@@ -417,7 +418,7 @@ const loginView = (ui) => `
           <span class="login-meta-label">Acceso</span>
           <div class="login-hints">
             <span>${setupStatus?.initialized ? `Instancia lista: ${setupStatus.commerce_name || authInstanceKey}` : 'Si el comercio no existe todavia, podes crearlo abajo en menos de un minuto.'}</span>
-            <span>${ui.cloudConnection.enabled ? `Base cloud: ${ui.cloudConnection.url}` : 'La conexion cloud es obligatoria.'}</span>
+            <span>${ui.cloudConnection.enabled ? 'Instancia cloud activa.' : 'La conexion cloud es obligatoria.'}</span>
           </div>
         </div>
       </div>
@@ -1400,7 +1401,7 @@ const ownerAdminViewV2 = (ui) => {
 const settingsView = (ui) => `
   ${(() => {
     const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
-    const canManageUsers = ui.user?.isOwner || ui.role?.key === 'admin'
+    const canManageUsers = Boolean(ui.user?.isOwner)
     const syncLabel = ui.snapshot.meta.syncStatus === 'online'
       ? 'Cloud operativa'
       : ui.snapshot.meta.syncStatus === 'syncing'
@@ -1430,7 +1431,7 @@ const settingsView = (ui) => `
           <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
           <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" disabled /></label>
           <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
-          <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} />Cuenta habilitada</label>
+            <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
           <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
           ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
         </form>
@@ -1476,7 +1477,7 @@ const settingsView = (ui) => `
 const settingsViewV2 = (ui) => `
   ${(() => {
     const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
-    const canManageUsers = ui.user?.isOwner || ui.role?.key === 'admin'
+    const canManageUsers = Boolean(ui.user?.isOwner)
     const syncLabel = ui.snapshot.meta.syncStatus === 'online'
       ? 'Cloud operativa'
       : ui.snapshot.meta.syncStatus === 'syncing'
@@ -1489,7 +1490,7 @@ const settingsViewV2 = (ui) => `
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Sesion</span><strong>${ui.user.fullName}</strong><p>${ui.role.name}</p></article>
-      <article class="metric-card compact"><span>Cloud</span><strong>${syncLabel}</strong><p>${ui.cloudConnection.instanceKey}</p></article>
+      <article class="metric-card compact"><span>Cloud</span><strong>${syncLabel}</strong><p>${canManageUsers ? ui.cloudConnection.instanceKey : 'Conexion protegida'}</p></article>
       <article class="metric-card compact"><span>Modulos</span><strong>${ui.snapshot.business.enabledModules.length}</strong><p>Visibles para este cliente</p></article>
     </section>
     <section class="module-board settings-board">
@@ -1500,7 +1501,7 @@ const settingsViewV2 = (ui) => `
           <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}</p></div>
           <div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div>
         </div>
-        <div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
+        <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Soporte por WhatsApp</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
       <div class="module-main">
         <div class="compact-form-grid">
@@ -1532,7 +1533,7 @@ const settingsViewV2 = (ui) => `
             <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
             <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" disabled /></label>
             <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
-            <label class="checkbox-row"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} />Cuenta habilitada</label>
+            <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
             <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
             ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
           </form>
@@ -1566,6 +1567,35 @@ const settingsViewV2 = (ui) => `
 `})()}
 `
 
+const basicSettingsView = (ui) => `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Mi sesion</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Sesion</span><strong>${ui.user.fullName}</strong><p>${ui.role.name}</p></article>
+      <article class="metric-card compact"><span>Cloud</span><strong>${ui.snapshot.meta.syncStatus === 'online' ? 'Operativa' : (ui.snapshot.meta.syncStatus || 'offline')}</strong><p>Conexion protegida</p></article>
+      <article class="metric-card compact"><span>Modulos</span><strong>${ui.snapshot.business.enabledModules.length}</strong><p>Disponibles en tu cuenta</p></article>
+    </section>
+    <section class="dashboard-grid reports-layout">
+      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Informacion segura de tu sesion</p></div></div>
+        <div class="priority-list">
+          <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div>
+          <div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}</p></div>
+          <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}</p></div>
+          <div class="priority-item"><strong>Estado</strong><p>${ui.snapshot.meta.syncStatus === 'online' ? 'Cloud operativa' : (ui.snapshot.meta.syncStatus || 'offline')}</p></div>
+        </div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><h3>Seguridad</h3><p>Lo tecnico queda oculto para usuarios del comercio</p></div></div>
+        <div class="timeline-list">
+          <div class="timeline-item"><strong>Conexion protegida</strong><p>No mostramos URL de base, publishable key ni configuracion cloud.</p><span>Solo el propietario accede a esa capa.</span></div>
+          <div class="timeline-item"><strong>Permisos centralizados</strong><p>Los roles, usuarios y niveles de acceso los administra PCLAF o el propietario.</p><span>Esta cuenta usa solo lo necesario para operar.</span></div>
+          <div class="timeline-item"><strong>Soporte directo</strong><p>Si algo falla o necesitas ayuda, te llevamos al WhatsApp oficial.</p><span>Sin pasar por menus tecnicos.</span></div>
+        </div>
+        <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Hablar con soporte</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
+      </article>
+    </section>
+  </section>
+`
+
 const renderCurrentView = (ui) => {
   switch (activeSection) {
     case 'clientes': return customersViewV2(ui)
@@ -1579,7 +1609,7 @@ const renderCurrentView = (ui) => {
     case 'tickets': return ticketsViewV2(ui)
     case 'reportes': return reportsView(ui)
     case 'mi-admin': return ui.user?.isOwner ? ownerAdminViewV2(ui) : settingsViewV2(ui)
-    case 'ajustes': return settingsViewV2(ui)
+    case 'ajustes': return ui.user?.isOwner ? settingsViewV2(ui) : basicSettingsView(ui)
     default: return dashboardView(ui)
   }
 }
@@ -1606,12 +1636,9 @@ const renderApp = (ui) => {
       <aside class="sidebar">
         <div class="sidebar-brand">
           <img class="brand-logo" src="/pclaf-logo.png" alt="PCLAF" />
-          <div class="sidebar-brand-copy">
-            <strong>PCLAF</strong>
-            <span>Control</span>
-          </div>
         </div>
         <nav class="sidebar-nav">${allowedNav.map((item) => `<button class="nav-square ${activeSection === item.id ? 'is-active' : ''}" type="button" data-section="${item.id}" title="${item.label}" aria-label="${item.label}"><span class="nav-icon">${item.icon}</span><span class="nav-label">${item.label}</span></button>`).join('')}</nav>
+        <div class="sidebar-support"><button class="nav-square support-square" type="button" data-action="open-support" title="Soporte" aria-label="Soporte"><span class="nav-icon">${icon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8.5 9h7"/><path d="M8.5 13h4"/>')}</span><span class="nav-label">Soporte</span></button></div>
       </aside>
       <div class="workspace">
         <header class="topbar">
@@ -2232,6 +2259,11 @@ const bindEvents = () => {
     feedbackMessage = ''
     render()
   })
+  for (const supportButton of document.querySelectorAll('[data-action="open-support"]')) {
+    supportButton.addEventListener('click', () => {
+      window.open(supportUrl, '_blank', 'noopener,noreferrer')
+    })
+  }
   const cancelSaleEdit = document.querySelector('[data-action="cancel-sale-edit"]')
   if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; saleDraftQuantities = {}; saleQuickAddCode = ''; feedbackMessage = 'Edicion de venta cancelada.'; render() })
   const cancelPurchaseEdit = document.querySelector('[data-action="cancel-purchase-edit"]')

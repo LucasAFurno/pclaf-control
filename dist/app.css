@@ -171,7 +171,7 @@ input, select { outline: none; }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 118px 1fr;
+  grid-template-columns: 92px 1fr;
   min-height: 100vh;
   background: var(--workspace);
 }
@@ -179,7 +179,7 @@ input, select { outline: none; }
 .sidebar {
   background: linear-gradient(180deg, var(--shell) 0%, var(--shell-soft) 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 12px 10px 18px;
+  padding: 12px 8px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -199,6 +199,11 @@ input, select { outline: none; }
   width: 100%;
 }
 
+.sidebar-support {
+  margin-top: auto;
+  width: 100%;
+}
+
 .nav-square,
 .metric-card,
 .panel,
@@ -215,17 +220,17 @@ input, select { outline: none; }
 
 .nav-square {
   width: 100%;
-  min-height: 50px;
+  min-height: 68px;
   border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
   color: #f8fafc;
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-columns: 1fr;
   align-items: center;
-  justify-items: start;
-  gap: 10px;
-  padding: 10px 12px;
+  justify-items: center;
+  gap: 8px;
+  padding: 10px 6px;
   box-shadow: none;
 }
 
@@ -248,10 +253,10 @@ input, select { outline: none; }
 }
 
 .nav-label {
-  font-size: 0.84rem;
+  font-size: 0.72rem;
   line-height: 1.1;
   color: inherit;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
 }
 
@@ -332,28 +337,6 @@ input, select { outline: none; }
   justify-items: center;
   gap: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sidebar-brand-copy {
-  display: grid;
-  gap: 2px;
-  text-align: center;
-}
-
-.sidebar-brand-copy strong,
-.sidebar-brand-copy span {
-  font-family: 'Oswald', sans-serif;
-  line-height: 1;
-  color: #ffffff;
-}
-
-.sidebar-brand-copy strong {
-  font-size: 0.82rem;
-  letter-spacing: 0.12em;
-}
-
-.sidebar-brand-copy span {
-  font-size: 1rem;
 }
 
 .brand-logo {
@@ -1593,6 +1576,11 @@ input, select { outline: none; }
   .sidebar-nav {
     grid-template-columns: repeat(6, minmax(0, 64px));
     width: auto;
+  }
+
+  .sidebar-support {
+    width: auto;
+    margin-top: 0;
   }
 
   .topbar-center {
