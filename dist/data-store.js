@@ -219,6 +219,35 @@ const getScopedRegister = (state, registerId, branchId) => {
   if (register?.branchId === branchId) return register
   return state.registers.find((entry) => entry.branchId === branchId) || null
 }
+const normalizeStockByBranch = (product, fallbackBranchId = '') => {
+  const normalized = {}
+  const branchStock = product?.stockByBranch && typeof product.stockByBranch === 'object' ? product.stockByBranch : {}
+  for (const [branchId, quantity] of Object.entries(branchStock)) normalized[branchId] = Number(quantity || 0)
+  if (!Object.keys(normalized).length && fallbackBranchId) normalized[fallbackBranchId] = Number(product?.stock || 0)
+  return normalized
+}
+const syncProductStock = (product) => {
+  product.stockByBranch = normalizeStockByBranch(product)
+  product.stock = Object.values(product.stockByBranch).reduce((sum, quantity) => sum + Number(quantity || 0), 0)
+  return product.stock
+}
+const ensureProductInventory = (product, branchId, fallbackBranchId = '') => {
+  product.stockByBranch = normalizeStockByBranch(product, fallbackBranchId)
+  if (branchId && !(branchId in product.stockByBranch)) product.stockByBranch[branchId] = 0
+  syncProductStock(product)
+  return product.stockByBranch
+}
+const getBranchStock = (product, branchId, fallbackBranchId = '') => {
+  if (!branchId) return Number(product?.stock || 0)
+  ensureProductInventory(product, branchId, fallbackBranchId)
+  return Number(product?.stockByBranch?.[branchId] || 0)
+}
+const changeBranchStock = (product, branchId, delta, fallbackBranchId = '') => {
+  ensureProductInventory(product, branchId, fallbackBranchId)
+  product.stockByBranch[branchId] = Math.max(0, Number(product.stockByBranch[branchId] || 0) + Number(delta || 0))
+  syncProductStock(product)
+  return Number(product.stockByBranch[branchId] || 0)
+}
 const getCashMovementDelta = (state, sessionId) => state.cashMovements
   .filter((movement) => movement.cashSessionId === sessionId)
   .reduce((sum, movement) => sum + Number(movement.signedAmount || 0), 0)
@@ -266,14 +295,17 @@ const buildSaleItem = (productId, quantity, state, unitPriceOverride) => {
   }
 }
 
-const ensureSaleStock = (state, items, ignoreSaleId = null) => {
-  const available = new Map(state.products.map((product) => [product.id, Number(product.stock || 0)]))
+const ensureSaleStock = (state, items, branchId, ignoreSaleId = null) => {
+  const fallbackBranchId = branchId || state.business.currentBranchId || state.branches[0]?.id || ''
+  const available = new Map(state.products.map((product) => [product.id, getBranchStock(product, branchId, fallbackBranchId)]))
 
   if (ignoreSaleId) {
     const previousSale = state.sales.find((sale) => sale.id === ignoreSaleId)
     for (const item of previousSale?.items || []) {
       const product = getProduct(state, item.productId)
-      if (product?.trackStock) available.set(item.productId, (available.get(item.productId) || 0) + Number(item.quantity || 0))
+      if (product?.trackStock && previousSale?.branchId === branchId) {
+        available.set(item.productId, (available.get(item.productId) || 0) + Number(item.quantity || 0))
+      }
     }
   }
 
@@ -294,7 +326,7 @@ const applySaleEffects = (state, sale) => {
   for (const item of sale.items || []) {
     const product = getProduct(state, item.productId)
     if (product?.trackStock) {
-      product.stock = Math.max(0, Number(product.stock || 0) - Number(item.quantity || 0))
+      changeBranchStock(product, sale.branchId, Number(item.quantity || 0) * -1, state.business.currentBranchId || state.branches[0]?.id || '')
       state.stockMovements.unshift({
         id: makeId(),
         productId: item.productId,
@@ -319,7 +351,7 @@ const applySaleEffects = (state, sale) => {
 const revertSaleEffects = (state, sale) => {
   for (const item of sale.items || []) {
     const product = getProduct(state, item.productId)
-    if (product?.trackStock) product.stock += Number(item.quantity || 0)
+    if (product?.trackStock) changeBranchStock(product, sale.branchId, Number(item.quantity || 0), state.business.currentBranchId || state.branches[0]?.id || '')
   }
 
   if (sale.customerId) {
@@ -334,7 +366,7 @@ const applyPurchaseEffects = (state, receipt) => {
   const product = getProduct(state, receipt.productId)
   const supplier = state.suppliers.find((entry) => entry.id === receipt.supplierId)
   if (product) {
-    product.stock += Number(receipt.quantity || 0)
+    changeBranchStock(product, receipt.branchId, Number(receipt.quantity || 0), state.business.currentBranchId || state.branches[0]?.id || '')
     product.costPrice = Number(receipt.unitCost || 0)
   }
   if (supplier) {
@@ -358,7 +390,7 @@ const applyPurchaseEffects = (state, receipt) => {
 const revertPurchaseEffects = (state, receipt) => {
   const product = getProduct(state, receipt.productId)
   const supplier = state.suppliers.find((entry) => entry.id === receipt.supplierId)
-  if (product) product.stock = Math.max(0, Number(product.stock || 0) - Number(receipt.quantity || 0))
+  if (product) changeBranchStock(product, receipt.branchId, Number(receipt.quantity || 0) * -1, state.business.currentBranchId || state.branches[0]?.id || '')
   if (supplier) supplier.balance = Math.max(0, Number(supplier.balance || 0) - Number(receipt.totalCost || 0))
   state.stockMovements = state.stockMovements.filter((movement) => movement.referenceId !== receipt.id)
 }
@@ -457,7 +489,7 @@ const revertPurchaseEffects = (state, receipt) => {
     for (const item of saleSeed.items) {
       const product = getProduct(state, item.productId)
       if (product?.trackStock) {
-        product.stock = Math.max(0, product.stock - item.quantity)
+        changeBranchStock(product, state.branches[0].id, item.quantity * -1, state.branches[0].id)
         state.stockMovements.unshift({
           id: makeId(),
           productId: item.productId,
@@ -547,18 +579,23 @@ const migrateState = (source) => {
     tag: customer.tag || 'Cliente',
   }))
 
-  if (Array.isArray(source.products)) migrated.products = source.products.map((product) => ({
-    id: product.id || makeId(),
-    name: product.name,
-    sku: product.sku,
-    barcode: product.barcode || '',
-    stock: Number(product.stock || 0),
-    salePrice: Number(product.salePrice || product.price || 0),
-    costPrice: Number(product.costPrice || 0),
-    minStock: Number(product.minStock || 0),
-    category: product.category || 'General',
-    trackStock: product.trackStock ?? product.category !== 'Servicio',
-  }))
+  if (Array.isArray(source.products)) migrated.products = source.products.map((product) => {
+    const migratedProduct = {
+      id: product.id || makeId(),
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode || '',
+      stock: Number(product.stock || 0),
+      salePrice: Number(product.salePrice || product.price || 0),
+      costPrice: Number(product.costPrice || 0),
+      minStock: Number(product.minStock || 0),
+      category: product.category || 'General',
+      trackStock: product.trackStock ?? product.category !== 'Servicio',
+      stockByBranch: normalizeStockByBranch(product, migrated.business.currentBranchId || migrated.branches[0]?.id || ''),
+    }
+    syncProductStock(migratedProduct)
+    return migratedProduct
+  })
 
   const rawSuppliers = source.suppliers || source.providers
   if (Array.isArray(rawSuppliers)) migrated.suppliers = rawSuppliers.map((supplier) => ({
@@ -835,6 +872,7 @@ export const createBrowserDataStore = () => {
   }
 
   const createProduct = (payload) => {
+    const branchId = getCurrentBranch(state)?.id || state.branches[0]?.id || ''
     const product = {
       id: makeId(),
       name: payload.name,
@@ -846,7 +884,9 @@ export const createBrowserDataStore = () => {
       minStock: Number(payload.minStock),
       category: payload.category,
       trackStock: payload.trackStock,
+      stockByBranch: branchId ? { [branchId]: Number(payload.stock) } : {},
     }
+    syncProductStock(product)
     state.products.unshift(product)
     if (product.trackStock && product.stock > 0) {
       state.stockMovements.unshift({
@@ -858,6 +898,7 @@ export const createBrowserDataStore = () => {
         notes: 'Stock inicial',
         createdAt: todayIso(),
         createdBy: currentUser().id,
+        branchId: branchId || null,
       })
     }
     pushAudit(state, currentUser().id, 'product', product.id, 'created', product)
@@ -1015,9 +1056,11 @@ export const createBrowserDataStore = () => {
     if (getCashPortion(paymentBreakdown) > 0 && !getOpenCashSession(state)) {
       return { ok: false, message: 'No podes cobrar en efectivo sin una caja abierta.' }
     }
-    const stockCheck = ensureSaleStock(state, items)
+    const openSession = getOpenCashSession(state)
+    const currentBranch = getCurrentBranch(state)
+    const branchId = getCashPortion(paymentBreakdown) > 0 ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null)
+    const stockCheck = ensureSaleStock(state, items, branchId)
     if (!stockCheck.ok) return stockCheck
-
     const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
     const discountAmount = Math.max(0, Math.min(Number(payload.discountAmount || 0), subtotalAmount))
     const totalAmount = subtotalAmount - discountAmount
@@ -1025,8 +1068,6 @@ export const createBrowserDataStore = () => {
     const rawPaid = payload.isPaid ? totalAmount : Object.values(effectiveBreakdown).reduce((sum, value) => sum + Number(value || 0), 0)
     const amountPaid = Math.max(0, Math.min(rawPaid, totalAmount))
     if (rawPaid > totalAmount) return { ok: false, message: 'El monto cobrado no puede superar el total.' }
-    const openSession = getOpenCashSession(state)
-    const currentBranch = getCurrentBranch(state)
     const register = getCashPortion(effectiveBreakdown) > 0
       ? getRegister(state, openSession?.registerId)
       : getScopedRegister(state, state.business.currentRegisterId, currentBranch?.id)
@@ -1047,7 +1088,7 @@ export const createBrowserDataStore = () => {
       note: payload.note || '',
       soldAt: todayIso(),
       cashSessionId: getCashPortion(effectiveBreakdown) > 0 ? openSession?.id || null : null,
-      branchId: getCashPortion(effectiveBreakdown) > 0 ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null),
+      branchId,
       registerId: register?.id || null,
     }
 
@@ -1070,15 +1111,12 @@ export const createBrowserDataStore = () => {
     const paymentBreakdown = getPaymentBreakdown(payload, 0)
     if (getCashPortion(paymentBreakdown) > 0 && !getOpenCashSession(state)) return { ok: false, message: 'No podes cobrar en efectivo sin una caja abierta.' }
 
-    const stockCheck = ensureSaleStock(state, items, saleId)
-    if (!stockCheck.ok) return stockCheck
-
     const before = clone(sale)
     const openSession = getOpenCashSession(state)
     const currentBranch = getCurrentBranch(state)
-    const register = getCashPortion(paymentBreakdown) > 0
-      ? getRegister(state, openSession?.registerId)
-      : getScopedRegister(state, state.business.currentRegisterId, currentBranch?.id)
+    const branchId = getCashPortion(paymentBreakdown) > 0 ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null)
+    const stockCheck = ensureSaleStock(state, items, branchId, saleId)
+    if (!stockCheck.ok) return stockCheck
     const subtotalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0)
     const discountAmount = Math.max(0, Math.min(Number(payload.discountAmount || 0), subtotalAmount))
     const totalAmount = subtotalAmount - discountAmount
@@ -1086,6 +1124,9 @@ export const createBrowserDataStore = () => {
     const rawPaid = payload.isPaid ? totalAmount : Object.values(effectiveBreakdown).reduce((sum, value) => sum + Number(value || 0), 0)
     const amountPaid = Math.max(0, Math.min(rawPaid, totalAmount))
     if (rawPaid > totalAmount) return { ok: false, message: 'El monto cobrado no puede superar el total.' }
+    const register = getCashPortion(effectiveBreakdown) > 0
+      ? getRegister(state, openSession?.registerId)
+      : getScopedRegister(state, state.business.currentRegisterId, currentBranch?.id)
     revertSaleEffects(state, sale)
     sale.items = items
     sale.customerId = payload.customerId || null
@@ -1100,7 +1141,7 @@ export const createBrowserDataStore = () => {
     sale.status = getSaleStatus(totalAmount, amountPaid)
     sale.note = payload.note || ''
     sale.cashSessionId = getCashPortion(effectiveBreakdown) > 0 ? openSession?.id || null : null
-    sale.branchId = getCashPortion(effectiveBreakdown) > 0 ? (openSession?.branchId || currentBranch?.id || null) : (currentBranch?.id || null)
+    sale.branchId = branchId
     sale.registerId = register?.id || null
     applySaleEffects(state, sale)
 
@@ -1148,7 +1189,7 @@ export const createBrowserDataStore = () => {
     for (const item of sale.items || []) {
       const product = getProduct(state, item.productId)
       if (product?.trackStock) {
-        product.stock += Number(item.quantity || 0)
+        changeBranchStock(product, sale.branchId, Number(item.quantity || 0), state.business.currentBranchId || state.branches[0]?.id || '')
         state.stockMovements.unshift({
           id: makeId(),
           productId: item.productId,
@@ -1251,8 +1292,9 @@ export const createBrowserDataStore = () => {
     if (!product) return { ok: false, message: 'Producto no encontrado.' }
     const quantity = Number(payload.quantity || 0)
     if (!quantity) return { ok: false, message: 'La cantidad debe ser distinta de cero.' }
-    if (quantity < 0 && Number(product.stock || 0) < Math.abs(quantity)) return { ok: false, message: 'No hay stock suficiente para descontar esa cantidad.' }
-    product.stock = Math.max(0, Number(product.stock || 0) + quantity)
+    const branchId = getCurrentBranch(state)?.id || state.branches[0]?.id || ''
+    if (quantity < 0 && getBranchStock(product, branchId, branchId) < Math.abs(quantity)) return { ok: false, message: 'No hay stock suficiente en esta sucursal para descontar esa cantidad.' }
+    changeBranchStock(product, branchId, quantity, branchId)
     const movement = {
       id: makeId(),
       productId: product.id,
@@ -1262,7 +1304,7 @@ export const createBrowserDataStore = () => {
       notes: payload.note || 'Ajuste manual de stock',
       createdAt: todayIso(),
       createdBy: currentUser().id,
-      branchId: getCurrentBranch(state)?.id || null,
+      branchId: branchId || null,
       registerId: null,
     }
     state.stockMovements.unshift(movement)
@@ -1280,6 +1322,11 @@ export const createBrowserDataStore = () => {
     const fromBranch = getBranch(state, payload.fromBranchId)
     const toBranch = getBranch(state, payload.toBranchId)
     if (!fromBranch || !toBranch) return { ok: false, message: 'Sucursal invalida.' }
+    if (getBranchStock(product, fromBranch.id, state.business.currentBranchId || state.branches[0]?.id || '') < quantity) {
+      return { ok: false, message: `No hay stock suficiente en ${fromBranch.name} para transferir.` }
+    }
+    changeBranchStock(product, fromBranch.id, quantity * -1, state.business.currentBranchId || state.branches[0]?.id || '')
+    changeBranchStock(product, toBranch.id, quantity, state.business.currentBranchId || state.branches[0]?.id || '')
     const transferId = makeId()
     state.stockMovements.unshift({
       id: makeId(),

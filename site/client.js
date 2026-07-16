@@ -132,13 +132,17 @@ const getInitials = (name) => String(name || '')
   .slice(0, 2)
   .map((part) => part[0]?.toUpperCase() || '')
   .join('') || 'PC'
+const getScopedStock = (product, branchId) => {
+  const branchStock = product?.stockByBranch && typeof product.stockByBranch === 'object' ? product.stockByBranch : null
+  if (branchId && branchStock) return Number(branchStock[branchId] || 0)
+  return Number(product?.stock || 0)
+}
 
 const getUiState = () => {
   const snapshot = store.getSnapshot()
   const user = snapshot.users.find((entry) => entry.id === snapshot.session.userId) || snapshot.users[0]
   const role = snapshot.roles.find((entry) => entry.id === user?.roleId) || snapshot.roles[0]
   const customerMap = new Map(snapshot.customers.map((item) => [item.id, item]))
-  const productMap = new Map(snapshot.products.map((item) => [item.id, item]))
   const userMap = new Map(snapshot.users.map((item) => [item.id, item]))
   const supplierMap = new Map(snapshot.suppliers.map((item) => [item.id, item]))
   const branchMap = new Map(snapshot.branches.map((item) => [item.id, item]))
@@ -149,6 +153,12 @@ const getUiState = () => {
   const currentBranch = branchMap.get(snapshot.business.currentBranchId) || snapshot.branches[0]
   const currentRegister = registerMap.get(snapshot.business.currentRegisterId) || snapshot.registers.find((register) => register.branchId === currentBranch?.id) || null
   const branchRegisters = snapshot.registers.filter((register) => register.branchId === currentBranch?.id)
+  const scopedProducts = snapshot.products.map((product) => ({
+    ...product,
+    scopedStock: getScopedStock(product, currentBranch?.id),
+    totalStock: Number(product.stock || 0),
+  }))
+  const productMap = new Map(scopedProducts.map((item) => [item.id, item]))
   const scopedSales = snapshot.sales.filter((sale) => sale.branchId === currentBranch?.id && (reportRegisterFilter === 'all' || sale.registerId === reportRegisterFilter))
   const scopedInvoices = snapshot.invoices.filter((invoice) => invoice.branchId === currentBranch?.id)
   const scopedTickets = snapshot.tickets.filter((ticket) => ticket.branchId === currentBranch?.id)
@@ -195,7 +205,8 @@ const getUiState = () => {
     unpaidSales: scopedSales.reduce((sum, sale) => sum + Math.max(0, Number(sale.totalAmount || 0) - Number(sale.amountPaid || 0)), 0),
     totalSales: scopedSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
     pendingInvoices: scopedInvoices.filter((invoice) => invoice.status !== 'Cobrada').reduce((sum, invoice) => sum + invoice.totalAmount, 0),
-    lowStock: snapshot.products.filter((product) => product.trackStock && product.stock <= product.minStock),
+    scopedProducts,
+    lowStock: scopedProducts.filter((product) => product.trackStock && product.scopedStock <= product.minStock),
     topProducts: [...scopedSales.reduce((map, sale) => {
       for (const item of sale.items) {
         const key = productMap.get(item.productId)?.name || 'Sin producto'
@@ -281,7 +292,7 @@ const dashboardView = (ui) => `
         ${ui.topProducts.length ? ui.topProducts.map(([name, qty], index) => `<div class="top-row"><span>${index + 1}</span><div><strong>${name}</strong><p>${qty} unidades vendidas</p></div></div>`).join('') : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
       </div></article>
       <article class="panel"><div class="panel-head"><div><h3>Stock critico</h3><p>Reposicion inmediata</p></div></div><div class="alert-list">
-        ${ui.lowStock.length ? ui.lowStock.map((product) => `<div class="alert-card"><strong>${product.name}</strong><p>Stock ${product.stock} / minimo ${product.minStock}</p></div>`).join('') : '<div class="alert-card ok"><strong>Sin alertas</strong><p>Inventario estable.</p></div>'}
+        ${ui.lowStock.length ? ui.lowStock.map((product) => `<div class="alert-card"><strong>${product.name}</strong><p>Stock ${product.scopedStock} en ${ui.currentBranch?.name || 'sucursal'} / minimo ${product.minStock}</p></div>`).join('') : '<div class="alert-card ok"><strong>Sin alertas</strong><p>Inventario estable.</p></div>'}
       </div></article>
       <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimas acciones</p></div></div><div class="timeline-list">
         ${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}
@@ -351,9 +362,9 @@ const salesView = (ui) => `
           </div>
           <p class="form-note full-span">Las ventas en efectivo solo se pueden registrar con una caja abierta. Los reportes toman sucursal y caja actual.</p>
           <div class="full-span cart-builder">
-            ${ui.snapshot.products.map((product) => `
+            ${ui.scopedProducts.map((product) => `
               <div class="cart-line">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} - stock ${product.stock} - cod. ${product.barcode || '-'}</p></div>
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} - stock ${product.scopedStock} en ${ui.currentBranch?.name || 'sucursal'} - cod. ${product.barcode || '-'}</p></div>
                 <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
               </div>`).join('')}
           </div>
@@ -429,7 +440,7 @@ const productsView = (ui) => `
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div></div>
         <form class="form-grid" data-form="stock-adjustment">
-          <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}">${product.name}</option>`).join('')}</select></label>
+          <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
           <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
           <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
           <button type="submit">Aplicar ajuste</button>
@@ -437,7 +448,7 @@ const productsView = (ui) => `
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div></div>
         <form class="form-grid" data-form="stock-transfer">
-          <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}">${product.name}</option>`).join('')}</select></label>
+          <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
           <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
           <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
           <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
@@ -446,7 +457,7 @@ const productsView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Inventario</h3><p>Con stock actual</p></div></div>
-        ${dataTable(['Producto', 'Codigo', 'Stock', 'Precio', 'Accion'], ui.snapshot.products.map((product) => `<div class="data-row"><span>${product.name}<br /><small>${product.sku}</small></span><span>${product.barcode || '-'}</span><span>${product.stock}</span><span>${money(product.salePrice)}</span><span>${actionButton('product', product.id)}</span></div>`))}
+        ${dataTable(['Producto', 'Codigo', 'Sucursal', 'Total', 'Precio', 'Accion'], ui.scopedProducts.map((product) => `<div class="data-row"><span>${product.name}<br /><small>${product.sku}</small></span><span>${product.barcode || '-'}</span><span>${product.scopedStock}</span><span>${product.totalStock}</span><span>${money(product.salePrice)}</span><span>${actionButton('product', product.id)}</span></div>`))}
       </article>
     </section>
   </section>
