@@ -131,6 +131,20 @@ const dataTable = (headers, rows) => `
   </div>
 `
 
+const inventoryTable = (rows) => `
+  <div class="inventory-table">
+    <div class="inventory-head">
+      <span>Producto</span>
+      <span>Codigo</span>
+      <span>Stock suc.</span>
+      <span>Total</span>
+      <span>Precio</span>
+      <span>Accion</span>
+    </div>
+    ${rows.length ? rows.join('') : '<div class="data-empty">No hay productos cargados todavia.</div>'}
+  </div>
+`
+
 const actionButton = (entity, id) => `<button type="button" class="inline-action" data-delete="${entity}" data-id="${id}">Eliminar</button>`
 const saleActionButtons = (sale) => `
   <div class="inline-action-group sale-actions-compact">
@@ -599,8 +613,25 @@ const cashView = (ui) => `
 const productsView = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Productos</p><h2>Catalogo y stock</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="dashboard-grid reports-layout">
-      <article class="panel"><div class="panel-head"><div><h3>Alta de producto</h3><p>Precio, costo y stock inicial</p></div></div>
+    <section class="module-summary-grid">
+      <article class="metric-card compact">
+        <span>Productos activos</span>
+        <strong>${ui.scopedProducts.length}</strong>
+        <p>Catalogo disponible en ${ui.currentBranch?.name || 'la sucursal actual'}</p>
+      </article>
+      <article class="metric-card compact">
+        <span>Stock bajo</span>
+        <strong>${ui.lowStock.length}</strong>
+        <p>Articulos para revisar o reponer</p>
+      </article>
+      <article class="metric-card compact">
+        <span>Movimientos</span>
+        <strong>${ui.scopedStockMovements.length}</strong>
+        <p>Ajustes y transferencias del periodo</p>
+      </article>
+    </section>
+    <section class="module-board products-board">
+      <article class="panel module-side"><div class="panel-head"><div><h3>Alta de producto</h3><p>Carga simple para empezar rapido</p></div></div>
         <form class="form-grid" data-form="product">
           <label>Nombre<input type="text" name="name" required /></label>
           <label>SKU<input type="text" name="sku" required /></label>
@@ -610,30 +641,53 @@ const productsView = (ui) => `
           <label>Costo<input type="number" name="costPrice" min="0" required /></label>
           <label>Minimo<input type="number" name="minStock" min="0" required /></label>
           <label>Categoria<input type="text" name="category" required /></label>
-          <label class="checkbox-row"><input type="checkbox" name="trackStock" checked />Controlar stock</label>
+          <label class="field-check full-span"><input type="checkbox" name="trackStock" checked /><span class="field-check-box" aria-hidden="true"></span><span>Controlar stock de este articulo</span></label>
           <button type="submit">Guardar producto</button>
         </form>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div></div>
-        <form class="form-grid" data-form="stock-adjustment">
-          <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
-          <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
-          <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
-          <button type="submit">Aplicar ajuste</button>
-        </form>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div></div>
-        <form class="form-grid" data-form="stock-transfer">
-          <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
-          <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
-          <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
-          <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
-          <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
-          <button type="submit">Registrar transferencia</button>
-        </form>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Inventario</h3><p>Con stock actual</p></div></div>
-        ${dataTable(['Producto', 'Codigo', 'Sucursal', 'Total', 'Precio', 'Accion'], ui.scopedProducts.map((product) => `<div class="data-row"><span>${product.name}<br /><small>${product.sku}</small></span><span>${product.barcode || '-'}</span><span>${product.scopedStock}</span><span>${product.totalStock}</span><span>${money(product.salePrice)}</span><span>${actionButton('product', product.id)}</span></div>`))}
+      <div class="module-main">
+        <div class="compact-form-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div></div>
+            <form class="form-grid compact-form" data-form="stock-adjustment">
+              <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+              <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
+              <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
+              <button type="submit">Aplicar ajuste</button>
+            </form>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div></div>
+            <form class="form-grid compact-form" data-form="stock-transfer">
+              <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+              <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
+              <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
+              <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
+              <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
+              <button type="submit">Registrar transferencia</button>
+            </form>
+          </article>
+        </div>
+        <article class="panel inventory-panel">
+          <div class="panel-head inventory-headline"><div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div></div>
+          ${inventoryTable(ui.scopedProducts.map((product) => `
+            <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
+              <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
+              <span>${product.barcode || '-'}</span>
+              <span><span class="stock-pill">${product.scopedStock}</span></span>
+              <span>${product.totalStock}</span>
+              <span>${money(product.salePrice)}</span>
+              <span class="inventory-actions">${actionButton('product', product.id)}</span>
+            </div>
+          `))}
+        </article>
+      </div>
+    </section>
+    <section class="content-grid single-focus">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Base cloud actual</h3><p>Estado de persistencia con Supabase</p></div></div>
+        <div class="info-strip"><strong>Modo actual</strong><span>${ui.snapshot.meta?.adapter || 'sin adaptador'}</span></div>
+        <div class="panel-note"><span>Hoy esta guardando en Supabase por snapshot cloud.</span><span>El siguiente paso profesional es pasar productos, ventas, caja y facturas a tablas core separadas.</span></div>
       </article>
     </section>
   </section>
