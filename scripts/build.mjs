@@ -25,9 +25,68 @@ const html = `<!doctype html>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/app.css" />
     <title>Comercio 360</title>
+    <style>
+      #boot-status {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: linear-gradient(180deg, #050505 0%, #0b0b0b 100%);
+        color: #f3f4f6;
+        font-family: Arial, sans-serif;
+      }
+      .boot-card {
+        width: min(560px, 100%);
+        padding: 28px;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(17, 17, 17, 0.96);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      }
+      .boot-card strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+      .boot-card p {
+        margin: 0;
+        color: #9ca3af;
+        line-height: 1.5;
+      }
+      .boot-card p + p {
+        margin-top: 10px;
+      }
+      .boot-card.is-error strong {
+        color: #ff5a4f;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="boot-status">
+      <div class="boot-card">
+        <strong>PCLAF Control</strong>
+        <p>Cargando sistema...</p>
+      </div>
+    </div>
+    <script>
+      window.__pclafBooted = false;
+      window.__pclafBootError = null;
+      window.addEventListener('error', function (event) {
+        window.__pclafBootError = event && event.message ? event.message : 'Error inesperado al iniciar la aplicacion.';
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event && event.reason;
+        window.__pclafBootError = reason && reason.message ? reason.message : 'Fallo una promesa al iniciar la aplicacion.';
+      });
+      window.setTimeout(function () {
+        if (window.__pclafBooted) return;
+        var shell = document.getElementById('boot-status');
+        if (!shell) return;
+        var message = window.__pclafBootError || 'La aplicacion no termino de cargar. Proba recargar con Ctrl + F5.';
+        shell.innerHTML = '<div class="boot-card is-error"><strong>No se pudo iniciar</strong><p>' + message + '</p><p>Si sigue igual, avisame y reviso el error puntual.</p></div>';
+      }, 4000);
+    </script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

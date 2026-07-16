@@ -31,6 +31,7 @@ const navItems = [
 ]
 
 const app = document.querySelector('#app')
+const bootStatus = document.querySelector('#boot-status')
 let theme = localStorage.getItem(themeStorageKey) || 'dark'
 let activeSection = localStorage.getItem(sectionStorageKey) || 'dashboard'
 let loginMessage = ''
@@ -52,6 +53,10 @@ let cloudSyncBusy = false
 
 const money = (value) => currency.format(Number(value) || 0)
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
+const markBootComplete = () => {
+  window.__pclafBooted = true
+  bootStatus?.remove()
+}
 const saveSection = () => localStorage.setItem(sectionStorageKey, activeSection)
 const byRecentDate = (items, key) => items.slice().sort((a, b) => String(b[key]).localeCompare(String(a[key])))
 const isWithinDateRange = (value, from, to) => {
@@ -797,6 +802,7 @@ const render = () => {
   app.innerHTML = ui.cloudConnection.required && !ui.cloudConnection.enabled
     ? cloudActivationView(ui)
     : (ui.isAuthenticated ? renderApp(ui) : loginView(ui))
+  markBootComplete()
   bindEvents()
 }
 
