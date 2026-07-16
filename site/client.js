@@ -6,6 +6,7 @@ const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
+const instanceStorageKey = 'pclaf-control-instance'
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
 const defaultSupabaseUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
@@ -81,6 +82,14 @@ let topbarSearch = ''
 let cloudSyncBusy = false
 let commerceContext = null
 let setupStatus = null
+let authInstanceKey = ''
+
+const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'principal'
+const persistInstanceKey = (value) => {
+  authInstanceKey = normalizeInstanceKey(value)
+  safeStorage.setItem(instanceStorageKey, authInstanceKey)
+  return authInstanceKey
+}
 
 const loadCloudAccess = async (sessionPayload = null) => {
   if (!authManager) throw new Error('La conexion cloud no esta lista.')
@@ -391,22 +400,50 @@ const getUiState = () => {
 
 const loginView = (ui) => `
   <div class="login-shell">
-    <div class="login-card">
-      <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
-      <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso productivo' : 'Acceso bloqueado'}</p>
-      <h1>${productName}</h1>
-      <p class="login-copy">Ingresá con tu usuario para operar ventas, caja, stock y comprobantes sobre la base real.</p>
-      <form class="login-form" data-form="login">
-        <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" required /></label>
-        <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" required /></label>
-        ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
-        <button type="submit">Ingresar</button>
-      </form>
-      <div class="login-meta">
-        <span class="login-meta-label">Acceso</span>
-        <div class="login-hints">
-          <span>Las cuentas nuevas se habilitan desde la instancia administradora o desde el alta comercial inicial.</span>
-          <span>${ui.cloudConnection.enabled ? `Instancia activa: ${ui.cloudConnection.instanceKey}` : 'La conexion cloud es obligatoria.'}</span>
+    <div class="login-grid">
+      <div class="login-card">
+        <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
+        <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso productivo' : 'Acceso bloqueado'}</p>
+        <h1>${productName}</h1>
+        <p class="login-copy">Ingresa con tu usuario para operar ventas, caja, stock y comprobantes sobre la base real.</p>
+        <form class="login-form" data-form="login">
+          <label>Comercio o codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" required /></label>
+          <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" required /></label>
+          <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" required /></label>
+          ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+          <button type="submit">Ingresar</button>
+        </form>
+        <div class="login-meta">
+          <span class="login-meta-label">Acceso</span>
+          <div class="login-hints">
+            <span>${setupStatus?.initialized ? `Instancia lista: ${setupStatus.commerce_name || authInstanceKey}` : 'Si el comercio no existe todavia, podes crearlo abajo en menos de un minuto.'}</span>
+            <span>${ui.cloudConnection.enabled ? `Base cloud: ${ui.cloudConnection.url}` : 'La conexion cloud es obligatoria.'}</span>
+          </div>
+        </div>
+      </div>
+      <div class="login-card login-card-secondary">
+        <p class="kicker">Prueba gratis</p>
+        <h2>Crea tu comercio</h2>
+        <p class="login-copy">Alta autonoma para que un cliente pruebe la app sin pedirte acceso manual.</p>
+        <form class="login-form compact-signup-form" data-form="instance-setup">
+          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" required /></label>
+          <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Kiosco Marti" required /></label>
+          <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del duenio" required /></label>
+          <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" required /></label>
+          <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" /></label>
+          <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" required /></label>
+          <label>Sucursal inicial<input type="text" name="branchName" value="Casa central" required /></label>
+          <label>Caja inicial<input type="text" name="registerName" value="Caja 1" required /></label>
+          <input type="hidden" name="branchCode" value="CASA" />
+          <input type="hidden" name="registerCode" value="CAJA-01" />
+          <button type="submit">Crear prueba</button>
+        </form>
+        <div class="login-meta">
+          <span class="login-meta-label">Como sigue</span>
+          <div class="login-hints">
+            <span>Se crea el comercio, el admin y la primera caja en Supabase.</span>
+            <span>Despues podes habilitar modulos, sumar usuarios y definir el pack ideal desde Mi admin.</span>
+          </div>
         </div>
       </div>
     </div>
@@ -421,6 +458,7 @@ const setupView = (ui) => `
       <h1>${productName}</h1>
       <p class="login-copy">No hay usuarios ni comercio creados todavia. Cargamos la cuenta administradora, la primera sucursal y la primera caja para arrancar desde cero sobre tablas reales.</p>
       <form class="login-form" data-form="instance-setup">
+        <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" required /></label>
         <label>Nombre del comercio<input type="text" name="commerceName" placeholder="PCLAF Control" required /></label>
         <label>Administrador<input type="text" name="ownerName" placeholder="Lucas Furno" required /></label>
         <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" required /></label>
@@ -510,7 +548,7 @@ const customersViewV2 = (ui) => `
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Clientes activos</span><strong>${ui.snapshot.customers.length}</strong><p>Base disponible para ventas y facturas</p></article>
       <article class="metric-card compact"><span>Saldo total</span><strong>${money(ui.snapshot.customers.reduce((sum, customer) => sum + Number(customer.balance || 0), 0))}</strong><p>Cuentas corrientes acumuladas</p></article>
-      <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genéricos o rápidos</p></article>
+      <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genÃ©ricos o rÃ¡pidos</p></article>
     </section>
     <section class="module-board customers-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>Alta de cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
@@ -525,7 +563,7 @@ const customersViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <article class="panel">
-          <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rápida de la cartera actual</p></div></div>
+          <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rÃ¡pida de la cartera actual</p></div></div>
           <div class="priority-list sales-kpis">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || 'Principal'}</p></div>
             <div class="priority-item"><strong>Clientes con saldo</strong><p>${ui.snapshot.customers.filter((customer) => Number(customer.balance || 0) > 0).length}</p></div>
@@ -590,7 +628,7 @@ const salesView = (ui) => `
           <div class="full-span cart-builder">
             ${ui.scopedProducts.map((product) => `
               <div class="cart-line">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} · stock ${product.scopedStock} · cod. ${product.barcode || '-'}</p></div>
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} Â· stock ${product.scopedStock} Â· cod. ${product.barcode || '-'}</p></div>
                 <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
               </div>`).join('')}
           </div>
@@ -599,7 +637,7 @@ const salesView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
-        <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} · ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
+        <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} Â· ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
       </article>
     </section>
   </section>
@@ -621,7 +659,7 @@ const cashView = (ui) => `
         </div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informá el efectivo contado' : 'Definí el fondo inicial'}</p></div></div>
+        <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'InformÃ¡ el efectivo contado' : 'DefinÃ­ el fondo inicial'}</p></div></div>
         <form class="form-grid" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
           ${ui.openCashSession ? '' : `<label>Caja<select name="registerId" required>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${ui.currentRegister?.id === register.id ? 'selected' : ''}>${register.name} (${register.code})</option>`).join('')}</select></label>`}
           <label>${ui.openCashSession ? 'Efectivo contado' : 'Monto inicial'}<input type="number" min="0" name="${ui.openCashSession ? 'countedAmount' : 'openingAmount'}" value="${ui.openCashSession ? ui.expectedCash : 0}" required /></label>
@@ -640,7 +678,7 @@ const cashView = (ui) => `
         ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavia no hay cierres para este filtro.</p>'}
       </div></article>
       <article class="panel"><div class="panel-head"><div><h3>Bitacora de caja</h3><p>Impacta en el arqueo esperado</p></div></div><div class="timeline-list">
-        ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} · ${money(movement.signedAmount)} · ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay movimientos manuales.</p>'}
+        ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} Â· ${money(movement.signedAmount)} Â· ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay movimientos manuales.</p>'}
       </div></article>
     </section>
   </section>
@@ -701,7 +739,7 @@ const salesViewV2 = (ui) => `
           <div class="full-span cart-builder">
             ${ui.scopedProducts.map((product) => `
               <div class="cart-line ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} · stock ${product.scopedStock} · cod. ${product.barcode || '-'}</p></div>
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} Â· stock ${product.scopedStock} Â· cod. ${product.barcode || '-'}</p></div>
                 <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
               </div>`).join('')}
           </div>
@@ -719,7 +757,7 @@ const salesViewV2 = (ui) => `
           </div>
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
-          <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} · ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
+          <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} Â· ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
         </article>
       </div>
     </section>
@@ -740,7 +778,7 @@ const cashViewV2 = (ui) => `
         <div class="priority-list">
           <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</p></div>
           <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
-          <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegí una caja')}</p></div>
+          <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'ElegÃ­ una caja')}</p></div>
           <div class="priority-item"><strong>Fondo inicial</strong><p>${money(ui.openCashSession?.openingAmount || 0)}</p></div>
           <div class="priority-item"><strong>Ajustes manuales</strong><p>${money(ui.sessionCashMovementTotal)}</p></div>
           <div class="priority-item"><strong>Efectivo esperado</strong><p>${money(ui.expectedCash)}</p></div>
@@ -749,7 +787,7 @@ const cashViewV2 = (ui) => `
       <div class="module-main">
         <div class="compact-form-grid">
           <article class="panel">
-            <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informá el efectivo contado' : 'Definí el fondo inicial'}</p></div></div>
+            <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'InformÃ¡ el efectivo contado' : 'DefinÃ­ el fondo inicial'}</p></div></div>
             <form class="form-grid compact-form" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
               ${ui.openCashSession ? '' : `<label>Caja<select name="registerId" required>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${ui.currentRegister?.id === register.id ? 'selected' : ''}>${register.name} (${register.code})</option>`).join('')}</select></label>`}
               <label>${ui.openCashSession ? 'Efectivo contado' : 'Monto inicial'}<input type="number" min="0" name="${ui.openCashSession ? 'countedAmount' : 'openingAmount'}" value="${ui.openCashSession ? ui.expectedCash : 0}" required /></label>
@@ -762,14 +800,14 @@ const cashViewV2 = (ui) => `
               <label>Importe<input type="number" min="1" name="amount" required /></label>
               <label class="full-span">Detalle<input type="text" name="note" placeholder="Motivo del movimiento" required /></label>
               <button type="submit">Registrar movimiento</button>
-            </form>` : '<p class="empty-state">Abrí una caja para registrar movimientos manuales.</p>'}
+            </form>` : '<p class="empty-state">AbrÃ­ una caja para registrar movimientos manuales.</p>'}
           </article>
         </div>
         <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
-          ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavía no hay cierres para este filtro.</p>'}
+          ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">TodavÃ­a no hay cierres para este filtro.</p>'}
         </div></article>
         <article class="panel"><div class="panel-head"><div><h3>Bitacora de caja</h3><p>Impacta en el arqueo esperado</p></div></div><div class="timeline-list">
-          ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} · ${money(movement.signedAmount)} · ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavía no hay movimientos manuales.</p>'}
+          ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} Â· ${money(movement.signedAmount)} Â· ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">TodavÃ­a no hay movimientos manuales.</p>'}
         </div></article>
       </div>
     </section>
@@ -961,7 +999,7 @@ const invoicesView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div></div>
         <form class="form-grid" data-form="invoice">
           <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
-          <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejás vacío" /></label>
+          <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejÃ¡s vacÃ­o" /></label>
           <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingInvoice?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
           <label>Clase<select name="kind"><option ${editingInvoice?.kind === 'Factura' || !editingInvoice ? 'selected' : ''}>Factura</option><option ${editingInvoice?.kind === 'Ticket' ? 'selected' : ''}>Ticket</option><option ${editingInvoice?.kind === 'Presupuesto' ? 'selected' : ''}>Presupuesto</option><option ${editingInvoice?.kind === 'Remito' ? 'selected' : ''}>Remito</option><option ${editingInvoice?.kind === 'Nota de credito' ? 'selected' : ''}>Nota de credito</option></select></label>
           <label>Total<input type="number" min="1" name="totalAmount" value="${editingInvoice?.totalAmount || ''}" required /></label>
@@ -974,7 +1012,7 @@ const invoicesView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
-        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} · ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} Â· ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
       </article>
     </section>
   </section>
@@ -990,7 +1028,7 @@ const invoicesViewV2 = (ui) => `
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Comprobantes</span><strong>${ui.enrichedInvoices.length}</strong><p>Emitidos para ${ui.currentBranch?.name || 'esta sucursal'}</p></article>
       <article class="metric-card compact"><span>Abiertas</span><strong>${ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length}</strong><p>Pendientes de cobro o revision</p></article>
-      <article class="metric-card compact"><span>Monto total</span><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><p>Facturación visible del filtro</p></article>
+      <article class="metric-card compact"><span>Monto total</span><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><p>FacturaciÃ³n visible del filtro</p></article>
     </section>
     <section class="module-board invoices-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div></div>
@@ -1018,7 +1056,7 @@ const invoicesViewV2 = (ui) => `
           </div>
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
-          ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} · ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+          ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} Â· ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
         </article>
       </div>
     </section>
@@ -1035,7 +1073,7 @@ const ticketsView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div></div>
         <form class="form-grid" data-form="ticket">
           <input type="hidden" name="ticketId" value="${editingTicket?.id || ''}" />
-          <label>Numero<input type="text" name="number" value="${editingTicket?.number || ''}" placeholder="Se autogenera si lo dejás vacío" /></label>
+          <label>Numero<input type="text" name="number" value="${editingTicket?.number || ''}" placeholder="Se autogenera si lo dejÃ¡s vacÃ­o" /></label>
           <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingTicket?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
           <label>Equipo<input type="text" name="device" value="${editingTicket?.device || ''}" required /></label>
           <label>Estado<select name="status"><option ${editingTicket?.status === 'Recibido' || !editingTicket ? 'selected' : ''}>Recibido</option><option ${editingTicket?.status === 'En curso' ? 'selected' : ''}>En curso</option><option ${editingTicket?.status === 'Esperando aprobacion' ? 'selected' : ''}>Esperando aprobacion</option><option ${editingTicket?.status === 'Listo para entregar' ? 'selected' : ''}>Listo para entregar</option></select></label>
@@ -1078,7 +1116,7 @@ const ticketsViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <article class="panel">
-          <div class="panel-head"><div><h3>Estado del taller</h3><p>Vista rápida del flujo operativo</p></div></div>
+          <div class="panel-head"><div><h3>Estado del taller</h3><p>Vista rÃ¡pida del flujo operativo</p></div></div>
           <div class="priority-list sales-kpis">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
             <div class="priority-item"><strong>Ultimo ticket</strong><p>${ui.enrichedTickets[0]?.number || 'Sin tickets'}</p></div>
@@ -1243,7 +1281,7 @@ const reportsView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>Top productos</h3><p>Movimiento comercial filtrado</p></div></div><div class="top-list">${[...ui.reportScopedSales.reduce((map, sale) => { for (const item of sale.items) { const current = map.get(item.productId) || { name: ui.snapshot.products.find((product) => product.id === item.productId)?.name || 'Articulo', qty: 0 }; current.qty += item.quantity; map.set(item.productId, current) } return map }, new Map()).values()].sort((a, b) => b.qty - a.qty).slice(0, 5).map((item, index) => `<div class="top-row"><span>${index + 1}</span><div><strong>${item.name}</strong><p>${item.qty} unidades vendidas</p></div></div>`).join('') || '<p class="empty-state">Sin ventas en este rango.</p>'}</div></article>
       <article class="panel"><div class="panel-head"><div><h3>Balance rapido</h3><p>${ui.currentBranch?.name || 'Sucursal'}${reportRegisterFilter === 'all' ? '' : ` / ${ui.enrichedRegisters.find((register) => register.id === reportRegisterFilter)?.name || 'Caja'}`}</p></div></div><div class="priority-list"><div class="priority-item"><strong>Ventas filtradas</strong><p>${money(ui.reportScopedSales.reduce((sum, sale) => sum + sale.totalAmount, 0))}</p></div><div class="priority-item"><strong>Facturas filtradas</strong><p>${money(ui.reportScopedInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0))}</p></div><div class="priority-item"><strong>Mov. caja</strong><p>${money(ui.reportScopedCashMovements.reduce((sum, movement) => sum + movement.signedAmount, 0))}</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-report">Exportar CSV</button></div></article>
       <article class="panel"><div class="panel-head"><div><h3>Movimientos de stock</h3><p>Ingresos y egresos</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedStockMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.type}</strong><p>${movement.quantity} unidades</p><span>${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de stock en este rango.</p>'}</div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Movimientos de caja</h3><p>Ingresos y egresos manuales</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedCashMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${money(movement.signedAmount)} · ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de caja en este rango.</p>'}</div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Movimientos de caja</h3><p>Ingresos y egresos manuales</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedCashMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${money(movement.signedAmount)} Â· ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de caja en este rango.</p>'}</div></article>
     </section>
   </section>
 `
@@ -1348,7 +1386,7 @@ const ownerAdminViewV2 = (ui) => {
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Proximos pasos de negocio</h3><p>Para venderlo mejor</p></div></div>
           <div class="timeline-list">
-            <div class="timeline-item"><strong>Onboarding por rubro</strong><p>Asistentes iniciales para kiosco, servicio técnico o local general.</p><span>Cada uno deberia arrancar con un pack distinto.</span></div>
+            <div class="timeline-item"><strong>Onboarding por rubro</strong><p>Asistentes iniciales para kiosco, servicio tÃ©cnico o local general.</p><span>Cada uno deberia arrancar con un pack distinto.</span></div>
             <div class="timeline-item"><strong>Limites por plan</strong><p>1 caja, varias cajas, varias sucursales, tickets, reportes avanzados.</p><span>Eso hace mas facil venderlo y explicarlo.</span></div>
             <div class="timeline-item"><strong>Consola tuya</strong><p>Mas adelante conviene un superadmin global para ver todos tus clientes.</p><span>Eso ya seria tu consola PCLAF.</span></div>
           </div>
@@ -1374,7 +1412,7 @@ const settingsView = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
     <section class="dashboard-grid reports-layout">
       <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div><div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}${ui.user.isOwner ? '<br /><small>Propietario de la instancia</small>' : `<br /><small>Plan ${ui.commerceContext?.active_plan ? (planLabels[ui.commerceContext.active_plan] || ui.commerceContext.active_plan) : (planLabels[ui.snapshot.business.activePlan] || 'Full')}</small>`}</p></div><div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}<br /><small>${ui.commerceContext?.owner_email || ui.cloudConnection.instanceKey}</small></p></div><div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura el negocio, el mail dueño y la migracion a tablas reales</p></div></div>
+      <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura el negocio, el mail dueÃ±o y la migracion a tablas reales</p></div></div>
         <form class="form-grid" data-form="commerce-profile">
           <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
           <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
@@ -1382,7 +1420,7 @@ const settingsView = (ui) => `
           <label>Pack<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${(!(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) || (ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'full') ? 'selected' : ''}>Operacion</option><option value="multi" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'multi' ? 'selected' : ''}>Multi sucursal</option><option value="custom" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
           <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
         </form>
-        <div class="panel-note"><span>El mail dueño ahora se puede cambiar desde aca sin tocar SQL.</span><span>Elegi un pack para que el cliente no vea herramientas que todavia no necesita.</span></div>
+        <div class="panel-note"><span>El mail dueÃ±o ahora se puede cambiar desde aca sin tocar SQL.</span><span>Elegi un pack para que el cliente no vea herramientas que todavia no necesita.</span></div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
@@ -1396,8 +1434,8 @@ const settingsView = (ui) => `
           <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
           ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
         </form>
-        <div class="panel-note"><span>Las cuentas las crea el dueño o el administrador desde este panel.</span><span>Despues definis rol, caja y nivel de acceso para cada persona.</span></div>
-        ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
+        <div class="panel-note"><span>Las cuentas las crea el dueÃ±o o el administrador desde este panel.</span><span>Despues definis rol, caja y nivel de acceso para cada persona.</span></div>
+        ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>Â· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
         <form class="form-grid" data-form="module-preset">
@@ -1416,7 +1454,7 @@ const settingsView = (ui) => `
         </div>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Instancia real donde se guardan usuarios, ventas y comprobantes</p></div></div>
-        <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} · ${syncLabel}</span></div>
+        <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} Â· ${syncLabel}</span></div>
         <form class="form-grid" data-form="cloud-connection">
           <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
           <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
@@ -1466,7 +1504,7 @@ const settingsViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura negocio, dueño y pack</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura negocio, dueÃ±o y pack</p></div></div>
             <form class="form-grid compact-form" data-form="commerce-profile">
               <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
               <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
@@ -1477,7 +1515,7 @@ const settingsViewV2 = (ui) => `
             <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
           </article>
           <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Instancia real de Supabase</p></div></div>
-            <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} · ${syncLabel}</span></div>
+            <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} Â· ${syncLabel}</span></div>
             <form class="form-grid compact-form" data-form="cloud-connection">
               <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
               <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
@@ -1498,7 +1536,7 @@ const settingsViewV2 = (ui) => `
             <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
             ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
           </form>
-          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
+          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>Â· Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
         </article>
         <div class="compact-form-grid">
           <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
@@ -1581,7 +1619,7 @@ const renderApp = (ui) => {
           <div class="topbar-center">
             <form class="quick-search" data-form="topbar-jump">
               <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
-              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Buscar ventas, clientes, productos, facturas, tickets, sucursales o cajas" />
+              <input type="search" name="query" value="${topbarSearch}" list="nav-search-options" placeholder="Buscar ventas, clientes, productos, stock, facturas o cajas" />
               <datalist id="nav-search-options">${searchOptions}</datalist>
             </form>
           </div>
@@ -1590,13 +1628,9 @@ const renderApp = (ui) => {
               <span class="status-led" aria-hidden="true"></span>
               <div class="status-copy"><strong>${statusTitle}</strong>${statusHint ? `<span>${statusHint}</span>` : ''}</div>
             </button>
-            <button class="topbar-bell" type="button" data-section="reportes" aria-label="Notificaciones">
-              <span class="nav-icon">${icon('<path d="M6 8a6 6 0 0 1 12 0c0 6 2 8 2 8H4s2-2 2-8"/><path d="M10.5 20a2 2 0 0 0 3 0"/>')}</span>
-              ${notificationCount ? `<span class="topbar-badge">${notificationCount}</span>` : ''}
-            </button>
             <button class="account-card compact-meta" type="button" data-section="${ui.user?.isOwner ? 'mi-admin' : 'ajustes'}" aria-label="Abrir perfil">
               <span class="account-avatar">${userInitials}</span>
-              <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}</span></span>
+              <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` · ${notificationCount} alertas` : ''}</span></span>
             </button>
             <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
               <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
@@ -1633,6 +1667,11 @@ const readSiteCloudConfig = async () => {
 
 const bootstrap = async () => {
   const initialCloudConfig = await readSiteCloudConfig()
+  authInstanceKey = normalizeInstanceKey(
+    safeStorage.getItem(instanceStorageKey, '')
+    || initialCloudConfig?.instanceKey
+    || 'principal'
+  )
   const storeOptions = {
     initialCloudConfig,
     requireCloud: !window.pclafDesktop,
@@ -1643,11 +1682,13 @@ const bootstrap = async () => {
     : null
   try {
     if (store.getCloudConnection().enabled && authManager) {
-      setupStatus = await authManager.getSetupStatus()
+      setupStatus = await authManager.getSetupStatus({ instanceKey })
     }
     if (store.getCloudConnection().enabled && authManager && setupStatus?.initialized) {
       const restoredSession = await authManager.restoreSession()
       if (restoredSession?.sessionToken) {
+        authInstanceKey = normalizeInstanceKey(restoredSession.commerceContext?.instance_key || authInstanceKey)
+        safeStorage.setItem(instanceStorageKey, authInstanceKey)
         store.setCloudAccessToken(restoredSession.sessionToken)
       }
     }
@@ -1784,10 +1825,12 @@ const handleSubmit = async (event) => {
     loginMessage = ''
     feedbackMessage = ''
     try {
+      const instanceKey = persistInstanceKey(formData.get('instanceKey'))
       const identifier = String(formData.get('identifier') || '').trim()
       const pin = String(formData.get('pin') || '')
       if (!authManager) throw new Error('La conexion cloud no esta lista.')
-      const sessionPayload = await authManager.signIn({ identifier, pin })
+      setupStatus = await authManager.getSetupStatus({ instanceKey })
+      const sessionPayload = await authManager.signIn({ instanceKey, identifier, pin })
       await loadCloudAccess(sessionPayload)
       feedbackMessage = 'Sesion iniciada correctamente.'
     } catch (error) {
@@ -1800,8 +1843,10 @@ const handleSubmit = async (event) => {
     loginMessage = ''
     feedbackMessage = ''
     try {
+      const instanceKey = persistInstanceKey(formData.get('instanceKey'))
       if (!authManager) throw new Error('La conexion cloud no esta lista.')
       const sessionPayload = await authManager.setupInstance({
+        instanceKey,
         commerceName: String(formData.get('commerceName') || '').trim(),
         ownerName: String(formData.get('ownerName') || '').trim(),
         ownerLogin: String(formData.get('ownerLogin') || '').trim(),
@@ -1812,7 +1857,7 @@ const handleSubmit = async (event) => {
         registerName: String(formData.get('registerName') || '').trim(),
         registerCode: String(formData.get('registerCode') || '').trim(),
       })
-      setupStatus = await authManager.getSetupStatus()
+      setupStatus = await authManager.getSetupStatus({ instanceKey })
       await loadCloudAccess(sessionPayload)
       feedbackMessage = 'Instancia creada y lista para operar.'
     } catch (error) {
@@ -2205,4 +2250,5 @@ const bindEvents = () => {
 
 applyTheme()
 bootstrap()
+
 

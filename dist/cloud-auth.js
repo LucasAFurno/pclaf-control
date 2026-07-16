@@ -80,13 +80,15 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'principal'
     return session
   }
 
-  const getSetupStatus = async () => rpc('app_get_setup_status', {
-    p_instance_key: currentInstanceKey,
+  const normalizeInstanceKey = (value) => String(value || currentInstanceKey || 'principal').trim().toLowerCase() || 'principal'
+
+  const getSetupStatus = async ({ instanceKey: requestedInstanceKey } = {}) => rpc('app_get_setup_status', {
+    p_instance_key: normalizeInstanceKey(requestedInstanceKey),
   })
 
-  const setupInstance = async ({ commerceName, ownerName, ownerLogin, ownerEmail, ownerPin, branchName, branchCode, registerName, registerCode }) => {
+  const setupInstance = async ({ instanceKey: requestedInstanceKey, commerceName, ownerName, ownerLogin, ownerEmail, ownerPin, branchName, branchCode, registerName, registerCode }) => {
     const payload = await rpc('app_setup_instance', {
-      p_instance_key: currentInstanceKey,
+      p_instance_key: normalizeInstanceKey(requestedInstanceKey),
       p_commerce_name: commerceName,
       p_owner_name: ownerName,
       p_owner_login: ownerLogin,
@@ -100,9 +102,9 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'principal'
     return setSession(payload)
   }
 
-  const signIn = async ({ identifier, pin }) => {
+  const signIn = async ({ instanceKey: requestedInstanceKey, identifier, pin }) => {
     const payload = await rpc('app_public_sign_in', {
-      p_instance_key: currentInstanceKey,
+      p_instance_key: normalizeInstanceKey(requestedInstanceKey),
       p_identifier: identifier,
       p_pin: pin,
     })
