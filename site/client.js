@@ -406,10 +406,10 @@ const loginView = (ui) => `
         <p class="kicker">${ui.cloudConnection.enabled ? 'Acceso productivo' : 'Acceso bloqueado'}</p>
         <h1>${productName}</h1>
         <p class="login-copy">Ingresa con tu usuario para operar ventas, caja, stock y comprobantes sobre la base real.</p>
-        <form class="login-form" data-form="login">
-          <label>Comercio o codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" required /></label>
-          <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" required /></label>
-          <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" required /></label>
+        <form class="login-form" data-form="login" autocomplete="off">
+          <label>Comercio o codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" autocomplete="current-password" required /></label>
           ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
           <button type="submit">Ingresar</button>
         </form>
@@ -425,15 +425,15 @@ const loginView = (ui) => `
         <p class="kicker">Prueba gratis</p>
         <h2>Crea tu comercio</h2>
         <p class="login-copy">Alta autonoma para que un cliente pruebe la app sin pedirte acceso manual.</p>
-        <form class="login-form compact-signup-form" data-form="instance-setup">
-          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" required /></label>
-          <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Kiosco Marti" required /></label>
-          <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del duenio" required /></label>
-          <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" required /></label>
-          <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" /></label>
-          <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" required /></label>
-          <label>Sucursal inicial<input type="text" name="branchName" value="Casa central" required /></label>
-          <label>Caja inicial<input type="text" name="registerName" value="Caja 1" required /></label>
+        <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
+          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Kiosco Marti" autocomplete="organization" required /></label>
+          <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del duenio" autocomplete="name" required /></label>
+          <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
+          <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+          <label>Sucursal inicial<input type="text" name="branchName" value="Casa central" autocomplete="off" required /></label>
+          <label>Caja inicial<input type="text" name="registerName" value="Caja 1" autocomplete="off" required /></label>
           <input type="hidden" name="branchCode" value="CASA" />
           <input type="hidden" name="registerCode" value="CAJA-01" />
           <button type="submit">Crear prueba</button>
@@ -457,16 +457,16 @@ const setupView = (ui) => `
       <p class="kicker">Configuracion inicial</p>
       <h1>${productName}</h1>
       <p class="login-copy">No hay usuarios ni comercio creados todavia. Cargamos la cuenta administradora, la primera sucursal y la primera caja para arrancar desde cero sobre tablas reales.</p>
-      <form class="login-form" data-form="instance-setup">
-        <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" required /></label>
+      <form class="login-form" data-form="instance-setup" autocomplete="off">
+        <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
         <label>Nombre del comercio<input type="text" name="commerceName" placeholder="PCLAF Control" required /></label>
         <label>Administrador<input type="text" name="ownerName" placeholder="Lucas Furno" required /></label>
-        <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" required /></label>
-        <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" /></label>
-        <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" required /></label>
-        <label>Sucursal inicial<input type="text" name="branchName" placeholder="Casa central" required /></label>
+        <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+        <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
+        <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+        <label>Sucursal inicial<input type="text" name="branchName" placeholder="Casa central" autocomplete="off" required /></label>
         <label>Codigo sucursal<input type="text" name="branchCode" value="CASA" required /></label>
-        <label>Caja inicial<input type="text" name="registerName" value="Caja 1" required /></label>
+        <label>Caja inicial<input type="text" name="registerName" value="Caja 1" autocomplete="off" required /></label>
         <label>Codigo caja<input type="text" name="registerCode" value="CAJA-01" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Crear instancia</button>
@@ -1682,7 +1682,7 @@ const bootstrap = async () => {
     : null
   try {
     if (store.getCloudConnection().enabled && authManager) {
-      setupStatus = await authManager.getSetupStatus({ instanceKey })
+      setupStatus = await authManager.getSetupStatus({ instanceKey: authInstanceKey })
     }
     if (store.getCloudConnection().enabled && authManager && setupStatus?.initialized) {
       const restoredSession = await authManager.restoreSession()
