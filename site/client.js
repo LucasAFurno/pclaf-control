@@ -268,14 +268,17 @@ const loginView = (ui) => `
       <h1>${productName}</h1>
       <p class="login-copy">Ingresá con usuario y PIN para operar ventas, caja, compras y control.</p>
       <form class="login-form" data-form="login">
-        <label>Usuario o email<input type="text" name="identifier" placeholder="admin" required /></label>
-        <label>Clave<input type="password" name="pin" placeholder="Bandido.2178" required /></label>
+        <label>Usuario o email<input type="text" name="identifier" placeholder="Tu usuario o email" required /></label>
+        <label>Clave<input type="password" name="pin" placeholder="Ingresa tu clave" required /></label>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
         <button type="submit">Ingresar</button>
       </form>
-      <div class="login-hints">
-        <span>Admin: admin / Bandido.2178</span>
-        <span>${ui.cloudConnection.enabled ? `Instancia compartida: ${ui.cloudConnection.instanceKey}` : 'Modo local de prueba activo'}</span>
+      <div class="login-meta">
+        <span class="login-meta-label">Acceso</span>
+        <div class="login-hints">
+          <span>Usa una cuenta habilitada para esta instancia.</span>
+          <span>${ui.cloudConnection.enabled ? `Instancia compartida: ${ui.cloudConnection.instanceKey}` : 'Modo local de prueba activo'}</span>
+        </div>
       </div>
       <form class="login-form secondary-login-form" data-form="public-register">
         <p class="kicker">Crear cuenta</p>
