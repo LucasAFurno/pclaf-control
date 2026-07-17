@@ -78,5 +78,63 @@ export const createSupabaseCoreAdapter = (config) => {
         p_is_active: payload?.isActive !== false,
       })
     },
+    async upsertProduct(payload) {
+      return rpc('app_public_upsert_product', {
+        p_session_token: getSessionToken(),
+        p_product_id: payload?.id || null,
+        p_name: payload?.name || '',
+        p_sku: payload?.sku || '',
+        p_barcode: payload?.barcode || '',
+        p_stock: Number(payload?.stock || 0),
+        p_sale_price: Number(payload?.salePrice || 0),
+        p_cost_price: Number(payload?.costPrice || 0),
+        p_min_stock: Number(payload?.minStock || 0),
+        p_category: payload?.category || '',
+        p_track_stock: payload?.trackStock !== false,
+        p_branch_id: payload?.branchId || null,
+      })
+    },
+    async openCashSession(payload) {
+      return rpc('app_public_open_cash_session', {
+        p_session_token: getSessionToken(),
+        p_register_id: payload?.registerId || null,
+        p_opening_amount: Number(payload?.openingAmount || 0),
+      })
+    },
+    async closeCashSession(payload) {
+      return rpc('app_public_close_cash_session', {
+        p_session_token: getSessionToken(),
+        p_cash_session_id: payload?.cashSessionId || null,
+        p_counted_amount: Number(payload?.countedAmount || 0),
+      })
+    },
+    async createCashMovement(payload) {
+      return rpc('app_public_create_cash_movement', {
+        p_session_token: getSessionToken(),
+        p_cash_session_id: payload?.cashSessionId || null,
+        p_kind: payload?.kind || 'income',
+        p_amount: Number(payload?.amount || 0),
+        p_note: payload?.note || '',
+      })
+    },
+    async createSale(payload) {
+      return rpc('app_public_create_sale', {
+        p_session_token: getSessionToken(),
+        p_customer_id: payload?.customerId || null,
+        p_channel: payload?.channel || 'Mostrador',
+        p_payment_method: payload?.paymentMethod || 'cash',
+        p_discount_amount: Number(payload?.discountAmount || 0),
+        p_note: payload?.note || '',
+        p_is_paid: payload?.isPaid === true,
+        p_auto_invoice: payload?.autoInvoice === true,
+        p_cash_amount: Number(payload?.cashAmount || 0),
+        p_transfer_amount: Number(payload?.transferAmount || 0),
+        p_mercado_pago_amount: Number(payload?.mercadoPagoAmount || 0),
+        p_account_amount: Number(payload?.accountAmount || 0),
+        p_items: Array.isArray(payload?.items) ? payload.items : [],
+        p_branch_id: payload?.branchId || null,
+        p_register_id: payload?.registerId || null,
+      })
+    },
   }
 }

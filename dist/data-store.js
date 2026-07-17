@@ -1117,8 +1117,26 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Perfil del comercio actualizado.' }
   }
 
-  const createProduct = (payload) => {
+  const createProduct = async (payload) => {
     const branchId = getCurrentBranch(state)?.id || state.branches[0]?.id || ''
+    if (!String(payload.name || '').trim()) return { ok: false, message: 'El producto necesita un nombre.' }
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertProduct({
+        id: payload.id || null,
+        name: String(payload.name || '').trim(),
+        sku: String(payload.sku || '').trim(),
+        barcode: String(payload.barcode || '').trim(),
+        stock: Number(payload.stock || 0),
+        salePrice: Number(payload.salePrice || 0),
+        costPrice: Number(payload.costPrice || 0),
+        minStock: Number(payload.minStock || 0),
+        category: String(payload.category || '').trim(),
+        trackStock: payload.trackStock !== false,
+        branchId,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Producto guardado en la base real.' }
+    }
     const product = {
       id: makeId(),
       name: payload.name,
@@ -1149,6 +1167,7 @@ export const createBrowserDataStore = (options = {}) => {
     }
     pushAudit(state, currentUser().id, 'product', product.id, 'created', product)
     save()
+    return { ok: true, message: 'Producto creado.' }
   }
 
   const createSupplier = (payload) => {
@@ -1301,10 +1320,19 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: `Usuario ${user.isActive ? 'habilitado' : 'deshabilitado'}.` }
   }
 
-  const openCashSession = ({ openingAmount }) => {
+  const openCashSession = async ({ openingAmount, registerId }) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.openCashSession({
+        registerId: registerId || state.business.currentRegisterId || '',
+        openingAmount,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Caja abierta correctamente.' }
+    }
     if (getOpenCashSession(state)) return { ok: false, message: 'Ya hay una caja abierta.' }
     const branch = getCurrentBranch(state)
-    const register = getScopedRegister(state, state.business.currentRegisterId, branch?.id)
+    const targetRegisterId = registerId || state.business.currentRegisterId
+    const register = getScopedRegister(state, targetRegisterId, branch?.id)
     if (!register) return { ok: false, message: 'Elegi una caja activa para abrir la caja.' }
     const session = {
       id: makeId(),
@@ -1321,10 +1349,18 @@ export const createBrowserDataStore = (options = {}) => {
     state.cashSessions.unshift(session)
     pushAudit(state, currentUser().id, 'cash_session', session.id, 'opened', session)
     save()
-    return { ok: true }
+    return { ok: true, message: 'Caja abierta correctamente.' }
   }
 
-  const closeCashSession = ({ countedAmount }) => {
+  const closeCashSession = async ({ countedAmount, cashSessionId }) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.closeCashSession({
+        cashSessionId: cashSessionId || getOpenCashSession(state)?.id || null,
+        countedAmount,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Caja cerrada correctamente.' }
+    }
     const session = getOpenCashSession(state)
     if (!session) return { ok: false, message: 'No hay caja abierta.' }
     const cashSales = state.sales
@@ -1337,10 +1373,20 @@ export const createBrowserDataStore = (options = {}) => {
     session.differenceAmount = session.countedAmount - (Number(session.openingAmount) + cashSales + manualDelta)
     pushAudit(state, currentUser().id, 'cash_session', session.id, 'closed', session)
     save()
-    return { ok: true }
+    return { ok: true, message: 'Caja cerrada correctamente.' }
   }
 
-  const createCashMovement = (payload) => {
+  const createCashMovement = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.createCashMovement({
+        cashSessionId: payload.cashSessionId || getOpenCashSession(state)?.id || null,
+        kind: payload.kind,
+        amount: payload.amount,
+        note: payload.note,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Movimiento de caja registrado.' }
+    }
     const session = getOpenCashSession(state)
     if (!session) return { ok: false, message: 'No hay caja abierta para registrar movimientos.' }
     const amount = Number(payload.amount || 0)
@@ -1363,7 +1409,18 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Movimiento de caja registrado.' }
   }
 
-  const createSale = (payload) => {
+  const createSale = async (payload) => {
+    if (cloudCoreAdapter) {
+      const currentBranch = getCurrentBranch(state)
+      const currentRegister = getCurrentRegister(state)
+      await cloudCoreAdapter.createSale({
+        ...payload,
+        branchId: payload.branchId || currentBranch?.id || null,
+        registerId: payload.registerId || currentRegister?.id || null,
+      })
+      await syncFromCloud()
+      return { ok: true, message: payload.autoInvoice ? 'Venta registrada y comprobante generado.' : 'Venta registrada.' }
+    }
     const items = payload.items
       .map((item) => buildSaleItem(item.productId, item.quantity, state))
       .filter(Boolean)

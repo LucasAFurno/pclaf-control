@@ -1987,7 +1987,10 @@ const handleSubmit = async (event) => {
       cloudSyncBusy = false
     }
   }
-  if (kind === 'product') store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), barcode: formData.get('barcode'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
+  if (kind === 'product') {
+    const result = await store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), barcode: formData.get('barcode'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
+    feedbackMessage = result.message || ''
+  }
   if (kind === 'stock-adjustment') {
     const result = store.createStockAdjustment({ productId: formData.get('productId'), quantity: formData.get('quantity'), note: formData.get('note') })
     feedbackMessage = result.message || ''
@@ -2014,16 +2017,15 @@ const handleSubmit = async (event) => {
     ticketEditingId = ''
   }
   if (kind === 'open-cash') {
-    const registerResult = store.selectRegister(formData.get('registerId'))
-    const result = registerResult.ok ? store.openCashSession({ openingAmount: formData.get('openingAmount') }) : registerResult
-    feedbackMessage = result.message || (result.ok ? 'Caja abierta correctamente.' : '')
+    const result = await store.openCashSession({ registerId: formData.get('registerId'), openingAmount: formData.get('openingAmount') })
+    feedbackMessage = result.message || ''
   }
   if (kind === 'close-cash') {
-    const result = store.closeCashSession({ countedAmount: formData.get('countedAmount') })
-    feedbackMessage = result.message || (result.ok ? 'Caja cerrada correctamente.' : '')
+    const result = await store.closeCashSession({ cashSessionId: getUiState().openCashSession?.id || null, countedAmount: formData.get('countedAmount') })
+    feedbackMessage = result.message || ''
   }
   if (kind === 'cash-movement') {
-    const result = store.createCashMovement({ kind: formData.get('kind'), amount: formData.get('amount'), note: formData.get('note') })
+    const result = await store.createCashMovement({ cashSessionId: getUiState().openCashSession?.id || null, kind: formData.get('kind'), amount: formData.get('amount'), note: formData.get('note') })
     feedbackMessage = result.message || ''
   }
   if (kind === 'purchase-receipt') {
@@ -2040,9 +2042,9 @@ const handleSubmit = async (event) => {
     }
     const payload = { customerId: formData.get('customerId'), channel: formData.get('channel'), paymentMethod: formData.get('paymentMethod'), isPaid: formData.get('isPaid') === 'on', autoInvoice: formData.get('autoInvoice') === 'on', discountAmount: formData.get('discountAmount'), amountPaid: formData.get('amountPaid'), cashAmount: formData.get('cashAmount'), transferAmount: formData.get('transferAmount'), mercadoPagoAmount: formData.get('mercadoPagoAmount'), accountAmount: formData.get('accountAmount'), note: formData.get('note'), items }
     const result = formData.get('saleId')
-      ? store.updateSale(formData.get('saleId'), payload)
-      : store.createSale(payload)
-    feedbackMessage = result.message || (result.ok ? 'Venta registrada.' : '')
+      ? await store.updateSale(formData.get('saleId'), payload)
+      : await store.createSale(payload)
+    feedbackMessage = result.message || ''
     saleEditingId = ''
     saleDraftQuantities = {}
     saleQuickAddCode = ''
