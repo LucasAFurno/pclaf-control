@@ -405,74 +405,78 @@ const loginView = (ui) => `
       <section class="login-overview">
         <div class="login-overview-card">
           <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
-          <p class="kicker">Plataforma comercial PCLAF</p>
+          <p class="kicker">Acceso comercial</p>
           <h1>${productName}</h1>
-          <p class="login-copy login-copy-hero">Ventas, caja, productos, stock y comprobantes en una sola web, lista para operar desde navegador y escalar por pack.</p>
+          <p class="login-copy login-copy-hero">Una sola web para vender, cobrar, cargar productos y ordenar el negocio sin instalar nada.</p>
           <div class="login-badges">
-            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Cloud activa' : 'Cloud pendiente'}</span>
-            <span class="login-badge">${setupStatus?.initialized ? 'Instancia lista' : 'Alta inmediata'}</span>
-            <span class="login-badge">Modo PCLAF</span>
+            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base conectada' : 'Activacion pendiente'}</span>
+            <span class="login-badge">${setupStatus?.initialized ? 'Ingreso disponible' : 'Alta inmediata'}</span>
+            <span class="login-badge">Web multi cliente</span>
           </div>
           <div class="login-highlight-grid">
             <article class="login-highlight">
-              <strong>Arranque simple</strong>
-              <p>Un cliente puede crear su comercio, caja inicial y usuario admin sin pedirte acceso manual.</p>
+              <strong>Alta rapida</strong>
+              <p>El cliente puede crear su comercio, su usuario administrador y su primera caja en pocos pasos.</p>
             </article>
             <article class="login-highlight">
-              <strong>Por necesidad</strong>
-              <p>Después se activan solo los módulos que el negocio necesita, sin abrumarlo con todo junto.</p>
+              <strong>Solo lo necesario</strong>
+              <p>Se habilitan modulos por pack para que cada negocio vea solo lo que realmente usa.</p>
             </article>
             <article class="login-highlight">
               <strong>Base real</strong>
-              <p>Lo nuevo ya se guarda en Supabase: usuarios, clientes, productos, caja y ventas iniciales.</p>
+              <p>Usuarios, clientes, productos, caja y ventas nuevas ya trabajan sobre Supabase.</p>
             </article>
           </div>
-          <div class="login-meta">
-            <span class="login-meta-label">Estado</span>
+          <div class="login-meta login-steps">
+            <span class="login-meta-label">Como funciona</span>
             <div class="login-hints">
-              <span>${setupStatus?.initialized ? `Instancia lista: ${setupStatus.commerce_name || authInstanceKey}` : 'Si el comercio no existe todavía, podés crearlo a la derecha en menos de un minuto.'}</span>
-              <span>${ui.cloudConnection.enabled ? 'Conexión cloud activa y lista para operar.' : 'La conexión cloud es obligatoria para trabajar sobre base real.'}</span>
+              <span class="login-step"><strong>1.</strong> Si ya tenes cuenta, ingresas con tu comercio y tu clave.</span>
+              <span class="login-step"><strong>2.</strong> Si es tu primera vez, creas la cuenta del comercio desde este acceso.</span>
+              <span class="login-step"><strong>3.</strong> Despues ajustas modulos, usuarios y permisos desde Mi admin.</span>
             </div>
           </div>
         </div>
       </section>
       <section class="login-side">
         <div class="login-card">
-          <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso bloqueado'}</p>
+          <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Acceso directo al comercio para operar ventas, caja y control diario.</p>
+          <p class="login-copy">Cada comercio entra a su propia sesion y ve solo su informacion operativa.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Comercio o código<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Comercio o codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
             <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" autocomplete="current-password" required /></label>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
+          </div>
         </div>
         <div class="login-card login-card-secondary">
           <p class="kicker">Prueba gratis</p>
           <h2>Crear comercio</h2>
-          <p class="login-copy">Alta autónoma para que un cliente pruebe la app sin esperarte.</p>
+          <p class="login-copy">Alta autonoma para que un cliente pruebe la app sin depender de una carga manual.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
             <div class="login-form-grid-2">
-              <label>Código<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+              <label>Codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
               <label>Nombre comercial<input type="text" name="commerceName" placeholder="Kiosco Marti" autocomplete="organization" required /></label>
               <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" autocomplete="name" required /></label>
               <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
               <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
-              <label>Clave admin<input type="password" name="ownerPin" placeholder="Mínimo 4 caracteres" autocomplete="new-password" required /></label>
+              <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
               <label>Sucursal inicial<input type="text" name="branchName" value="Casa central" autocomplete="off" required /></label>
               <label>Caja inicial<input type="text" name="registerName" value="Caja 1" autocomplete="off" required /></label>
             </div>
             <input type="hidden" name="branchCode" value="CASA" />
             <input type="hidden" name="registerCode" value="CAJA-01" />
-            <button type="submit">Crear prueba</button>
+            <button type="submit">Crear cuenta y empezar</button>
           </form>
           <div class="login-meta">
-            <span class="login-meta-label">Qué incluye</span>
+            <span class="login-meta-label">Que incluye</span>
             <div class="login-hints">
               <span>Se crea el comercio, el admin y la primera caja en Supabase.</span>
-              <span>Después podés habilitar módulos, sumar usuarios y definir el pack ideal desde Mi admin.</span>
+              <span>Despues podes habilitar modulos, sumar usuarios y definir el pack ideal desde Mi admin.</span>
             </div>
           </div>
         </div>
@@ -485,25 +489,28 @@ const setupView = (ui) => `
   <div class="login-shell">
     <div class="login-card login-card-wide">
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
-      <p class="kicker">Configuracion inicial</p>
+      <p class="kicker">Alta inicial</p>
       <h1>${productName}</h1>
-      <p class="login-copy">No hay usuarios ni comercio creados todavía. Cargamos la cuenta administradora, la primera sucursal y la primera caja para arrancar desde cero sobre tablas reales.</p>
+      <p class="login-copy">Todavia no existe este comercio. Completa estos datos y queda lista la cuenta administradora, la primera sucursal y la primera caja para empezar a operar.</p>
       <form class="login-form" data-form="instance-setup" autocomplete="off">
         <div class="login-form-grid-2">
-          <label>Código del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
           <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Mi comercio" required /></label>
           <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" required /></label>
           <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
           <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
-          <label>Clave admin<input type="password" name="ownerPin" placeholder="Mínimo 4 caracteres" autocomplete="new-password" required /></label>
+          <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
           <label>Sucursal inicial<input type="text" name="branchName" placeholder="Casa central" autocomplete="off" required /></label>
           <label>Codigo sucursal<input type="text" name="branchCode" value="CASA" required /></label>
           <label>Caja inicial<input type="text" name="registerName" value="Caja 1" autocomplete="off" required /></label>
           <label>Codigo caja<input type="text" name="registerCode" value="CAJA-01" required /></label>
         </div>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
-        <button type="submit">Crear instancia</button>
+        <button type="submit">Crear comercio</button>
       </form>
+      <div class="login-actions">
+        <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
+      </div>
     </div>
   </div>
 `
@@ -512,20 +519,22 @@ const cloudActivationView = (ui) => `
   <div class="login-shell">
     <div class="login-card login-card-wide">
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
-      <p class="kicker">Activación requerida</p>
+      <p class="kicker">Activacion requerida</p>
       <h1>${productName}</h1>
-      <p class="login-copy">Esta instalación necesita Supabase activo antes de permitir ingresos o pruebas con clientes.</p>
-      <div class="info-strip"><strong>Cloud obligatorio</strong><span>Conecta Supabase para habilitar usuarios, ventas y comprobantes.</span></div>
+      <p class="login-copy">Esta instalacion necesita la base cloud conectada antes de permitir ingresos o pruebas con clientes.</p>
+      <div class="info-strip"><strong>Base obligatoria</strong><span>Sin conexion activa la app queda bloqueada para evitar pruebas falsas o datos perdidos.</span></div>
       <form class="login-form" data-form="cloud-connection">
         <div class="login-form-grid-2">
           <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
           <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
           <label class="full-span">Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
         </div>
-        <button type="submit">Activar sistema</button>
+        <button type="submit">Activar base</button>
       </form>
       ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-      <div class="panel-note"><span>Sin esta conexión, la app queda bloqueada para evitar que un cliente trabaje en local por error.</span></div>
+      <div class="login-actions">
+        <button type="button" class="ghost-action" data-action="open-support">Necesito asistencia</button>
+      </div>
     </div>
   </div>
 `
@@ -1524,7 +1533,7 @@ const settingsViewV2 = (ui) => `
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Sesion</span><strong>${ui.user.fullName}</strong><p>${ui.role.name}</p></article>
-      <article class="metric-card compact"><span>Cloud</span><strong>${syncLabel}</strong><p>${canManageUsers ? ui.cloudConnection.instanceKey : 'Conexion protegida'}</p></article>
+      <article class="metric-card compact"><span>Cloud</span><strong>${syncLabel}</strong><p>Base protegida para este comercio</p></article>
       <article class="metric-card compact"><span>Modulos</span><strong>${ui.snapshot.business.enabledModules.length}</strong><p>Visibles para este cliente</p></article>
     </section>
     <section class="module-board settings-board">
@@ -1539,7 +1548,7 @@ const settingsViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura negocio, dueÃ±o y pack</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura negocio, responsable y pack</p></div></div>
             <form class="form-grid compact-form" data-form="commerce-profile">
               <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
               <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
@@ -1550,7 +1559,7 @@ const settingsViewV2 = (ui) => `
             <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
           </article>
           <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Configuracion protegida del entorno</p></div></div>
-            <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} Â· ${syncLabel}</span></div>
+            <div class="info-strip"><strong>Estado</strong><span>${syncLabel}</span></div>
             <div class="timeline-list">
               <div class="timeline-item"><strong>Credenciales ocultas</strong><p>La URL del proyecto y la publishable key ya no se muestran dentro del panel.</p><span>Quedan fuera del alcance del personal operativo.</span></div>
               <div class="timeline-item"><strong>Sesion protegida</strong><p>La app trabaja con la instancia activa sin exponer configuracion tecnica.</p><span>Solo se usa para cargar y guardar datos del comercio.</span></div>
