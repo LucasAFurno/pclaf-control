@@ -598,15 +598,16 @@ const loginViewV2 = (ui) => `
               <h1>${productName}</h1>
             </div>
           </div>
-          <p class="login-copy login-copy-hero">Controla ventas, caja, productos, clientes y comprobantes desde una sola web. Pensado para comercios que quieren empezar simple y trabajar mejor sin instalar nada.</p>
+          <p class="login-copy login-copy-hero">Un sistema comercial web para vender, cobrar, controlar stock y ordenar el negocio desde un solo lugar, sin instalar nada y con acceso desde PC o celular.</p>
           <div class="login-badges">
-            <span class="login-badge">Ventas y caja</span>
-            <span class="login-badge">Stock y productos</span>
-            <span class="login-badge">Clientes y comprobantes</span>
+            <span class="login-badge">Ventas</span>
+            <span class="login-badge">Caja</span>
+            <span class="login-badge">Stock</span>
+            <span class="login-badge">Comprobantes</span>
           </div>
           <div class="login-seo-copy">
-            <p>PCLAF Control es un software de gestion comercial para kioscos, locales, tiendas y negocios que necesitan vender, cobrar, ordenar stock y emitir comprobantes sin depender de una instalacion local.</p>
-            <p>Sirve para operar desde PC, notebook o celular, con una estructura que despues puede crecer a cajas, sucursales y mas modulos segun cada comercio.</p>
+            <p>PCLAF Control es un software de gestion comercial para kioscos, locales, tiendas y negocios que necesitan vender, cobrar, ordenar stock y emitir comprobantes desde la web.</p>
+            <p>La herramienta arranca simple para no abrumar y despues puede crecer con usuarios, cajas, sucursales y modulos segun el tipo de comercio.</p>
           </div>
           <div class="login-hero-note">
             <strong>Entrá si ya tenés cuenta.</strong>
@@ -614,16 +615,16 @@ const loginViewV2 = (ui) => `
           </div>
           <div class="landing-feature-stack">
             <article class="landing-feature-card">
-              <strong>Ventas rapidas</strong>
-              <span>Caja, ticket, medios de pago y operacion diaria simple.</span>
+              <strong>Operacion diaria simple</strong>
+              <span>Ventas, caja y cobros con una vista clara y lista para trabajar.</span>
             </article>
             <article class="landing-feature-card">
-              <strong>Control de stock</strong>
-              <span>Productos, ingresos, ajustes y orden por sucursal.</span>
+              <strong>Control de stock real</strong>
+              <span>Productos, ingresos, ajustes y orden para cada comercio.</span>
             </article>
             <article class="landing-feature-card">
               <strong>Listo para crecer</strong>
-              <span>Usuarios, permisos, reportes y soporte comercial.</span>
+              <span>Usuarios, permisos, reportes y soporte comercial cuando lo necesites.</span>
             </article>
           </div>
           <div class="landing-contact">
@@ -644,9 +645,9 @@ const loginViewV2 = (ui) => `
         <div class="login-card">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Ingresa con los datos de tu comercio.</p>
+          <p class="login-copy">Ingresa con los datos de tu comercio y continua donde lo dejaste.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre o codigo de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre corto de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
             <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
             <p class="login-hints">Usa el nombre corto que quedo creado para tu comercio cuando abriste la cuenta.</p>
@@ -663,7 +664,7 @@ const loginViewV2 = (ui) => `
         <div class="login-card login-card-secondary">
           <p class="kicker">Prueba gratis</p>
           <h2>Crear cuenta</h2>
-          <p class="login-copy">Completa tus datos y se crea tu comercio con acceso administrador.</p>
+          <p class="login-copy">Completa tus datos y se crea tu comercio con acceso administrador para empezar a usarlo en minutos.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
             <div class="login-form-grid-1">
               <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
@@ -678,8 +679,8 @@ const loginViewV2 = (ui) => `
             <input type="hidden" name="registerName" value="Caja 1" />
             <input type="hidden" name="registerCode" value="CAJA-01" />
             <div class="login-inline-note">
-              <strong>Alta simple</strong>
-              <span>Se crea tu comercio, el admin y la primera caja para arrancar sin configuracion extra.</span>
+              <strong>Alta automatica</strong>
+              <span>Se crea tu comercio, tu usuario administrador y la primera caja para arrancar sin pasos tecnicos.</span>
             </div>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Crear cuenta y empezar</button>
@@ -1776,9 +1777,9 @@ const settingsViewV2 = (ui) => `
           <article class="panel"><div class="panel-head"><div><h3>Cuenta web</h3><p>Estado del acceso online y de la prueba</p></div></div>
             <div class="info-strip"><strong>Estado</strong><span>${syncLabel}</span></div>
             <div class="timeline-list">
-              <div class="timeline-item"><strong>Instancia activa</strong><p>${ui.cloudConnection.instanceKey || 'principal'}</p><span>Sesion ligada a este comercio solamente.</span></div>
+              <div class="timeline-item"><strong>Comercio activo</strong><p>${ui.commerceContext?.commerce_name || 'Comercio configurado'}</p><span>La sesion y los datos quedan ligados a este negocio.</span></div>
               <div class="timeline-item"><strong>Pack actual</strong><p>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</p><span>Se usan solo los modulos habilitados para esta cuenta.</span></div>
-              <div class="timeline-item"><strong>Prueba</strong><p>${ui.snapshot.business.trialEndsAt ? String(ui.snapshot.business.trialEndsAt).slice(0, 10) : 'Activa'}</p><span>La configuracion tecnica queda fuera de la vista del cliente.</span></div>
+              <div class="timeline-item"><strong>Acceso comercial</strong><p>${ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail || 'Sin correo principal'}</p><span>La configuracion tecnica queda fuera de la vista del cliente.</span></div>
             </div>
             <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button></div>
           </article>

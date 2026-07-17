@@ -30,7 +30,10 @@ const html = `<!doctype html>
     <meta property="og:title" content="PCLAF Control | Sistema comercial web" />
     <meta property="og:description" content="Ventas, caja, productos, clientes y comprobantes en una sola herramienta web para comercios." />
     <meta property="og:type" content="website" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:image" content="/pclaf-logo.png" />
+    <link rel="icon" type="image/png" href="/pclaf-logo.png" />
+    <link rel="shortcut icon" href="/pclaf-logo.png" />
+    <link rel="apple-touch-icon" href="/pclaf-logo.png" />
     <link rel="stylesheet" href="/app.css" />
     <title>PCLAF Control | Sistema comercial web</title>
     <style>
@@ -108,7 +111,6 @@ const cloudSync = ${JSON.stringify(cloudSyncJs)};
 const cloudAuth = ${JSON.stringify(cloudAuthJs)};
 const cloudCore = ${JSON.stringify(cloudCoreJs)};
 const cloudConfig = ${JSON.stringify(cloudConfigJson)};
-const favicon = ${JSON.stringify(faviconSvg)};
 const logo = ${JSON.stringify([...pclafLogo])};
 
 const asset = (body, contentType) =>
@@ -138,7 +140,7 @@ export default {
     if (url.pathname === '/cloud-auth.js') return asset(cloudAuth, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-core.js') return asset(cloudCore, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-config.json') return asset(cloudConfig, 'application/json; charset=utf-8');
-    if (url.pathname === '/favicon.svg') return asset(favicon, 'image/svg+xml');
+    if (url.pathname === '/favicon.svg') return asset(Uint8Array.from(logo), 'image/png');
     if (url.pathname === '/pclaf-logo.png') return asset(Uint8Array.from(logo), 'image/png');
     if (url.pathname === '/' || url.pathname.startsWith('/#')) return page();
 

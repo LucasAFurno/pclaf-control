@@ -65,10 +65,10 @@ input, select { outline: none; }
 }
 
 .login-grid {
-  width: min(760px, 100%);
+  width: min(920px, 100%);
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
+  gap: 24px;
   align-items: start;
 }
 
@@ -98,7 +98,7 @@ input, select { outline: none; }
   border-radius: 28px;
   background: linear-gradient(180deg, var(--panel) 0%, var(--panel-soft) 100%);
   box-shadow: var(--shadow);
-  padding: 30px;
+  padding: 34px;
 }
 
 .login-overview-card {
@@ -172,9 +172,9 @@ input, select { outline: none; }
 }
 
 .login-copy-hero {
-  max-width: 42ch;
-  font-size: 1.04rem;
-  line-height: 1.55;
+  max-width: 48ch;
+  font-size: 1.08rem;
+  line-height: 1.65;
 }
 
 .login-form {
@@ -185,9 +185,9 @@ input, select { outline: none; }
 
 .login-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 .login-cta-row {
@@ -195,7 +195,8 @@ input, select { outline: none; }
 }
 
 .hero-action {
-  min-width: 170px;
+  min-width: 190px;
+  min-height: 50px;
   justify-content: center;
 }
 
@@ -359,8 +360,8 @@ input, select { outline: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 16px 18px;
+  gap: 16px;
+  padding: 18px 20px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: color-mix(in srgb, var(--panel) 95%, transparent);
