@@ -409,35 +409,45 @@ const loginView = (ui) => `
           <div class="login-brand-row">
             <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
             <div class="login-brand-copy">
-              <p class="kicker">Acceso web</p>
+              <p class="kicker">Sistema de gestion comercial</p>
               <h1>${productName}</h1>
             </div>
           </div>
-          <p class="login-copy login-copy-hero">Control simple para comercios: ventas, caja, productos y gestion diaria desde un solo lugar.</p>
+          <p class="login-copy login-copy-hero">Software web para comercios, locales y negocios que necesitan vender, controlar caja, ordenar productos y trabajar desde cualquier dispositivo.</p>
           <div class="login-badges">
-            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Listo para ingresar' : 'Activacion pendiente'}</span>
-            <span class="login-badge">${setupStatus?.initialized ? 'Cuenta disponible' : 'Alta disponible'}</span>
+            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Acceso online' : 'Activacion pendiente'}</span>
+            <span class="login-badge">${setupStatus?.initialized ? 'Ingreso disponible' : 'Alta disponible'}</span>
+          </div>
+          <div class="login-seo-copy">
+            <p>PCLAF Control centraliza ventas, productos, clientes y caja en una sola plataforma. Esta version web esta pensada para que un comercio pueda empezar rapido y escalar despues segun lo que necesite.</p>
+            <p>Ideal para kioscos, tiendas, locales de servicio tecnico y comercios generales que buscan una herramienta simple para trabajar mejor.</p>
           </div>
           <div class="login-hero-note">
             <strong>Entrá si ya tenés cuenta.</strong>
-            <span>Si es tu primera vez, creá tu comercio y empezá a probar.</span>
+            <span>Si es tu primera vez, creá tu cuenta y probá la herramienta.</span>
           </div>
-          <div class="login-actions">
+          <div class="landing-contact">
+            <div>
+              <strong>Contacto directo</strong>
+              <span>Soporte y consultas comerciales por WhatsApp</span>
+            </div>
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
+          </div>
+          <div class="login-actions login-cta-row">
             <button type="button" class="primary-action hero-action" data-action="show-login">Iniciar sesion</button>
             <button type="button" class="ghost-action hero-action" data-action="show-signup">Crear cuenta</button>
-            <button type="button" class="ghost-action hero-action" data-action="open-support">Hablar con soporte</button>
           </div>
         </div>
       </section>
       <section class="login-side ${authViewMode === 'landing' ? 'is-hidden' : ''}">
+        ${authViewMode === 'login' ? `
         <div class="login-card">
-          ${authViewMode === 'login' ? `
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Ingresá con tu comercio, usuario y clave.</p>
+          <p class="login-copy">Ingresá con los datos de tu cuenta.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Usuario o email<input type="text" name="identifier" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
@@ -445,17 +455,17 @@ const loginView = (ui) => `
           <div class="login-actions">
             <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
           </div>
-          ` : ''}
         </div>
+        ` : ''}
+        ${authViewMode === 'signup' ? `
         <div class="login-card login-card-secondary">
-          ${authViewMode === 'signup' ? `
           <p class="kicker">Prueba gratis</p>
           <h2>Crear cuenta</h2>
-          <p class="login-copy">Completá estos datos y empezá a usar el sistema.</p>
+          <p class="login-copy">Completá estos datos y te creamos el acceso inicial.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
-            <div class="login-form-grid-2">
+            <div class="login-form-grid-1">
               <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
-              <label>Administrador<input type="text" name="ownerName" value="" placeholder="Tu nombre" autocomplete="name" required /></label>
+              <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
               <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
               <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
             </div>
@@ -471,8 +481,8 @@ const loginView = (ui) => `
           <div class="login-actions">
             <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
           </div>
-          ` : ''}
         </div>
+        ` : ''}
       </section>
     </div>
   </div>
