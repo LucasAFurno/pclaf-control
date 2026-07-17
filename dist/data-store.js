@@ -1,4 +1,5 @@
 import { createSupabaseSnapshotAdapter } from './cloud-sync.js'
+import { createSupabaseCoreAdapter } from './cloud-core.js'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
@@ -787,6 +788,10 @@ export const createBrowserDataStore = (options = {}) => {
     ...cloudConfig,
     getAccessToken: () => cloudAccessToken,
   })
+  let cloudCoreAdapter = createSupabaseCoreAdapter({
+    ...cloudConfig,
+    getAccessToken: () => cloudAccessToken,
+  })
   let cloudAuthProfile = null
 
   const normalizeCloudUser = (entry) => {
@@ -832,7 +837,11 @@ export const createBrowserDataStore = (options = {}) => {
   }
   applyCloudMeta()
 
-  const save = () => {
+  const persistLocalState = () => {
+    safeStorage.setItem(dataStorageKey, JSON.stringify(state))
+  }
+
+  const save = ({ skipCloud = false } = {}) => {
     if (isDesktop) {
       applyCloudMeta()
       state = migrateState(desktopBridge.saveSnapshot(state))
@@ -843,8 +852,8 @@ export const createBrowserDataStore = (options = {}) => {
       return
     }
     applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
-    safeStorage.setItem(dataStorageKey, JSON.stringify(state))
-    if (cloudAdapter) {
+    persistLocalState()
+    if (cloudAdapter && !skipCloud) {
       queueMicrotask(() => {
         syncToCloud().catch(() => {})
       })
@@ -857,7 +866,7 @@ export const createBrowserDataStore = (options = {}) => {
     applyCloudMeta('syncing')
     const row = await cloudAdapter.save(payload)
     applyCloudMeta('online', row?.updated_at || todayIso())
-    safeStorage.setItem(dataStorageKey, JSON.stringify(state))
+    persistLocalState()
     return { ok: true, message: 'Sincronizacion completada.' }
   }
 
@@ -868,7 +877,7 @@ export const createBrowserDataStore = (options = {}) => {
     if (row?.state_json) {
       state = migrateState(row.state_json)
       applyCloudMeta('online', row.updated_at || todayIso())
-      safeStorage.setItem(dataStorageKey, JSON.stringify(state))
+      persistLocalState()
       return { ok: true, message: 'Base remota cargada.' }
     }
     await syncToCloud()
@@ -894,6 +903,10 @@ export const createBrowserDataStore = (options = {}) => {
   const setCloudAccessToken = (token = '') => {
     cloudAccessToken = String(token || '').trim()
     cloudAdapter = createSupabaseSnapshotAdapter({
+      ...cloudConfig,
+      getAccessToken: () => cloudAccessToken,
+    })
+    cloudCoreAdapter = createSupabaseCoreAdapter({
       ...cloudConfig,
       getAccessToken: () => cloudAccessToken,
     })
@@ -953,18 +966,34 @@ export const createBrowserDataStore = (options = {}) => {
     save()
   }
 
-  const createCustomer = (payload) => {
-    const customer = {
+  const createCustomer = async (payload) => {
+    const normalizedName = String(payload.fullName || '').trim()
+    if (!normalizedName) return { ok: false, message: 'El cliente necesita un nombre.' }
+    const customerDraft = {
       id: makeId(),
-      fullName: payload.fullName,
-      phone: payload.phone,
-      email: payload.email,
+      fullName: normalizedName,
+      phone: String(payload.phone || '').trim(),
+      email: String(payload.email || '').trim().toLowerCase(),
       balance: Number(payload.balance || 0),
-      tag: payload.tag,
+      tag: String(payload.tag || '').trim(),
+      notes: String(payload.notes || '').trim(),
     }
-    state.customers.unshift(customer)
-    pushAudit(state, currentUser().id, 'customer', customer.id, 'created', customer)
-    save()
+    const customer = cloudCoreAdapter
+      ? await cloudCoreAdapter.upsertCustomer(customerDraft)
+      : customerDraft
+    state.customers.unshift({
+      id: customer.id || customerDraft.id,
+      fullName: customer.full_name || customer.fullName || customerDraft.fullName,
+      phone: customer.phone || customerDraft.phone,
+      email: String(customer.email || customerDraft.email || '').trim().toLowerCase(),
+      balance: Number(customer.balance ?? customerDraft.balance ?? 0),
+      tag: customer.tag || customerDraft.tag,
+      notes: customer.notes || customerDraft.notes || '',
+      isActive: customer.is_active ?? true,
+    })
+    pushAudit(state, currentUser().id, 'customer', customer.id || customerDraft.id, 'created', customerDraft)
+    save({ skipCloud: Boolean(cloudCoreAdapter) })
+    return { ok: true, message: 'Cliente creado.' }
   }
 
   const createBranch = (payload) => {
@@ -1068,14 +1097,23 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: `Plan ${presetKey} aplicado.` }
   }
 
-  const updateBusinessProfile = (payload) => {
+  const updateBusinessProfile = async (payload) => {
     const before = clone(state.business)
-    state.business.name = String(payload.name || state.business.name || '').trim() || state.business.name
-    state.business.legalName = String(payload.legalName || state.business.legalName || '').trim()
-    state.business.ownerEmail = String(payload.ownerEmail || state.business.ownerEmail || '').trim().toLowerCase()
-    state.business.activePlan = String(payload.activePlan || state.business.activePlan || 'full').trim() || 'full'
+    const normalizedPayload = {
+      name: String(payload.name || state.business.name || '').trim() || state.business.name,
+      legalName: String(payload.legalName || state.business.legalName || '').trim(),
+      ownerEmail: String(payload.ownerEmail || state.business.ownerEmail || '').trim().toLowerCase(),
+      activePlan: String(payload.activePlan || state.business.activePlan || 'full').trim() || 'full',
+    }
+    const remoteProfile = cloudCoreAdapter
+      ? await cloudCoreAdapter.updateCommerceProfile(normalizedPayload)
+      : null
+    state.business.name = remoteProfile?.commerce_name || normalizedPayload.name
+    state.business.legalName = remoteProfile?.legal_name || normalizedPayload.legalName
+    state.business.ownerEmail = remoteProfile?.owner_email || normalizedPayload.ownerEmail
+    state.business.activePlan = remoteProfile?.active_plan || normalizedPayload.activePlan
     pushAudit(state, currentUser().id, 'business', null, 'updated', clone(state.business), before)
-    save()
+    save({ skipCloud: Boolean(cloudCoreAdapter) })
     return { ok: true, message: 'Perfil del comercio actualizado.' }
   }
 
@@ -1128,25 +1166,45 @@ export const createBrowserDataStore = (options = {}) => {
     save()
   }
 
-  const createUser = (payload) => {
+  const createUser = async (payload) => {
     const normalizedEmail = String(payload.email || '').trim().toLowerCase()
     if (!payload.fullName) return { ok: false, message: 'El usuario necesita un nombre.' }
+    if (!normalizedEmail) return { ok: false, message: 'El usuario necesita un email.' }
     if (!payload.pin || String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
     if (normalizedEmail && state.users.some((user) => String(user.email || '').trim().toLowerCase() === normalizedEmail)) {
       return { ok: false, message: 'Ya existe un usuario con ese email.' }
     }
     if (!state.roles.some((role) => role.id === payload.roleId)) return { ok: false, message: 'Rol invalido.' }
-    const user = {
+    const userDraft = {
       id: makeId(),
-      fullName: payload.fullName,
+      fullName: String(payload.fullName || '').trim(),
       roleId: payload.roleId,
       email: normalizedEmail,
       pin: String(payload.pin),
       isActive: payload.isActive !== false,
     }
-    state.users.unshift(user)
-    pushAudit(state, currentUser().id, 'user', user.id, 'created', { ...user, pin: '****' })
-    save()
+    const roleKey = roleKeysById[userDraft.roleId] || 'cashier'
+    const remoteUser = cloudCoreAdapter
+      ? await cloudCoreAdapter.upsertUser({
+        id: null,
+        fullName: userDraft.fullName,
+        roleKey,
+        email: userDraft.email,
+        pin: userDraft.pin,
+        isActive: userDraft.isActive,
+      })
+      : userDraft
+    state.users.unshift(normalizeCloudUser({
+      ...remoteUser,
+      id: remoteUser.id || userDraft.id,
+      full_name: remoteUser.full_name || userDraft.fullName,
+      email: remoteUser.email || userDraft.email,
+      role_key: remoteUser.role_key || roleKey,
+      status: remoteUser.status || (userDraft.isActive ? 'active' : 'disabled'),
+      is_owner: remoteUser.is_owner || false,
+    }))
+    pushAudit(state, currentUser().id, 'user', remoteUser.id || userDraft.id, 'created', { ...userDraft, pin: '****' })
+    save({ skipCloud: Boolean(cloudCoreAdapter) })
     return { ok: true, message: 'Usuario creado.' }
   }
 
@@ -1178,11 +1236,12 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Cuenta creada. Ya podes ingresar.' }
   }
 
-  const updateUser = (userId, payload) => {
+  const updateUser = async (userId, payload) => {
     const user = state.users.find((entry) => entry.id === userId)
     if (!user) return { ok: false, message: 'Usuario no encontrado.' }
     const normalizedEmail = String(payload.email || '').trim().toLowerCase()
     if (!payload.fullName) return { ok: false, message: 'El usuario necesita un nombre.' }
+    if (!normalizedEmail) return { ok: false, message: 'El usuario necesita un email.' }
     if (normalizedEmail && state.users.some((entry) => entry.id !== userId && String(entry.email || '').trim().toLowerCase() === normalizedEmail)) {
       return { ok: false, message: 'Ya existe otro usuario con ese email.' }
     }
@@ -1202,12 +1261,26 @@ export const createBrowserDataStore = (options = {}) => {
       if (String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
       user.pin = String(payload.pin)
     }
+    if (cloudCoreAdapter) {
+      const remoteUser = await cloudCoreAdapter.upsertUser({
+        id: userId,
+        fullName: user.fullName,
+        roleKey: roleKeysById[user.roleId] || 'cashier',
+        email: user.email,
+        pin: payload.pin ? String(payload.pin) : null,
+        isActive: user.isActive,
+      })
+      const normalizedRemote = normalizeCloudUser(remoteUser)
+      if (normalizedRemote) {
+        Object.assign(user, normalizedRemote)
+      }
+    }
     pushAudit(state, currentUser().id, 'user', user.id, 'updated', { ...clone(user), pin: '****' }, before)
-    save()
+    save({ skipCloud: Boolean(cloudCoreAdapter) })
     return { ok: true, message: 'Usuario actualizado.' }
   }
 
-  const toggleUserActive = (userId, isActive) => {
+  const toggleUserActive = async (userId, isActive) => {
     const user = state.users.find((entry) => entry.id === userId)
     if (!user) return { ok: false, message: 'Usuario no encontrado.' }
     if (state.session.userId === user.id && !isActive) return { ok: false, message: 'No podes desactivar la sesion actual.' }
@@ -1216,8 +1289,15 @@ export const createBrowserDataStore = (options = {}) => {
     if (!isActive && user.roleId === adminRoleId && activeAdmins.length <= 1) return { ok: false, message: 'Necesitas al menos un administrador activo.' }
     const before = clone(user)
     user.isActive = Boolean(isActive)
+    if (cloudCoreAdapter) {
+      const remoteUser = await cloudCoreAdapter.toggleUserActive({ id: userId, isActive: user.isActive })
+      const normalizedRemote = normalizeCloudUser(remoteUser)
+      if (normalizedRemote) {
+        Object.assign(user, normalizedRemote)
+      }
+    }
     pushAudit(state, currentUser().id, 'user', user.id, user.isActive ? 'enabled' : 'disabled', { ...clone(user), pin: '****' }, { ...before, pin: '****' })
-    save()
+    save({ skipCloud: Boolean(cloudCoreAdapter) })
     return { ok: true, message: `Usuario ${user.isActive ? 'habilitado' : 'deshabilitado'}.` }
   }
 
@@ -1744,6 +1824,10 @@ export const createBrowserDataStore = (options = {}) => {
       ...cloudConfig,
       getAccessToken: () => cloudAccessToken,
     })
+    cloudCoreAdapter = createSupabaseCoreAdapter({
+      ...cloudConfig,
+      getAccessToken: () => cloudAccessToken,
+    })
     applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
     save()
     return { ok: true, message: cloudAdapter ? 'Conexion cloud guardada.' : 'Conexion cloud desactivada.' }
@@ -1753,6 +1837,7 @@ export const createBrowserDataStore = (options = {}) => {
     writeCloudConfig(null)
     cloudConfig = null
     cloudAdapter = null
+    cloudCoreAdapter = null
     cloudAuthProfile = null
     cloudAccessToken = ''
     applyCloudMeta('offline', '')

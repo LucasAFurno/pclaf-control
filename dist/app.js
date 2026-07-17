@@ -1529,7 +1529,8 @@ const settingsViewV2 = (ui) => `
           <form class="form-grid" data-form="user">
             <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
             <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
-            <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" disabled /></label>
+            <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" ${canManageUsers ? 'required' : 'disabled'} /></label>
+            <label>Clave${editingUser ? ' nueva' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Solo si queres cambiarla' : 'Minimo 4 caracteres'}" ${editingUser ? (canManageUsers ? '' : 'disabled') : (canManageUsers ? 'required' : 'disabled')} /></label>
             <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
             <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
             <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
@@ -1892,7 +1893,10 @@ const handleSubmit = async (event) => {
     return
   }
 
-  if (kind === 'customer') store.createCustomer({ fullName: formData.get('fullName'), phone: formData.get('phone'), email: formData.get('email'), balance: formData.get('balance'), tag: formData.get('tag') })
+  if (kind === 'customer') {
+    const result = await store.createCustomer({ fullName: formData.get('fullName'), phone: formData.get('phone'), email: formData.get('email'), balance: formData.get('balance'), tag: formData.get('tag') })
+    feedbackMessage = result.message || ''
+  }
   if (kind === 'branch') {
     const result = formData.get('branchId')
       ? store.updateBranch(formData.get('branchId'), { name: formData.get('name'), code: formData.get('code'), address: formData.get('address') })
@@ -1909,14 +1913,14 @@ const handleSubmit = async (event) => {
   }
   if (kind === 'user') {
     const result = formData.get('userId')
-      ? store.updateUser(formData.get('userId'), {
+      ? await store.updateUser(formData.get('userId'), {
         fullName: String(formData.get('fullName') || '').trim(),
         roleId: formData.get('roleId'),
         email: String(formData.get('email') || '').trim(),
         pin: String(formData.get('pin') || ''),
         isActive: formData.get('isActive') === 'on',
       })
-      : store.createUser({
+      : await store.createUser({
         fullName: String(formData.get('fullName') || '').trim(),
         roleId: formData.get('roleId'),
         email: String(formData.get('email') || '').trim(),
@@ -1957,7 +1961,7 @@ const handleSubmit = async (event) => {
     feedbackMessage = result.message || ''
   }
   if (kind === 'commerce-profile') {
-    const result = store.updateBusinessProfile({
+    const result = await store.updateBusinessProfile({
       name: String(formData.get('name') || '').trim(),
       ownerEmail: String(formData.get('ownerEmail') || '').trim().toLowerCase(),
       legalName: String(formData.get('legalName') || '').trim(),
@@ -2223,7 +2227,7 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-user-action]')) {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       if (button.dataset.userAction === 'edit') {
         userEditingId = button.dataset.id
         feedbackMessage = 'Usuario cargado para edicion.'
@@ -2231,7 +2235,7 @@ const bindEvents = () => {
         return
       }
       const nextActive = button.dataset.active !== 'true'
-      const result = store.toggleUserActive(button.dataset.id, nextActive)
+      const result = await store.toggleUserActive(button.dataset.id, nextActive)
       feedbackMessage = result.message || ''
       render()
     })
