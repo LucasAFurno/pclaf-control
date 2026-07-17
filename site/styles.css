@@ -65,17 +65,17 @@ input, select { outline: none; }
 }
 
 .login-grid {
-  width: min(1020px, 100%);
+  width: min(760px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 0.96fr) minmax(380px, 0.84fr);
-  gap: 22px;
-  align-items: stretch;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
 }
 
 .login-overview,
 .login-side {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .login-overview-card,
@@ -92,8 +92,8 @@ input, select { outline: none; }
   overflow: hidden;
   display: grid;
   gap: 20px;
-  align-content: center;
-  min-height: 100%;
+  align-content: start;
+  min-height: 0;
 }
 
 .login-overview-card::after {
@@ -158,7 +158,7 @@ input, select { outline: none; }
 }
 
 .login-copy-hero {
-  max-width: 34ch;
+  max-width: 42ch;
   font-size: 1.04rem;
   line-height: 1.55;
 }
@@ -1684,10 +1684,6 @@ input, select { outline: none; }
 }
 
 @media (max-width: 1180px) {
-  .login-grid {
-    grid-template-columns: 1fr;
-  }
-
   .metrics-grid,
   .dashboard-grid,
   .content-grid,
