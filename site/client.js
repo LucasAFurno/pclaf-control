@@ -84,8 +84,10 @@ let cloudSyncBusy = false
 let commerceContext = null
 let setupStatus = null
 let authInstanceKey = ''
+let authViewMode = 'landing'
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'principal'
+const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
 const persistInstanceKey = (value) => {
   authInstanceKey = normalizeInstanceKey(value)
   safeStorage.setItem(instanceStorageKey, authInstanceKey)
@@ -421,42 +423,55 @@ const loginView = (ui) => `
             <span>Si es tu primera vez, creá tu comercio y empezá a probar.</span>
           </div>
           <div class="login-actions">
-            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
+            <button type="button" class="primary-action hero-action" data-action="show-login">Iniciar sesion</button>
+            <button type="button" class="ghost-action hero-action" data-action="show-signup">Crear cuenta</button>
+            <button type="button" class="ghost-action hero-action" data-action="open-support">Hablar con soporte</button>
           </div>
         </div>
       </section>
-      <section class="login-side">
+      <section class="login-side ${authViewMode === 'landing' ? 'is-hidden' : ''}">
         <div class="login-card">
+          ${authViewMode === 'login' ? `
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
           <p class="login-copy">Ingresá con tu comercio, usuario y clave.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Comercio o codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Clave<input type="password" name="pin" placeholder="Tu clave de acceso" autocomplete="current-password" required /></label>
+            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Usuario o email<input type="text" name="identifier" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+          </div>
+          ` : ''}
         </div>
         <div class="login-card login-card-secondary">
+          ${authViewMode === 'signup' ? `
           <p class="kicker">Prueba gratis</p>
-          <h2>Crear comercio</h2>
-          <p class="login-copy">Creá tu cuenta inicial y empezá a usar el sistema.</p>
+          <h2>Crear cuenta</h2>
+          <p class="login-copy">Completá estos datos y empezá a usar el sistema.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
             <div class="login-form-grid-2">
-              <label>Codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-              <label>Nombre comercial<input type="text" name="commerceName" placeholder="Kiosco Marti" autocomplete="organization" required /></label>
-              <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" autocomplete="name" required /></label>
-              <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
-              <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
-              <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
-              <label>Sucursal inicial<input type="text" name="branchName" value="Casa central" autocomplete="off" required /></label>
-              <label>Caja inicial<input type="text" name="registerName" value="Caja 1" autocomplete="off" required /></label>
+              <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
+              <label>Administrador<input type="text" name="ownerName" value="" placeholder="Tu nombre" autocomplete="name" required /></label>
+              <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
+              <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
             </div>
+            <input type="hidden" name="instanceKey" value="" />
+            <input type="hidden" name="ownerLogin" value="" />
+            <input type="hidden" name="branchName" value="Casa central" />
             <input type="hidden" name="branchCode" value="CASA" />
+            <input type="hidden" name="registerName" value="Caja 1" />
             <input type="hidden" name="registerCode" value="CAJA-01" />
+            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Crear cuenta y empezar</button>
           </form>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+          </div>
+          ` : ''}
         </div>
       </section>
     </div>
@@ -1890,14 +1905,17 @@ const handleSubmit = async (event) => {
     loginMessage = ''
     feedbackMessage = ''
     try {
-      const instanceKey = persistInstanceKey(formData.get('instanceKey'))
+      const commerceName = String(formData.get('commerceName') || '').trim()
+      const ownerEmail = String(formData.get('ownerEmail') || '').trim()
+      const instanceKey = persistInstanceKey(formData.get('instanceKey') || createCommerceKey(commerceName))
+      const ownerLogin = String(formData.get('ownerLogin') || '').trim() || ownerEmail.split('@')[0] || 'admin'
       if (!authManager) throw new Error('La conexion cloud no esta lista.')
       const sessionPayload = await authManager.setupInstance({
         instanceKey,
-        commerceName: String(formData.get('commerceName') || '').trim(),
+        commerceName,
         ownerName: String(formData.get('ownerName') || '').trim(),
-        ownerLogin: String(formData.get('ownerLogin') || '').trim(),
-        ownerEmail: String(formData.get('ownerEmail') || '').trim(),
+        ownerLogin,
+        ownerEmail,
         ownerPin: String(formData.get('ownerPin') || ''),
         branchName: String(formData.get('branchName') || '').trim(),
         branchCode: String(formData.get('branchCode') || '').trim(),
@@ -2109,6 +2127,9 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
+  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => { authViewMode = 'login'; loginMessage = ''; render() })
+  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => { authViewMode = 'signup'; loginMessage = ''; render() })
+  for (const button of document.querySelectorAll('[data-action="back-landing"]')) button.addEventListener('click', () => { authViewMode = 'landing'; loginMessage = ''; render() })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
   const quickAddButton = document.querySelector('[data-action="quick-add-sale"]')
   if (quickAddButton) quickAddButton.addEventListener('click', runQuickAdd)
@@ -2280,6 +2301,7 @@ const bindEvents = () => {
     store.signOut()
     store.clearCloudAuthSession()
     commerceContext = null
+    authViewMode = 'landing'
     loginMessage = ''
     feedbackMessage = ''
     render()

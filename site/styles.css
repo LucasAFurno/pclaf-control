@@ -78,6 +78,10 @@ input, select { outline: none; }
   gap: 18px;
 }
 
+.login-side.is-hidden {
+  display: none;
+}
+
 .login-overview-card,
 .login-card {
   border: 1px solid var(--line);
@@ -174,6 +178,11 @@ input, select { outline: none; }
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 14px;
+}
+
+.hero-action {
+  min-width: 170px;
+  justify-content: center;
 }
 
 .login-meta {
@@ -327,6 +336,11 @@ input, select { outline: none; }
 
 .ghost-action:hover {
   background: color-mix(in srgb, var(--panel-soft) 100%, transparent);
+}
+
+.primary-action.hero-action,
+.ghost-action.hero-action {
+  min-height: 48px;
 }
 
 .app-shell {
