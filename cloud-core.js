@@ -45,7 +45,15 @@ export const createSupabaseCoreAdapter = (config) => {
         p_name: payload?.name || '',
         p_owner_email: payload?.ownerEmail || '',
         p_legal_name: payload?.legalName || '',
-        p_active_plan: payload?.activePlan || '',
+        p_active_plan: '',
+      })
+    },
+    async updateCommerceRuntime(payload) {
+      return rpc('app_public_update_commerce_runtime', {
+        p_session_token: getSessionToken(),
+        p_active_plan: payload?.activePlan || 'custom',
+        p_enabled_modules: Array.isArray(payload?.enabledModules) ? payload.enabledModules : null,
+        p_allow_public_signup: typeof payload?.allowPublicSignup === 'boolean' ? payload.allowPublicSignup : null,
       })
     },
     async upsertCustomer(payload) {

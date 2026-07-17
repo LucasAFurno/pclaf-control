@@ -1073,27 +1073,48 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Caja actualizada.' }
   }
 
-  const setModuleEnabled = (moduleKey, enabled) => {
+  const setModuleEnabled = async (moduleKey, enabled) => {
     if (!moduleCatalog[moduleKey]) return { ok: false, message: 'Modulo no encontrado.' }
     const current = new Set(state.business.enabledModules || modulePresets.full)
     if (enabled) current.add(moduleKey)
     else current.delete(moduleKey)
     current.add('dashboard')
     current.add('settings')
-    state.business.enabledModules = [...current]
-    state.business.activePlan = 'custom'
+    const nextEnabledModules = [...current]
+    if (cloudCoreAdapter) {
+      const remoteRuntime = await cloudCoreAdapter.updateCommerceRuntime({
+        activePlan: 'custom',
+        enabledModules: nextEnabledModules,
+      })
+      state.business.enabledModules = Array.isArray(remoteRuntime?.enabled_modules) ? remoteRuntime.enabled_modules : nextEnabledModules
+      state.business.activePlan = remoteRuntime?.active_plan || 'custom'
+      save({ skipCloud: true })
+    } else {
+      state.business.enabledModules = nextEnabledModules
+      state.business.activePlan = 'custom'
+      save()
+    }
     pushAudit(state, currentUser().id, 'business_module', moduleKey, enabled ? 'enabled' : 'disabled', { enabled })
-    save()
     return { ok: true, message: `Modulo ${enabled ? 'habilitado' : 'deshabilitado'}.` }
   }
 
-  const applyModulePreset = (presetKey) => {
+  const applyModulePreset = async (presetKey) => {
     const preset = modulePresets[presetKey]
     if (!preset) return { ok: false, message: 'Preset no encontrado.' }
-    state.business.enabledModules = [...preset]
-    state.business.activePlan = presetKey
+    if (cloudCoreAdapter) {
+      const remoteRuntime = await cloudCoreAdapter.updateCommerceRuntime({
+        activePlan: presetKey,
+        enabledModules: preset,
+      })
+      state.business.enabledModules = Array.isArray(remoteRuntime?.enabled_modules) ? remoteRuntime.enabled_modules : [...preset]
+      state.business.activePlan = remoteRuntime?.active_plan || presetKey
+      save({ skipCloud: true })
+    } else {
+      state.business.enabledModules = [...preset]
+      state.business.activePlan = presetKey
+      save()
+    }
     pushAudit(state, currentUser().id, 'business_plan', presetKey, 'preset_applied', { presetKey, modules: preset })
-    save()
     return { ok: true, message: `Plan ${presetKey} aplicado.` }
   }
 
@@ -1103,7 +1124,6 @@ export const createBrowserDataStore = (options = {}) => {
       name: String(payload.name || state.business.name || '').trim() || state.business.name,
       legalName: String(payload.legalName || state.business.legalName || '').trim(),
       ownerEmail: String(payload.ownerEmail || state.business.ownerEmail || '').trim().toLowerCase(),
-      activePlan: String(payload.activePlan || state.business.activePlan || 'full').trim() || 'full',
     }
     const remoteProfile = cloudCoreAdapter
       ? await cloudCoreAdapter.updateCommerceProfile(normalizedPayload)
@@ -1111,7 +1131,6 @@ export const createBrowserDataStore = (options = {}) => {
     state.business.name = remoteProfile?.commerce_name || normalizedPayload.name
     state.business.legalName = remoteProfile?.legal_name || normalizedPayload.legalName
     state.business.ownerEmail = remoteProfile?.owner_email || normalizedPayload.ownerEmail
-    state.business.activePlan = remoteProfile?.active_plan || normalizedPayload.activePlan
     pushAudit(state, currentUser().id, 'business', null, 'updated', clone(state.business), before)
     save({ skipCloud: Boolean(cloudCoreAdapter) })
     return { ok: true, message: 'Perfil del comercio actualizado.' }

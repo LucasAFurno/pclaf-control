@@ -72,6 +72,11 @@ input, select { outline: none; }
   align-items: start;
 }
 
+.login-grid-stacked {
+  width: min(820px, 100%);
+  gap: 22px;
+}
+
 .login-overview,
 .login-side {
   display: grid;
@@ -80,6 +85,11 @@ input, select { outline: none; }
 
 .login-side.is-hidden {
   display: none;
+}
+
+.login-grid-stacked .login-side {
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
 }
 
 .login-overview-card,

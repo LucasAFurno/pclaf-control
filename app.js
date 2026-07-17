@@ -501,7 +501,7 @@ const getUiState = () => {
 
 const loginView = (ui) => `
   <div class="login-shell login-shell-home">
-    <div class="login-grid">
+    <div class="login-grid login-grid-stacked">
       <section class="login-overview">
         <div class="login-overview-card">
           <div class="login-brand-row">
@@ -598,15 +598,15 @@ const loginViewV2 = (ui) => `
               <h1>${productName}</h1>
             </div>
           </div>
-          <p class="login-copy login-copy-hero">Sistema web para vender, controlar caja, cargar productos, emitir comprobantes y ordenar el trabajo diario de un comercio desde cualquier dispositivo.</p>
+          <p class="login-copy login-copy-hero">Controla ventas, caja, productos, clientes y comprobantes desde una sola web. Pensado para comercios que quieren empezar simple y trabajar mejor sin instalar nada.</p>
           <div class="login-badges">
             <span class="login-badge">Ventas y caja</span>
             <span class="login-badge">Stock y productos</span>
             <span class="login-badge">Clientes y comprobantes</span>
           </div>
           <div class="login-seo-copy">
-            <p>PCLAF Control centraliza ventas, stock, clientes, caja, compras y facturacion en una sola plataforma web. Esta pensado para kioscos, locales, comercios generales y negocios de servicio que quieren trabajar mas ordenados sin instalar sistemas pesados.</p>
-            <p>La portada muestra solo lo importante: conocer la herramienta, iniciar sesion o crear una cuenta para probarla. El resto queda adentro, ya en contexto.</p>
+            <p>PCLAF Control es un software de gestion comercial para kioscos, locales, tiendas y negocios que necesitan vender, cobrar, ordenar stock y emitir comprobantes sin depender de una instalacion local.</p>
+            <p>Sirve para operar desde PC, notebook o celular, con una estructura que despues puede crecer a cajas, sucursales y mas modulos segun cada comercio.</p>
           </div>
           <div class="login-hero-note">
             <strong>Entrá si ya tenés cuenta.</strong>
@@ -644,12 +644,12 @@ const loginViewV2 = (ui) => `
         <div class="login-card">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Ingresá con el nombre de tu comercio, tu usuario o email y tu clave.</p>
+          <p class="login-copy">Ingresa con los datos de tu comercio.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Nombre del comercio<input type="text" name="instanceKey" value="" placeholder="Ej: kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre o codigo de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
             <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
-            <p class="login-hints">Usá el nombre corto que quedó creado para tu comercio cuando abriste la cuenta.</p>
+            <p class="login-hints">Usa el nombre corto que quedo creado para tu comercio cuando abriste la cuenta.</p>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
@@ -663,7 +663,7 @@ const loginViewV2 = (ui) => `
         <div class="login-card login-card-secondary">
           <p class="kicker">Prueba gratis</p>
           <h2>Crear cuenta</h2>
-          <p class="login-copy">Completá tus datos y te creamos el acceso inicial para empezar a probar la herramienta.</p>
+          <p class="login-copy">Completa tus datos y se crea tu comercio con acceso administrador.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
             <div class="login-form-grid-1">
               <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
@@ -1764,21 +1764,21 @@ const settingsViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura negocio, responsable y pack</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Datos base del negocio y cuenta principal</p></div></div>
             <form class="form-grid compact-form" data-form="commerce-profile">
               <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
               <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
               <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
-              <label>Pack<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${(!(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) || (ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'full') ? 'selected' : ''}>Operacion</option><option value="multi" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'multi' ? 'selected' : ''}>Multi sucursal</option><option value="custom" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
               <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
             </form>
-            <div class="settings-actions"><button type="button" class="primary-action" data-action="import-core" ${canManageUsers ? '' : 'disabled'}>Migrar snapshot a tablas reales</button></div>
+            <div class="panel-note"><span>La cuenta principal del comercio queda asociada a este correo.</span><span>Los packs y modulos se administran aparte para no mezclar configuracion con operacion.</span></div>
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Conexion cloud</h3><p>Configuracion protegida del entorno</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Cuenta web</h3><p>Estado del acceso online y de la prueba</p></div></div>
             <div class="info-strip"><strong>Estado</strong><span>${syncLabel}</span></div>
             <div class="timeline-list">
-              <div class="timeline-item"><strong>Credenciales ocultas</strong><p>La URL del proyecto y la publishable key ya no se muestran dentro del panel.</p><span>Quedan fuera del alcance del personal operativo.</span></div>
-              <div class="timeline-item"><strong>Sesion protegida</strong><p>La app trabaja con la instancia activa sin exponer configuracion tecnica.</p><span>Solo se usa para cargar y guardar datos del comercio.</span></div>
+              <div class="timeline-item"><strong>Instancia activa</strong><p>${ui.cloudConnection.instanceKey || 'principal'}</p><span>Sesion ligada a este comercio solamente.</span></div>
+              <div class="timeline-item"><strong>Pack actual</strong><p>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</p><span>Se usan solo los modulos habilitados para esta cuenta.</span></div>
+              <div class="timeline-item"><strong>Prueba</strong><p>${ui.snapshot.business.trialEndsAt ? String(ui.snapshot.business.trialEndsAt).slice(0, 10) : 'Activa'}</p><span>La configuracion tecnica queda fuera de la vista del cliente.</span></div>
             </div>
             <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button></div>
           </article>
@@ -2295,7 +2295,7 @@ const handleSubmit = async (event) => {
     feedbackMessage = 'No encontre nada con ese termino en esta sesion.'
   }
   if (kind === 'module-preset') {
-    const result = store.applyModulePreset(formData.get('presetKey'))
+    const result = await store.applyModulePreset(formData.get('presetKey'))
     commerceContext = {
       ...(commerceContext || {}),
       active_plan: String(formData.get('presetKey') || '').trim() || commerceContext?.active_plan || 'custom',
@@ -2307,13 +2307,11 @@ const handleSubmit = async (event) => {
       name: String(formData.get('name') || '').trim(),
       ownerEmail: String(formData.get('ownerEmail') || '').trim().toLowerCase(),
       legalName: String(formData.get('legalName') || '').trim(),
-      activePlan: String(formData.get('activePlan') || '').trim(),
     })
     commerceContext = {
       ...(commerceContext || {}),
       commerce_name: String(formData.get('name') || commerceContext?.commerce_name || '').trim(),
       owner_email: String(formData.get('ownerEmail') || commerceContext?.owner_email || '').trim().toLowerCase(),
-      active_plan: String(formData.get('activePlan') || commerceContext?.active_plan || 'full').trim() || 'full',
     }
     feedbackMessage = result.message || ''
   }
@@ -2446,15 +2444,15 @@ const bindEvents = () => {
     focusScannerInput('products')
   })
   for (const button of document.querySelectorAll('[data-module-toggle]')) {
-    button.addEventListener('click', () => {
-      const result = store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
+    button.addEventListener('click', async () => {
+      const result = await store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
       feedbackMessage = result.message || ''
       render()
     })
   }
   for (const button of document.querySelectorAll('[data-plan-apply]')) {
-    button.addEventListener('click', () => {
-      const result = store.applyModulePreset(button.dataset.planApply)
+    button.addEventListener('click', async () => {
+      const result = await store.applyModulePreset(button.dataset.planApply)
       commerceContext = {
         ...(commerceContext || {}),
         active_plan: String(button.dataset.planApply || '').trim() || commerceContext?.active_plan || 'custom',
