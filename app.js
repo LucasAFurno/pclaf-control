@@ -404,35 +404,39 @@ const loginView = (ui) => `
     <div class="login-grid">
       <section class="login-overview">
         <div class="login-overview-card">
-          <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
-          <p class="kicker">Acceso comercial</p>
-          <h1>${productName}</h1>
+          <div class="login-brand-row">
+            <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
+            <div class="login-brand-copy">
+              <p class="kicker">Acceso comercial</p>
+              <h1>${productName}</h1>
+            </div>
+          </div>
           <p class="login-copy login-copy-hero">Una sola web para vender, cobrar, cargar productos y ordenar el negocio sin instalar nada.</p>
           <div class="login-badges">
             <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base conectada' : 'Activacion pendiente'}</span>
             <span class="login-badge">${setupStatus?.initialized ? 'Ingreso disponible' : 'Alta inmediata'}</span>
-            <span class="login-badge">Web multi cliente</span>
+            <span class="login-badge">Multi cliente</span>
           </div>
-          <div class="login-highlight-grid">
-            <article class="login-highlight">
-              <strong>Alta rapida</strong>
-              <p>El cliente puede crear su comercio, su usuario administrador y su primera caja en pocos pasos.</p>
-            </article>
-            <article class="login-highlight">
-              <strong>Solo lo necesario</strong>
-              <p>Se habilitan modulos por pack para que cada negocio vea solo lo que realmente usa.</p>
-            </article>
-            <article class="login-highlight">
-              <strong>Base real</strong>
-              <p>Usuarios, clientes, productos, caja y ventas nuevas ya trabajan sobre Supabase.</p>
-            </article>
+          <div class="login-feature-list">
+            <div class="login-feature-item">
+              <strong>Ventas y caja</strong>
+              <span>Operacion diaria desde navegador</span>
+            </div>
+            <div class="login-feature-item">
+              <strong>Productos y stock</strong>
+              <span>Catalogo, precios y control base</span>
+            </div>
+            <div class="login-feature-item">
+              <strong>Comprobantes y usuarios</strong>
+              <span>Accesos y modulos por necesidad</span>
+            </div>
           </div>
           <div class="login-meta login-steps">
-            <span class="login-meta-label">Como funciona</span>
+            <span class="login-meta-label">Inicio rapido</span>
             <div class="login-hints">
-              <span class="login-step"><strong>1.</strong> Si ya tenes cuenta, ingresas con tu comercio y tu clave.</span>
-              <span class="login-step"><strong>2.</strong> Si es tu primera vez, creas la cuenta del comercio desde este acceso.</span>
-              <span class="login-step"><strong>3.</strong> Despues ajustas modulos, usuarios y permisos desde Mi admin.</span>
+              <span class="login-step"><strong>1.</strong> Entras con comercio, usuario y clave.</span>
+              <span class="login-step"><strong>2.</strong> Si no existe, creas la cuenta del negocio en esta misma pantalla.</span>
+              <span class="login-step"><strong>3.</strong> Despues activas solo los modulos que realmente necesitas.</span>
             </div>
           </div>
         </div>
