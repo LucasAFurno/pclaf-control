@@ -18,6 +18,7 @@ const cloudConfigJson = await readFile(path.join(root, 'site', 'cloud-config.jso
 const hostingJson = await readFile(path.join(root, '.openai', 'hosting.json'), 'utf8')
 const faviconSvg = await readFile(path.join(root, 'public', 'favicon.svg'), 'utf8')
 const pclafLogo = await readFile(path.join(root, 'public', 'pclaf-logo.png'))
+const cnameFile = await readFile(path.join(root, 'public', 'CNAME'), 'utf8')
 
 const html = `<!doctype html>
 <html lang="es">
@@ -162,6 +163,7 @@ await writeFile(path.join(serverDir, 'index.js'), serverCode)
 await writeFile(path.join(hostingDir, 'hosting.json'), hostingJson)
 await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'favicon.svg'))
 await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(dist, 'pclaf-logo.png'))
+await writeFile(path.join(dist, 'CNAME'), cnameFile)
 
 // Keep the repository root deployable as a plain static site for Sites source deployments.
 await writeFile(path.join(root, 'index.html'), html)
@@ -174,3 +176,4 @@ await writeFile(path.join(root, 'cloud-core.js'), cloudCoreJs)
 await writeFile(path.join(root, 'cloud-config.json'), cloudConfigJson)
 await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(root, 'favicon.svg'))
 await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(root, 'pclaf-logo.png'))
+await writeFile(path.join(root, 'CNAME'), cnameFile)
