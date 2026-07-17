@@ -73,8 +73,8 @@ input, select { outline: none; }
 }
 
 .login-grid-stacked {
-  width: min(820px, 100%);
-  gap: 22px;
+  width: min(880px, 100%);
+  gap: 24px;
 }
 
 .login-overview,
@@ -88,7 +88,7 @@ input, select { outline: none; }
 }
 
 .login-grid-stacked .login-side {
-  padding-top: 4px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
@@ -126,6 +126,11 @@ input, select { outline: none; }
   width: 100%;
   display: grid;
   gap: 10px;
+}
+
+#acceso-login,
+#acceso-signup {
+  scroll-margin-top: 28px;
 }
 
 .login-card-secondary {
@@ -333,7 +338,7 @@ input, select { outline: none; }
 
 .landing-feature-stack {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .landing-feature-card {

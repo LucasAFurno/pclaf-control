@@ -511,18 +511,34 @@ const loginView = (ui) => `
               <h1>${productName}</h1>
             </div>
           </div>
-          <p class="login-copy login-copy-hero">Software web para comercios, locales y negocios que necesitan vender, controlar caja, ordenar productos y trabajar desde cualquier dispositivo.</p>
+          <p class="login-copy login-copy-hero">Una plataforma web para comercios que necesitan vender, cobrar, controlar productos y ordenar el trabajo diario desde PC o celular.</p>
           <div class="login-badges">
-            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Acceso online' : 'Activacion pendiente'}</span>
-            <span class="login-badge">${setupStatus?.initialized ? 'Ingreso disponible' : 'Alta disponible'}</span>
+            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base online activa' : 'Activacion pendiente'}</span>
+            <span class="login-badge">Ventas y caja</span>
+            <span class="login-badge">Stock y clientes</span>
+            <span class="login-badge">Comprobantes</span>
           </div>
           <div class="login-seo-copy">
-            <p>PCLAF Control centraliza ventas, productos, clientes y caja en una sola plataforma. Esta version web esta pensada para que un comercio pueda empezar rapido y escalar despues segun lo que necesite.</p>
-            <p>Ideal para kioscos, tiendas, locales de servicio tecnico y comercios generales que buscan una herramienta simple para trabajar mejor.</p>
+            <p>PCLAF Control es un software de gestion comercial pensado para kioscos, tiendas, locales y comercios que quieren vender mejor, ordenar stock y tener una caja clara sin instalar programas.</p>
+            <p>La app arranca simple para no abrumar y despues puede crecer con usuarios, cajas, sucursales, reportes y modulos segun el tipo de negocio.</p>
+          </div>
+          <div class="landing-feature-stack">
+            <article class="landing-feature-card">
+              <strong>Vende y cobra rapido</strong>
+              <span>Ticket, caja, cobros y seguimiento diario desde una sola pantalla.</span>
+            </article>
+            <article class="landing-feature-card">
+              <strong>Controla productos y stock</strong>
+              <span>Altas, movimientos, compras y orden de inventario para cada comercio.</span>
+            </article>
+            <article class="landing-feature-card">
+              <strong>Escala cuando lo necesites</strong>
+              <span>Usuarios, permisos, sucursales y reportes sobre una base cloud real.</span>
+            </article>
           </div>
           <div class="login-hero-note">
-            <strong>Entrá si ya tenés cuenta.</strong>
-            <span>Si es tu primera vez, creá tu cuenta y probá la herramienta.</span>
+            <strong>Entra si ya tienes cuenta.</strong>
+            <span>Si es tu primera vez, crea tu cuenta y empieza la prueba cuando quieras.</span>
           </div>
           <div class="landing-contact">
             <div>
@@ -537,29 +553,26 @@ const loginView = (ui) => `
           </div>
         </div>
       </section>
-      <section class="login-side ${authViewMode === 'landing' ? 'is-hidden' : ''}">
-        ${authViewMode === 'login' ? `
-        <div class="login-card">
+      <section class="login-side">
+        <div class="login-card" id="acceso-login">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Ingresá con los datos de tu cuenta.</p>
+          <p class="login-copy">Ingresa con los datos de tu cuenta y segui trabajando donde lo dejaste.</p>
           <form class="login-form" data-form="login" autocomplete="off">
             <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
             <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
+            <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
           <div class="login-actions">
-            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+            <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
           </div>
         </div>
-        ` : ''}
-        ${authViewMode === 'signup' ? `
-        <div class="login-card login-card-secondary">
+        <div class="login-card login-card-secondary" id="acceso-signup">
           <p class="kicker">Prueba gratis</p>
           <h2>Crear cuenta</h2>
-          <p class="login-copy">Completá estos datos y te creamos el acceso inicial.</p>
+          <p class="login-copy">Completa tus datos y se crea tu comercio con acceso administrador para empezar a usarlo en minutos.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
             <div class="login-form-grid-1">
               <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
@@ -573,19 +586,21 @@ const loginView = (ui) => `
             <input type="hidden" name="branchCode" value="CASA" />
             <input type="hidden" name="registerName" value="Caja 1" />
             <input type="hidden" name="registerCode" value="CAJA-01" />
+            <div class="login-inline-note">
+              <strong>Alta automatica</strong>
+              <span>Se crea tu comercio, tu usuario principal y la primera caja sin mostrar configuracion tecnica.</span>
+            </div>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Crear cuenta y empezar</button>
           </form>
           <div class="login-actions">
-            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
           </div>
         </div>
-        ` : ''}
       </section>
     </div>
   </div>
 `
-
 const loginViewV2 = (ui) => `
   <div class="login-shell login-shell-home">
     <div class="login-grid">
@@ -1936,7 +1951,7 @@ const render = () => {
   const ui = getUiState()
   app.innerHTML = ui.cloudConnection.required && !ui.cloudConnection.enabled
     ? cloudActivationView(ui)
-    : (ui.isAuthenticated ? renderApp(ui) : loginViewV2(ui))
+    : (ui.isAuthenticated ? renderApp(ui) : loginView(ui))
   markBootComplete()
   bindEvents()
 }
@@ -2242,15 +2257,15 @@ const handleSubmit = async (event) => {
   }
   if (kind === 'branch') {
     const result = formData.get('branchId')
-      ? store.updateBranch(formData.get('branchId'), { name: formData.get('name'), code: formData.get('code'), address: formData.get('address') })
-      : store.createBranch({ name: formData.get('name'), code: formData.get('code'), address: formData.get('address') })
+      ? await store.updateBranch(formData.get('branchId'), { name: formData.get('name'), code: formData.get('code'), address: formData.get('address') })
+      : await store.createBranch({ name: formData.get('name'), code: formData.get('code'), address: formData.get('address') })
     feedbackMessage = result.message || ''
     branchEditingId = ''
   }
   if (kind === 'register') {
     const result = formData.get('registerId')
-      ? store.updateRegister(formData.get('registerId'), { branchId: formData.get('branchId'), name: formData.get('name'), code: formData.get('code'), cashierUserId: formData.get('cashierUserId') })
-      : store.createRegister({ branchId: formData.get('branchId'), name: formData.get('name'), code: formData.get('code'), cashierUserId: formData.get('cashierUserId') })
+      ? await store.updateRegister(formData.get('registerId'), { branchId: formData.get('branchId'), name: formData.get('name'), code: formData.get('code'), cashierUserId: formData.get('cashierUserId') })
+      : await store.createRegister({ branchId: formData.get('branchId'), name: formData.get('name'), code: formData.get('code'), cashierUserId: formData.get('cashierUserId') })
     feedbackMessage = result.message || ''
     registerEditingId = ''
   }
@@ -2340,20 +2355,23 @@ const handleSubmit = async (event) => {
     const result = store.transferStock({ productId: formData.get('productId'), quantity: formData.get('quantity'), fromBranchId: formData.get('fromBranchId'), toBranchId: formData.get('toBranchId'), note: formData.get('note') })
     feedbackMessage = result.message || ''
   }
-  if (kind === 'supplier') store.createSupplier({ name: formData.get('name'), contact: formData.get('contact'), phone: formData.get('phone'), balance: formData.get('balance'), lastDelivery: formData.get('lastDelivery'), category: formData.get('category') })
+  if (kind === 'supplier') {
+    const result = await store.createSupplier({ name: formData.get('name'), contact: formData.get('contact'), phone: formData.get('phone'), balance: formData.get('balance'), lastDelivery: formData.get('lastDelivery'), category: formData.get('category') })
+    feedbackMessage = result.message || ''
+  }
   if (kind === 'invoice') {
     const currentBranchId = getUiState().currentBranch?.id
     const result = formData.get('invoiceId')
-      ? store.updateInvoice(formData.get('invoiceId'), { number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
-      : store.createInvoice({ number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
+      ? await store.updateInvoice(formData.get('invoiceId'), { number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
+      : await store.createInvoice({ number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
     feedbackMessage = result.message || ''
     invoiceEditingId = ''
   }
   if (kind === 'ticket') {
     const currentBranchId = getUiState().currentBranch?.id
     const result = formData.get('ticketId')
-      ? store.updateTicket(formData.get('ticketId'), { number: formData.get('number'), customerId: formData.get('customerId'), device: formData.get('device'), issue: formData.get('issue'), status: formData.get('status'), branchId: currentBranchId })
-      : (store.createTicket({ number: formData.get('number'), customerId: formData.get('customerId'), device: formData.get('device'), issue: formData.get('issue'), status: formData.get('status'), branchId: currentBranchId }), { ok: true, message: 'Ticket guardado.' })
+      ? await store.updateTicket(formData.get('ticketId'), { number: formData.get('number'), customerId: formData.get('customerId'), device: formData.get('device'), issue: formData.get('issue'), status: formData.get('status'), branchId: currentBranchId })
+      : await store.createTicket({ number: formData.get('number'), customerId: formData.get('customerId'), device: formData.get('device'), issue: formData.get('issue'), status: formData.get('status'), branchId: currentBranchId })
     feedbackMessage = result.message || ''
     ticketEditingId = ''
   }
@@ -2371,8 +2389,8 @@ const handleSubmit = async (event) => {
   }
   if (kind === 'purchase-receipt') {
     const result = formData.get('receiptId')
-      ? store.updatePurchaseReceipt(formData.get('receiptId'), { supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
-      : store.createPurchaseReceipt({ supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
+      ? await store.updatePurchaseReceipt(formData.get('receiptId'), { supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
+      : await store.createPurchaseReceipt({ supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
     feedbackMessage = result.message || (result.ok ? 'Recepcion registrada y stock actualizado.' : '')
     purchaseEditingId = ''
   }
@@ -2396,6 +2414,10 @@ const handleSubmit = async (event) => {
 }
 
 const bindEvents = () => {
+  const scrollToAuthBlock = (selector) => {
+    const element = document.querySelector(selector)
+    element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   bindHardwareScanner()
   for (const form of document.querySelectorAll('form[data-form]')) form.addEventListener('submit', handleSubmit)
   for (const input of document.querySelectorAll('input[name^="qty_"]')) {
@@ -2430,9 +2452,8 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
-  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => { authViewMode = 'login'; loginMessage = ''; render() })
-  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => { authViewMode = 'signup'; loginMessage = ''; render() })
-  for (const button of document.querySelectorAll('[data-action="back-landing"]')) button.addEventListener('click', () => { authViewMode = 'landing'; loginMessage = ''; render() })
+  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => { loginMessage = ''; scrollToAuthBlock('#acceso-login') })
+  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => { loginMessage = ''; scrollToAuthBlock('#acceso-signup') })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
   const quickAddButton = document.querySelector('[data-action="quick-add-sale"]')
   if (quickAddButton) quickAddButton.addEventListener('click', runQuickAdd)
@@ -2495,7 +2516,7 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-sale-action]')) {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       if (button.dataset.saleAction === 'edit') {
         saleEditingId = button.dataset.id
         const sale = store.getSnapshot().sales.find((entry) => entry.id === button.dataset.id)
@@ -2528,9 +2549,9 @@ const bindEvents = () => {
         return
       }
       const result = button.dataset.saleAction === 'invoice'
-        ? store.createInvoiceFromSale(button.dataset.id)
+        ? await store.createInvoiceFromSale(button.dataset.id)
         : button.dataset.saleAction === 'ticket'
-          ? store.createTicketFromSale(button.dataset.id)
+          ? await store.createTicketFromSale(button.dataset.id)
           : button.dataset.saleAction === 'cancel'
             ? store.cancelSale(button.dataset.id)
             : store.createReturnFromSale(button.dataset.id)

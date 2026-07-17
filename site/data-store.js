@@ -260,6 +260,15 @@ const generateTicketNumber = (state, prefix = 'POST', branchId = state.business.
   const seq = nextNumber(state, 'ticket')
   return `${prefix}-${branch?.code || 'GEN'}-${String(seq).padStart(6, '0')}`
 }
+const documentKindMap = {
+  Factura: 'factura',
+  'Nota de credito': 'nota_credito',
+  Presupuesto: 'presupuesto',
+  Remito: 'remito',
+  Ticket: 'ticket',
+  postventa: 'postventa',
+}
+const normalizeDocumentKind = (value, fallback = 'factura') => documentKindMap[String(value || '').trim()] || String(value || fallback || 'factura').trim().toLowerCase() || fallback
 const getScopedRegister = (state, registerId, branchId) => {
   const register = getRegister(state, registerId)
   if (register?.branchId === branchId) return register
@@ -996,7 +1005,18 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Cliente creado.' }
   }
 
-  const createBranch = (payload) => {
+  const createBranch = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertBranch({
+        id: null,
+        name: payload.name,
+        code: String(payload.code || '').toUpperCase(),
+        address: payload.address,
+        isActive: true,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Sucursal creada.' }
+    }
     const branch = {
       id: makeId(),
       name: payload.name,
@@ -1011,7 +1031,18 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Sucursal creada.' }
   }
 
-  const updateBranch = (branchId, payload) => {
+  const updateBranch = async (branchId, payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertBranch({
+        id: branchId,
+        name: payload.name,
+        code: String(payload.code || '').toUpperCase(),
+        address: payload.address,
+        isActive: true,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Sucursal actualizada.' }
+    }
     const branch = state.branches.find((entry) => entry.id === branchId)
     if (!branch) return { ok: false, message: 'Sucursal no encontrada.' }
     const before = clone(branch)
@@ -1043,7 +1074,19 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Caja actual cambiada.' }
   }
 
-  const createRegister = (payload) => {
+  const createRegister = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertRegister({
+        id: null,
+        branchId: payload.branchId,
+        name: payload.name,
+        code: String(payload.code || '').toUpperCase(),
+        cashierUserId: payload.cashierUserId || null,
+        isActive: true,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Caja creada.' }
+    }
     const register = {
       id: makeId(),
       branchId: payload.branchId,
@@ -1059,7 +1102,19 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Caja creada.' }
   }
 
-  const updateRegister = (registerId, payload) => {
+  const updateRegister = async (registerId, payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertRegister({
+        id: registerId,
+        branchId: payload.branchId,
+        name: payload.name,
+        code: String(payload.code || '').toUpperCase(),
+        cashierUserId: payload.cashierUserId || null,
+        isActive: true,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Caja actualizada.' }
+    }
     const register = state.registers.find((entry) => entry.id === registerId)
     if (!register) return { ok: false, message: 'Caja no encontrada.' }
     const before = clone(register)
@@ -1189,7 +1244,23 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Producto creado.' }
   }
 
-  const createSupplier = (payload) => {
+  const createSupplier = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertSupplier({
+        id: null,
+        name: payload.name,
+        contact: payload.contact,
+        phone: payload.phone,
+        email: payload.email || '',
+        category: payload.category,
+        balance: Number(payload.balance || 0),
+        lastDelivery: payload.lastDelivery || null,
+        notes: payload.notes || '',
+        isActive: true,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Proveedor creado.' }
+    }
     const supplier = {
       id: makeId(),
       name: payload.name,
@@ -1202,6 +1273,7 @@ export const createBrowserDataStore = (options = {}) => {
     state.suppliers.unshift(supplier)
     pushAudit(state, currentUser().id, 'supplier', supplier.id, 'created', supplier)
     save()
+    return { ok: true, message: 'Proveedor creado.' }
   }
 
   const createUser = async (payload) => {
@@ -1546,7 +1618,31 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Venta actualizada.' }
   }
 
-  const createInvoiceFromSale = (saleId) => {
+  const createInvoiceFromSale = async (saleId) => {
+    if (cloudCoreAdapter) {
+      const sale = state.sales.find((entry) => entry.id === saleId)
+      if (!sale) return { ok: false, message: 'Venta no encontrada.' }
+      if (!sale.customerId) return { ok: false, message: 'La venta necesita cliente para facturar.' }
+      await cloudCoreAdapter.upsertDocument({
+        id: null,
+        branchId: sale.branchId || getCurrentBranch(state)?.id || null,
+        saleId: sale.id,
+        customerId: sale.customerId,
+        relatedDocumentId: null,
+        number: generateDocumentNumber(state, 'Factura', 'B', sale.branchId),
+        kind: 'factura',
+        type: 'B',
+        status: sale.status === 'completed' ? 'Cobrada' : 'Emitida',
+        fiscalStatus: 'Pendiente',
+        totalAmount: Number(sale.totalAmount || 0),
+        payloadJson: {
+          source: 'sale',
+          saleId: sale.id,
+        },
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Factura creada desde la venta.' }
+    }
     const sale = state.sales.find((entry) => entry.id === saleId)
     if (!sale) return { ok: false, message: 'Venta no encontrada.' }
     if (!sale.customerId) return { ok: false, message: 'La venta necesita cliente para facturar.' }
@@ -1624,7 +1720,39 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Devolucion registrada y nota de credito generada.' }
   }
 
-  const createTicketFromSale = (saleId) => {
+  const createTicketFromSale = async (saleId) => {
+    if (cloudCoreAdapter) {
+      const sale = state.sales.find((entry) => entry.id === saleId)
+      if (!sale) return { ok: false, message: 'Venta no encontrada.' }
+      if (!sale.customerId) return { ok: false, message: 'La venta necesita cliente para generar ticket.' }
+      const summary = (sale.items || [])
+        .map((item) => {
+          const product = getProduct(state, item.productId)
+          return `${product?.name || 'Articulo'} x${item.quantity}`
+        })
+        .join(', ')
+      await cloudCoreAdapter.upsertDocument({
+        id: null,
+        branchId: sale.branchId || getCurrentBranch(state)?.id || null,
+        saleId: sale.id,
+        customerId: sale.customerId,
+        relatedDocumentId: null,
+        number: generateTicketNumber(state, 'POST', sale.branchId),
+        kind: 'postventa',
+        type: 'B',
+        status: 'Recibido',
+        fiscalStatus: 'Interno',
+        totalAmount: 0,
+        payloadJson: {
+          source: 'sale',
+          saleId: sale.id,
+          device: 'Seguimiento postventa',
+          issue: summary,
+        },
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Ticket generado desde la venta.' }
+    }
     const sale = state.sales.find((entry) => entry.id === saleId)
     if (!sale) return { ok: false, message: 'Venta no encontrada.' }
     if (!sale.customerId) return { ok: false, message: 'La venta necesita cliente para generar ticket.' }
@@ -1653,7 +1781,21 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Ticket generado desde la venta.' }
   }
 
-  const createPurchaseReceipt = (payload) => {
+  const createPurchaseReceipt = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertPurchaseReceipt({
+        id: null,
+        supplierId: payload.supplierId,
+        productId: payload.productId,
+        documentNumber: payload.documentNumber || '',
+        quantity: Number(payload.quantity || 0),
+        unitCost: Number(payload.unitCost || 0),
+        note: payload.note || '',
+        branchId: getCurrentBranch(state)?.id || null,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Recepcion registrada.' }
+    }
     const product = getProduct(state, payload.productId)
     const supplier = state.suppliers.find((entry) => entry.id === payload.supplierId)
     if (!product || !supplier) return { ok: false, message: 'Proveedor o producto invalido.' }
@@ -1749,7 +1891,21 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Transferencia registrada entre sucursales.' }
   }
 
-  const updatePurchaseReceipt = (receiptId, payload) => {
+  const updatePurchaseReceipt = async (receiptId, payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertPurchaseReceipt({
+        id: receiptId,
+        supplierId: payload.supplierId,
+        productId: payload.productId,
+        documentNumber: payload.documentNumber || '',
+        quantity: Number(payload.quantity || 0),
+        unitCost: Number(payload.unitCost || 0),
+        note: payload.note || '',
+        branchId: payload.branchId || getCurrentBranch(state)?.id || null,
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Recepcion actualizada.' }
+    }
     const receipt = state.purchaseReceipts.find((entry) => entry.id === receiptId)
     if (!receipt) return { ok: false, message: 'Recepcion no encontrada.' }
     const before = clone(receipt)
@@ -1768,7 +1924,27 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Recepcion actualizada.' }
   }
 
-  const createInvoice = (payload) => {
+  const createInvoice = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertDocument({
+        id: null,
+        branchId: payload.branchId || getCurrentBranch(state)?.id || null,
+        saleId: payload.saleId || null,
+        customerId: payload.customerId || null,
+        relatedDocumentId: payload.relatedDocumentId || null,
+        number: payload.number || generateDocumentNumber(state, payload.kind || 'Factura', payload.type || 'B', payload.branchId || getCurrentBranch(state)?.id),
+        kind: normalizeDocumentKind(payload.kind || 'Factura'),
+        type: payload.type || 'B',
+        status: payload.status || 'Emitida',
+        fiscalStatus: payload.fiscalStatus || 'Pendiente',
+        totalAmount: Number(payload.totalAmount || 0),
+        payloadJson: {
+          dueDate: payload.dueDate || '',
+        },
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Comprobante guardado.' }
+    }
     const invoice = {
       id: makeId(),
       number: payload.number || generateDocumentNumber(state, payload.kind || 'Factura', payload.type || 'B', payload.branchId || getCurrentBranch(state)?.id),
@@ -1789,7 +1965,27 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Comprobante guardado.' }
   }
 
-  const updateInvoice = (invoiceId, payload) => {
+  const updateInvoice = async (invoiceId, payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertDocument({
+        id: invoiceId,
+        branchId: payload.branchId || getCurrentBranch(state)?.id || null,
+        saleId: payload.saleId || null,
+        customerId: payload.customerId || null,
+        relatedDocumentId: payload.relatedDocumentId || null,
+        number: payload.number || '',
+        kind: normalizeDocumentKind(payload.kind || 'Factura'),
+        type: payload.type || 'B',
+        status: payload.status || 'Emitida',
+        fiscalStatus: payload.fiscalStatus || 'Pendiente',
+        totalAmount: Number(payload.totalAmount || 0),
+        payloadJson: {
+          dueDate: payload.dueDate || '',
+        },
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Factura actualizada.' }
+    }
     const invoice = state.invoices.find((entry) => entry.id === invoiceId)
     if (!invoice) return { ok: false, message: 'Factura no encontrada.' }
     const before = clone(invoice)
@@ -1808,7 +2004,28 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Factura actualizada.' }
   }
 
-  const createTicket = (payload) => {
+  const createTicket = async (payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertDocument({
+        id: null,
+        branchId: payload.branchId || getCurrentBranch(state)?.id || null,
+        saleId: payload.saleId || null,
+        customerId: payload.customerId || null,
+        relatedDocumentId: null,
+        number: payload.number || generateTicketNumber(state, 'TEC', payload.branchId || getCurrentBranch(state)?.id),
+        kind: 'postventa',
+        type: 'B',
+        status: payload.status || 'Recibido',
+        fiscalStatus: 'Interno',
+        totalAmount: 0,
+        payloadJson: {
+          device: payload.device || '',
+          issue: payload.issue || '',
+        },
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Ticket guardado.' }
+    }
     const ticket = {
       id: makeId(),
       number: payload.number || generateTicketNumber(state, 'TEC', payload.branchId || getCurrentBranch(state)?.id),
@@ -1822,9 +2039,31 @@ export const createBrowserDataStore = (options = {}) => {
     state.tickets.unshift(ticket)
     pushAudit(state, currentUser().id, 'ticket', ticket.id, 'created', ticket)
     save()
+    return { ok: true, message: 'Ticket guardado.' }
   }
 
-  const updateTicket = (ticketId, payload) => {
+  const updateTicket = async (ticketId, payload) => {
+    if (cloudCoreAdapter) {
+      await cloudCoreAdapter.upsertDocument({
+        id: ticketId,
+        branchId: payload.branchId || getCurrentBranch(state)?.id || null,
+        saleId: payload.saleId || null,
+        customerId: payload.customerId || null,
+        relatedDocumentId: null,
+        number: payload.number || '',
+        kind: 'postventa',
+        type: 'B',
+        status: payload.status || 'Recibido',
+        fiscalStatus: 'Interno',
+        totalAmount: 0,
+        payloadJson: {
+          device: payload.device || '',
+          issue: payload.issue || '',
+        },
+      })
+      await syncFromCloud()
+      return { ok: true, message: 'Ticket actualizado.' }
+    }
     const ticket = state.tickets.find((entry) => entry.id === ticketId)
     if (!ticket) return { ok: false, message: 'Ticket no encontrado.' }
     const before = clone(ticket)

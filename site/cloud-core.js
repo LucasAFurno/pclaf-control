@@ -68,6 +68,42 @@ export const createSupabaseCoreAdapter = (config) => {
         p_notes: payload?.notes || '',
       })
     },
+    async upsertBranch(payload) {
+      return rpc('app_public_upsert_branch', {
+        p_session_token: getSessionToken(),
+        p_branch_id: payload?.id || null,
+        p_name: payload?.name || '',
+        p_code: payload?.code || '',
+        p_address: payload?.address || '',
+        p_is_active: payload?.isActive !== false,
+      })
+    },
+    async upsertRegister(payload) {
+      return rpc('app_public_upsert_register', {
+        p_session_token: getSessionToken(),
+        p_register_id: payload?.id || null,
+        p_branch_id: payload?.branchId || null,
+        p_name: payload?.name || '',
+        p_code: payload?.code || '',
+        p_cashier_user_id: payload?.cashierUserId || null,
+        p_is_active: payload?.isActive !== false,
+      })
+    },
+    async upsertSupplier(payload) {
+      return rpc('app_public_upsert_supplier', {
+        p_session_token: getSessionToken(),
+        p_supplier_id: payload?.id || null,
+        p_name: payload?.name || '',
+        p_contact: payload?.contact || '',
+        p_phone: payload?.phone || '',
+        p_email: payload?.email || '',
+        p_category: payload?.category || '',
+        p_balance: Number(payload?.balance || 0),
+        p_last_delivery: payload?.lastDelivery || null,
+        p_notes: payload?.notes || '',
+        p_is_active: payload?.isActive !== false,
+      })
+    },
     async upsertUser(payload) {
       return rpc('app_public_upsert_user', {
         p_session_token: getSessionToken(),
@@ -142,6 +178,36 @@ export const createSupabaseCoreAdapter = (config) => {
         p_items: Array.isArray(payload?.items) ? payload.items : [],
         p_branch_id: payload?.branchId || null,
         p_register_id: payload?.registerId || null,
+      })
+    },
+    async upsertPurchaseReceipt(payload) {
+      return rpc('app_public_upsert_purchase_receipt', {
+        p_session_token: getSessionToken(),
+        p_receipt_id: payload?.id || null,
+        p_supplier_id: payload?.supplierId || null,
+        p_product_id: payload?.productId || null,
+        p_document_number: payload?.documentNumber || '',
+        p_quantity: Number(payload?.quantity || 0),
+        p_unit_cost: Number(payload?.unitCost || 0),
+        p_note: payload?.note || '',
+        p_branch_id: payload?.branchId || null,
+      })
+    },
+    async upsertDocument(payload) {
+      return rpc('app_public_upsert_document', {
+        p_session_token: getSessionToken(),
+        p_document_id: payload?.id || null,
+        p_branch_id: payload?.branchId || null,
+        p_sale_id: payload?.saleId || null,
+        p_customer_id: payload?.customerId || null,
+        p_related_document_id: payload?.relatedDocumentId || null,
+        p_document_number: payload?.number || '',
+        p_kind: payload?.kind || 'factura',
+        p_fiscal_type: payload?.type || 'B',
+        p_status: payload?.status || 'Emitida',
+        p_fiscal_status: payload?.fiscalStatus || 'Pendiente',
+        p_total_amount: Number(payload?.totalAmount || 0),
+        p_payload_json: payload?.payloadJson || {},
       })
     },
   }
