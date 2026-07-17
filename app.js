@@ -407,37 +407,21 @@ const loginView = (ui) => `
           <div class="login-brand-row">
             <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
             <div class="login-brand-copy">
-              <p class="kicker">Acceso comercial</p>
+              <p class="kicker">Acceso web</p>
               <h1>${productName}</h1>
             </div>
           </div>
-          <p class="login-copy login-copy-hero">Una sola web para vender, cobrar, cargar productos y ordenar el negocio sin instalar nada.</p>
+          <p class="login-copy login-copy-hero">Control simple para comercios: ventas, caja, productos y gestion diaria desde un solo lugar.</p>
           <div class="login-badges">
-            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base conectada' : 'Activacion pendiente'}</span>
-            <span class="login-badge">${setupStatus?.initialized ? 'Ingreso disponible' : 'Alta inmediata'}</span>
-            <span class="login-badge">Multi cliente</span>
+            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Listo para ingresar' : 'Activacion pendiente'}</span>
+            <span class="login-badge">${setupStatus?.initialized ? 'Cuenta disponible' : 'Alta disponible'}</span>
           </div>
-          <div class="login-feature-list">
-            <div class="login-feature-item">
-              <strong>Ventas y caja</strong>
-              <span>Operacion diaria desde navegador</span>
-            </div>
-            <div class="login-feature-item">
-              <strong>Productos y stock</strong>
-              <span>Catalogo, precios y control base</span>
-            </div>
-            <div class="login-feature-item">
-              <strong>Comprobantes y usuarios</strong>
-              <span>Accesos y modulos por necesidad</span>
-            </div>
+          <div class="login-hero-note">
+            <strong>Entrá si ya tenés cuenta.</strong>
+            <span>Si es tu primera vez, creá tu comercio y empezá a probar.</span>
           </div>
-          <div class="login-meta login-steps">
-            <span class="login-meta-label">Inicio rapido</span>
-            <div class="login-hints">
-              <span class="login-step"><strong>1.</strong> Entras con comercio, usuario y clave.</span>
-              <span class="login-step"><strong>2.</strong> Si no existe, creas la cuenta del negocio en esta misma pantalla.</span>
-              <span class="login-step"><strong>3.</strong> Despues activas solo los modulos que realmente necesitas.</span>
-            </div>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
           </div>
         </div>
       </section>
@@ -445,7 +429,7 @@ const loginView = (ui) => `
         <div class="login-card">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Cada comercio entra a su propia sesion y ve solo su informacion operativa.</p>
+          <p class="login-copy">Ingresá con tu comercio, usuario y clave.</p>
           <form class="login-form" data-form="login" autocomplete="off">
             <label>Comercio o codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
             <label>Usuario o email<input type="text" name="identifier" placeholder="admin o tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
@@ -453,14 +437,11 @@ const loginView = (ui) => `
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
-          <div class="login-actions">
-            <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
-          </div>
         </div>
         <div class="login-card login-card-secondary">
           <p class="kicker">Prueba gratis</p>
           <h2>Crear comercio</h2>
-          <p class="login-copy">Alta autonoma para que un cliente pruebe la app sin depender de una carga manual.</p>
+          <p class="login-copy">Creá tu cuenta inicial y empezá a usar el sistema.</p>
           <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
             <div class="login-form-grid-2">
               <label>Codigo<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
@@ -476,13 +457,6 @@ const loginView = (ui) => `
             <input type="hidden" name="registerCode" value="CAJA-01" />
             <button type="submit">Crear cuenta y empezar</button>
           </form>
-          <div class="login-meta">
-            <span class="login-meta-label">Que incluye</span>
-            <div class="login-hints">
-              <span>Se crea el comercio, el admin y la primera caja en Supabase.</span>
-              <span>Despues podes habilitar modulos, sumar usuarios y definir el pack ideal desde Mi admin.</span>
-            </div>
-          </div>
         </div>
       </section>
     </div>

@@ -65,17 +65,17 @@ input, select { outline: none; }
 }
 
 .login-grid {
-  width: min(1080px, 100%);
+  width: min(1020px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: minmax(0, 0.96fr) minmax(380px, 0.84fr);
+  gap: 22px;
+  align-items: stretch;
 }
 
 .login-overview,
 .login-side {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .login-overview-card,
@@ -84,14 +84,16 @@ input, select { outline: none; }
   border-radius: 28px;
   background: linear-gradient(180deg, var(--panel) 0%, var(--panel-soft) 100%);
   box-shadow: var(--shadow);
-  padding: 28px;
+  padding: 30px;
 }
 
 .login-overview-card {
   position: relative;
   overflow: hidden;
   display: grid;
-  gap: 18px;
+  gap: 20px;
+  align-content: center;
+  min-height: 100%;
 }
 
 .login-overview-card::after {
@@ -125,7 +127,7 @@ input, select { outline: none; }
 .login-brand-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .login-brand-copy {
@@ -156,15 +158,15 @@ input, select { outline: none; }
 }
 
 .login-copy-hero {
-  max-width: 46ch;
-  font-size: 1.02rem;
+  max-width: 34ch;
+  font-size: 1.04rem;
   line-height: 1.55;
 }
 
 .login-form {
   display: grid;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .login-actions {
@@ -215,7 +217,7 @@ input, select { outline: none; }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 4px 0 0;
+  margin: 0;
 }
 
 .login-badge {
@@ -266,6 +268,26 @@ input, select { outline: none; }
 
 .login-card-wide {
   width: min(900px, 100%);
+}
+
+.login-hero-note {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 95%, transparent);
+}
+
+.login-hero-note strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.1rem;
+}
+
+.login-hero-note span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .login-form button {
@@ -1783,6 +1805,10 @@ input, select { outline: none; }
 
   .login-card h1 {
     font-size: 2.2rem;
+  }
+
+  .login-copy-hero {
+    max-width: none;
   }
 
   .checkbox-row,
