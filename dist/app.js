@@ -85,6 +85,9 @@ let commerceContext = null
 let setupStatus = null
 let authInstanceKey = ''
 let authViewMode = 'landing'
+let hardwareScanBuffer = ''
+let hardwareScanTimer = null
+let hardwareScanListenerBound = false
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'principal'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -111,6 +114,12 @@ const loadCloudAccess = async (sessionPayload = null) => {
 }
 
 const money = (value) => currency.format(Number(value) || 0)
+const escapeHtml = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;')
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
 const markBootComplete = () => {
   window.__pclafBooted = true
@@ -163,7 +172,8 @@ const saleActionButtons = (sale) => `
     <button type="button" class="inline-action is-strong" data-sale-action="edit" data-id="${sale.id}">Editar</button>
     <button type="button" class="inline-action" data-sale-action="invoice" data-id="${sale.id}">Factura</button>
     <button type="button" class="inline-action" data-sale-action="ticket" data-id="${sale.id}">Ticket</button>
-    <button type="button" class="inline-action" data-sale-action="receipt" data-id="${sale.id}">Imprimir</button>
+    <button type="button" class="inline-action" data-sale-action="receipt-80" data-id="${sale.id}">Ticket 80</button>
+    <button type="button" class="inline-action" data-sale-action="receipt-58" data-id="${sale.id}">Ticket 58</button>
     <button type="button" class="inline-action" data-sale-action="export" data-id="${sale.id}">Exportar</button>
     <button type="button" class="inline-action" data-sale-action="return" data-id="${sale.id}">Devol.</button>
     <button type="button" class="inline-action" data-sale-action="cancel" data-id="${sale.id}">Anular</button>
@@ -210,6 +220,94 @@ const planLabels = {
   full: 'Operacion',
   multi: 'Multi sucursal',
   custom: 'Personalizado',
+}
+
+const scannerInputSelector = {
+  sales: 'input[name="quickAddCode"]',
+  products: 'input[name="barcode"]',
+}
+
+const focusScannerInput = (targetKey) => {
+  const input = document.querySelector(scannerInputSelector[targetKey] || '')
+  if (!input) return false
+  input.focus()
+  input.select?.()
+  return true
+}
+
+const routeHardwareScan = (rawValue) => {
+  const scanned = String(rawValue || '').trim()
+  if (!scanned) return false
+  if (activeSection === 'ventas') {
+    const product = store.findProductByCode(scanned)
+    if (!product) {
+      feedbackMessage = 'No encontre un producto con ese codigo.'
+      render()
+      return true
+    }
+    saleDraftQuantities = {
+      ...readCurrentSaleQuantities(),
+      [product.id]: Number(readCurrentSaleQuantities()[product.id] || 0) + 1,
+    }
+    saleQuickAddCode = ''
+    feedbackMessage = `${product.name} agregado a la venta.`
+    render()
+    return true
+  }
+  if (activeSection === 'productos') {
+    const barcodeInput = document.querySelector(scannerInputSelector.products)
+    if (!barcodeInput) return false
+    barcodeInput.value = scanned
+    barcodeInput.dispatchEvent(new Event('input', { bubbles: true }))
+    feedbackMessage = 'Codigo de barras capturado.'
+    return true
+  }
+  return false
+}
+
+const clearHardwareScanBuffer = () => {
+  hardwareScanBuffer = ''
+  if (hardwareScanTimer) {
+    clearTimeout(hardwareScanTimer)
+    hardwareScanTimer = null
+  }
+}
+
+const queueHardwareScanCharacter = (char) => {
+  if (!char) return
+  hardwareScanBuffer += char
+  if (hardwareScanTimer) clearTimeout(hardwareScanTimer)
+  hardwareScanTimer = window.setTimeout(() => {
+    clearHardwareScanBuffer()
+  }, 180)
+}
+
+const bindHardwareScanner = () => {
+  if (hardwareScanListenerBound) return
+  document.addEventListener('keydown', (event) => {
+    if (!['ventas', 'productos'].includes(activeSection)) return
+    const target = event.target
+    const isEditable = target instanceof HTMLElement && (
+      target.tagName === 'INPUT'
+      || target.tagName === 'TEXTAREA'
+      || target.tagName === 'SELECT'
+      || target.isContentEditable
+    )
+    if (isEditable) return
+    if (event.key === 'Enter') {
+      if (hardwareScanBuffer) {
+        event.preventDefault()
+        const scannedCode = hardwareScanBuffer
+        clearHardwareScanBuffer()
+        routeHardwareScan(scannedCode)
+      }
+      return
+    }
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      queueHardwareScanCharacter(event.key)
+    }
+  })
+  hardwareScanListenerBound = true
 }
 const planCatalog = {
   basic: {
@@ -480,6 +578,115 @@ const loginView = (ui) => `
           </form>
           <div class="login-actions">
             <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+          </div>
+        </div>
+        ` : ''}
+      </section>
+    </div>
+  </div>
+`
+
+const loginViewV2 = (ui) => `
+  <div class="login-shell login-shell-home">
+    <div class="login-grid">
+      <section class="login-overview">
+        <div class="login-overview-card">
+          <div class="login-brand-row">
+            <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
+            <div class="login-brand-copy">
+              <p class="kicker">Sistema de gestion comercial</p>
+              <h1>${productName}</h1>
+            </div>
+          </div>
+          <p class="login-copy login-copy-hero">Sistema web para vender, controlar caja, cargar productos, emitir comprobantes y ordenar el trabajo diario de un comercio desde cualquier dispositivo.</p>
+          <div class="login-badges">
+            <span class="login-badge">Ventas y caja</span>
+            <span class="login-badge">Stock y productos</span>
+            <span class="login-badge">Clientes y comprobantes</span>
+          </div>
+          <div class="login-seo-copy">
+            <p>PCLAF Control centraliza ventas, stock, clientes, caja, compras y facturacion en una sola plataforma web. Esta pensado para kioscos, locales, comercios generales y negocios de servicio que quieren trabajar mas ordenados sin instalar sistemas pesados.</p>
+            <p>La portada muestra solo lo importante: conocer la herramienta, iniciar sesion o crear una cuenta para probarla. El resto queda adentro, ya en contexto.</p>
+          </div>
+          <div class="login-hero-note">
+            <strong>Entrá si ya tenés cuenta.</strong>
+            <span>Si es tu primera vez, creá tu cuenta y empezá a probar.</span>
+          </div>
+          <div class="landing-feature-stack">
+            <article class="landing-feature-card">
+              <strong>Ventas rapidas</strong>
+              <span>Caja, ticket, medios de pago y operacion diaria simple.</span>
+            </article>
+            <article class="landing-feature-card">
+              <strong>Control de stock</strong>
+              <span>Productos, ingresos, ajustes y orden por sucursal.</span>
+            </article>
+            <article class="landing-feature-card">
+              <strong>Listo para crecer</strong>
+              <span>Usuarios, permisos, reportes y soporte comercial.</span>
+            </article>
+          </div>
+          <div class="landing-contact">
+            <div>
+              <strong>Contacto PCLAF</strong>
+              <span>Consultas comerciales, implementacion y soporte por WhatsApp</span>
+            </div>
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
+          </div>
+          <div class="login-actions login-cta-row">
+            <button type="button" class="primary-action hero-action" data-action="show-login">Iniciar sesion</button>
+            <button type="button" class="ghost-action hero-action" data-action="show-signup">Crear cuenta</button>
+          </div>
+        </div>
+      </section>
+      <section class="login-side ${authViewMode === 'landing' ? 'is-hidden' : ''}">
+        ${authViewMode === 'login' ? `
+        <div class="login-card">
+          <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
+          <h2>Entrar</h2>
+          <p class="login-copy">Ingresá con el nombre de tu comercio, tu usuario o email y tu clave.</p>
+          <form class="login-form" data-form="login" autocomplete="off">
+            <label>Nombre del comercio<input type="text" name="instanceKey" value="" placeholder="Ej: kiosco-marti" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
+            <p class="login-hints">Usá el nombre corto que quedó creado para tu comercio cuando abriste la cuenta.</p>
+            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+            <button type="submit">Ingresar</button>
+          </form>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+            <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
+          </div>
+        </div>
+        ` : ''}
+        ${authViewMode === 'signup' ? `
+        <div class="login-card login-card-secondary">
+          <p class="kicker">Prueba gratis</p>
+          <h2>Crear cuenta</h2>
+          <p class="login-copy">Completá tus datos y te creamos el acceso inicial para empezar a probar la herramienta.</p>
+          <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
+            <div class="login-form-grid-1">
+              <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
+              <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
+              <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
+              <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+            </div>
+            <input type="hidden" name="instanceKey" value="" />
+            <input type="hidden" name="ownerLogin" value="" />
+            <input type="hidden" name="branchName" value="Casa central" />
+            <input type="hidden" name="branchCode" value="CASA" />
+            <input type="hidden" name="registerName" value="Caja 1" />
+            <input type="hidden" name="registerCode" value="CAJA-01" />
+            <div class="login-inline-note">
+              <strong>Alta simple</strong>
+              <span>Se crea tu comercio, el admin y la primera caja para arrancar sin configuracion extra.</span>
+            </div>
+            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+            <button type="submit">Crear cuenta y empezar</button>
+          </form>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
           </div>
         </div>
         ` : ''}
@@ -776,11 +983,13 @@ const salesViewV2 = (ui) => `
             <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Caja lista para vender' : 'Solo cobros sin efectivo'}</p></div>
           </div>
           <div class="full-span sales-scanner-box">
-            <div class="panel-head"><div><h3>Escaner rapido</h3><p>Lee codigo de barras, SKU o nombre exacto</p></div></div>
+            <div class="panel-head"><div><h3>Lector rapido</h3><p>Compatible con lector USB tipo teclado o ingreso manual</p></div></div>
             <div class="inline-action-group scanner-row">
-              <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" placeholder="Escanea o escribe codigo" />
+              <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" placeholder="Escanea o escribe codigo de barras / SKU" />
               <button type="button" class="primary-action" data-action="quick-add-sale">Agregar</button>
+              <button type="button" class="inline-action" data-action="focus-sale-scanner">Activar lector</button>
             </div>
+            <p class="form-note scanner-note">Tip: si el lector USB esta conectado, apunta al producto y el sistema lo agrega a la venta con Enter.</p>
           </div>
           <p class="form-note full-span">Las ventas en efectivo solo se pueden registrar con una caja abierta. Los reportes toman sucursal y caja actual.</p>
           <div class="full-span cart-builder">
@@ -886,13 +1095,17 @@ const productsView = (ui) => `
         <form class="form-grid" data-form="product">
           <label>Nombre<input type="text" name="name" required /></label>
           <label>SKU<input type="text" name="sku" required /></label>
-          <label>Codigo de barras<input type="text" name="barcode" placeholder="Escanea o escribe codigo" /></label>
+          <label>Codigo de barras<input type="text" class="scanner-input" name="barcode" placeholder="Escanea o escribe codigo" /></label>
           <label>Stock<input type="number" name="stock" min="0" required /></label>
           <label>Precio venta<input type="number" name="salePrice" min="0" required /></label>
           <label>Costo<input type="number" name="costPrice" min="0" required /></label>
           <label>Minimo<input type="number" name="minStock" min="0" required /></label>
           <label>Categoria<input type="text" name="category" required /></label>
           <label class="field-check full-span"><input type="checkbox" name="trackStock" checked /><span class="field-check-box" aria-hidden="true"></span><span>Controlar stock de este articulo</span></label>
+          <div class="full-span inline-action-group scanner-row">
+            <button type="button" class="inline-action" data-action="focus-product-barcode">Usar lector</button>
+            <span class="scanner-inline-copy">Captura el codigo desde un lector USB o escribilo manualmente.</span>
+          </div>
           <button type="submit">Guardar producto</button>
         </form>
       </article>
@@ -1722,7 +1935,7 @@ const render = () => {
   const ui = getUiState()
   app.innerHTML = ui.cloudConnection.required && !ui.cloudConnection.enabled
     ? cloudActivationView(ui)
-    : ((!setupStatus?.initialized) ? setupView(ui) : (ui.isAuthenticated ? renderApp(ui) : loginView(ui)))
+    : (ui.isAuthenticated ? renderApp(ui) : loginViewV2(ui))
   markBootComplete()
   bindEvents()
 }
@@ -1838,6 +2051,86 @@ const exportReceipt = async (saleId) => {
     return
   }
   const blob = new Blob([doc.html], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = doc.fallbackFilename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const buildThermalReceiptDocument = (saleId, paperWidth = '80') => {
+  const ui = getUiState()
+  const sale = ui.snapshot.sales.find((entry) => entry.id === saleId)
+  if (!sale) return null
+  const customer = ui.snapshot.customers.find((entry) => entry.id === sale.customerId)
+  const branch = ui.snapshot.branches.find((entry) => entry.id === sale.branchId) || ui.currentBranch
+  const register = ui.snapshot.registers.find((entry) => entry.id === sale.registerId)
+  const ticketWidth = paperWidth === '58' ? 220 : 300
+  const pageSize = paperWidth === '58' ? '58mm' : '80mm'
+  const lines = sale.items.map((item) => {
+    const product = ui.snapshot.products.find((entry) => entry.id === item.productId)
+    return `
+      <tr>
+        <td class="item-name">${escapeHtml(product?.name || 'Articulo')}</td>
+        <td class="item-qty">${item.quantity}</td>
+        <td class="item-unit">${money(item.unitPrice)}</td>
+        <td class="item-total">${money(item.lineTotal)}</td>
+      </tr>
+    `
+  }).join('')
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8" /><title>Ticket ${sale.id}</title><style>
+    *{box-sizing:border-box}
+    body{font-family:'Courier New',monospace;background:#fff;color:#111;margin:0;padding:0}
+    .ticket{width:${ticketWidth}px;margin:0 auto;padding:10px 12px 16px}
+    .brand,.footer{text-align:center}
+    .brand{border-bottom:1px dashed #222;padding-bottom:10px;margin-bottom:10px}
+    .brand h1{font-size:20px;margin:0 0 4px}
+    .brand p,.meta,.footer,.totals,.items th,.items td{font-size:11px;line-height:1.4}
+    .meta-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0}
+    .items{width:100%;border-collapse:collapse;margin-top:10px}
+    .items thead th{border-top:1px dashed #222;border-bottom:1px dashed #222;padding:5px 0;text-align:left}
+    .items tbody td{padding:6px 0;border-bottom:1px dashed #d1d5db;vertical-align:top}
+    .item-name{width:44%}
+    .item-qty,.item-unit,.item-total{text-align:right;white-space:nowrap}
+    .totals{margin-top:10px;border-top:1px dashed #222;padding-top:8px}
+    .totals-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0}
+    .totals-row.grand{font-size:16px;font-weight:700;padding-top:6px}
+    .footer{margin-top:10px;border-top:1px dashed #222;padding-top:8px}
+    @page{size:${pageSize} auto;margin:4mm}
+    @media print{body{margin:0}.ticket{width:auto;padding:0 0 8px}}
+  </style></head><body><div class="ticket"><div class="brand"><h1>PCLAF Control</h1><p>${escapeHtml(branch?.name || 'Sucursal')}<br />${escapeHtml(branch?.address || '')}</p></div><div class="meta"><div class="meta-row"><span>Cliente</span><span>${escapeHtml(customer?.fullName || 'Mostrador')}</span></div><div class="meta-row"><span>Fecha</span><span>${escapeHtml(sale.soldAt.slice(0, 16).replace('T', ' '))}</span></div><div class="meta-row"><span>Canal</span><span>${escapeHtml(sale.channel)}</span></div><div class="meta-row"><span>Pago</span><span>${escapeHtml(sale.paymentMethod)}</span></div><div class="meta-row"><span>Caja</span><span>${escapeHtml(register?.name || 'Sin caja')}</span></div><div class="meta-row"><span>Operacion</span><span>${escapeHtml(sale.id.slice(0, 8).toUpperCase())}</span></div></div><table class="items"><thead><tr><th>Item</th><th>Cant</th><th>Unit</th><th>Total</th></tr></thead><tbody>${lines}</tbody></table><div class="totals"><div class="totals-row"><span>Subtotal</span><span>${money(sale.subtotalAmount || sale.totalAmount)}</span></div>${sale.discountAmount ? `<div class="totals-row"><span>Descuento</span><span>- ${money(sale.discountAmount)}</span></div>` : ''}<div class="totals-row"><span>Cobrado</span><span>${money(sale.amountPaid || 0)}</span></div><div class="totals-row grand"><span>TOTAL</span><span>${money(sale.totalAmount)}</span></div></div><div class="footer"><p>Comprobante interno ${pageSize}<br />Generado por PCLAF Control</p></div></div></body></html>`
+  return {
+    html,
+    filename: `ticket-${pageSize}-${sale.id}.pdf`,
+    fallbackFilename: `ticket-${pageSize}-${sale.id}.html`,
+    pageSize,
+  }
+}
+
+const printThermalReceipt = (saleId, paperWidth = '80') => {
+  const doc = buildThermalReceiptDocument(saleId, paperWidth)
+  if (!doc) return
+  const win = window.open('', '_blank', 'width=900,height=700')
+  if (!win) return
+  win.document.write(doc.html)
+  win.document.close()
+  win.focus()
+  window.setTimeout(() => {
+    win.print()
+  }, 250)
+}
+
+const exportThermalReceipt = async (saleId, paperWidth = '80') => {
+  const doc = buildThermalReceiptDocument(saleId, paperWidth)
+  if (!doc) return
+  if (window.pclafDesktop?.exportPdf) {
+    const result = await window.pclafDesktop.exportPdf({ html: doc.html, filename: doc.filename, pageSize: 'A4' })
+    feedbackMessage = result.ok ? `PDF exportado en ${result.path}` : (result.message || 'No se pudo exportar el PDF.')
+    render()
+    return
+  }
+  const blob = new Blob([doc.html], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -2104,6 +2397,7 @@ const handleSubmit = async (event) => {
 }
 
 const bindEvents = () => {
+  bindHardwareScanner()
   for (const form of document.querySelectorAll('form[data-form]')) form.addEventListener('submit', handleSubmit)
   for (const input of document.querySelectorAll('input[name^="qty_"]')) {
     input.addEventListener('input', () => {
@@ -2143,6 +2437,14 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
   const quickAddButton = document.querySelector('[data-action="quick-add-sale"]')
   if (quickAddButton) quickAddButton.addEventListener('click', runQuickAdd)
+  const focusSaleScannerButton = document.querySelector('[data-action="focus-sale-scanner"]')
+  if (focusSaleScannerButton) focusSaleScannerButton.addEventListener('click', () => {
+    focusScannerInput('sales')
+  })
+  const focusProductBarcodeButton = document.querySelector('[data-action="focus-product-barcode"]')
+  if (focusProductBarcodeButton) focusProductBarcodeButton.addEventListener('click', () => {
+    focusScannerInput('products')
+  })
   for (const button of document.querySelectorAll('[data-module-toggle]')) {
     button.addEventListener('click', () => {
       const result = store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
@@ -2210,8 +2512,20 @@ const bindEvents = () => {
         render()
         return
       }
+      if (button.dataset.saleAction === 'receipt-80') {
+        printThermalReceipt(button.dataset.id, '80')
+        feedbackMessage = 'Ticket 80 mm listo para imprimir.'
+        render()
+        return
+      }
+      if (button.dataset.saleAction === 'receipt-58') {
+        printThermalReceipt(button.dataset.id, '58')
+        feedbackMessage = 'Ticket 58 mm listo para imprimir.'
+        render()
+        return
+      }
       if (button.dataset.saleAction === 'export') {
-        exportReceipt(button.dataset.id)
+        exportThermalReceipt(button.dataset.id, '80')
         return
       }
       const result = button.dataset.saleAction === 'invoice'

@@ -320,6 +320,31 @@ input, select { outline: none; }
   line-height: 1.6;
 }
 
+.landing-feature-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.landing-feature-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 95%, transparent);
+}
+
+.landing-feature-card strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.02rem;
+}
+
+.landing-feature-card span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .landing-contact {
   display: flex;
   align-items: center;
@@ -366,6 +391,28 @@ input, select { outline: none; }
   gap: 8px;
   margin-top: 0;
   font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.login-inline-note {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 95%, transparent);
+}
+
+.login-inline-note strong {
+  color: var(--text);
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+}
+
+.login-inline-note span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .login-step strong {
@@ -1520,6 +1567,13 @@ input, select { outline: none; }
   background: var(--panel);
   color: var(--text);
   padding: 0 14px;
+}
+
+.scanner-note,
+.scanner-inline-copy {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .inline-action:hover,
