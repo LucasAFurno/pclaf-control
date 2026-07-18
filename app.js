@@ -2578,8 +2578,26 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
-  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => { loginMessage = ''; signupMessage = ''; scrollToAuthBlock('#acceso-login') })
-  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => { loginMessage = ''; signupMessage = ''; scrollToAuthBlock('#acceso-signup') })
+  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => {
+    authViewMode = 'login'
+    loginMessage = ''
+    signupMessage = ''
+    render()
+    scrollToAuthBlock('#acceso-login')
+  })
+  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => {
+    authViewMode = 'signup'
+    loginMessage = ''
+    signupMessage = ''
+    render()
+    scrollToAuthBlock('#acceso-signup')
+  })
+  for (const button of document.querySelectorAll('[data-action="back-landing"]')) button.addEventListener('click', () => {
+    authViewMode = 'landing'
+    loginMessage = ''
+    signupMessage = ''
+    render()
+  })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
   const quickAddButton = document.querySelector('[data-action="quick-add-sale"]')
   if (quickAddButton) quickAddButton.addEventListener('click', runQuickAdd)
