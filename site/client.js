@@ -5,6 +5,7 @@ const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: '
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
+const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
 const instanceStorageKey = 'pclaf-control-instance'
@@ -129,6 +130,12 @@ const maskEmail = (value) => {
   if (!name || !domain) return email
   if (name.length <= 2) return `${name[0] || '*'}***@${domain}`
   return `${name.slice(0, 2)}***${name.slice(-1)}@${domain}`
+}
+const getPublicAppBaseUrl = () => {
+  const origin = String(window.location.origin || '').trim()
+  if (!origin) return publicSiteUrl
+  if (/localhost|127\.0\.0\.1/i.test(origin)) return publicSiteUrl
+  return origin
 }
 const mapPublicAuthError = (message, context = 'login') => {
   const normalized = String(message || '').trim().toLowerCase()
@@ -2784,7 +2791,7 @@ const bindEvents = () => {
         if (!authManager) throw new Error('La conexion cloud no esta lista.')
         const result = await authManager.sendRecoveryMagicLink({
           email,
-          redirectTo: `${window.location.origin}${window.location.pathname}?auth_action=recover`,
+          redirectTo: `${getPublicAppBaseUrl()}${window.location.pathname}?auth_action=recover`,
         })
         loginMessage = result?.message || 'Te enviamos un enlace para recuperar el acceso.'
       } catch (error) {
