@@ -81,6 +81,122 @@ input, select { outline: none; }
   width: min(960px, 100%);
 }
 
+.public-home,
+.recovery-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.public-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, transparent), color-mix(in srgb, var(--panel-soft) 100%, transparent));
+  box-shadow: var(--shadow);
+}
+
+.public-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.public-topbar-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.public-topbar-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.public-topbar-copy strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.public-topbar-copy span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.public-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topbar-auth-button {
+  min-height: 44px;
+  min-width: 148px;
+  justify-content: center;
+}
+
+.public-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 420px);
+  gap: 28px;
+  align-items: start;
+  margin-top: 22px;
+}
+
+.public-hero-copy {
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-soft) 100%);
+  box-shadow: var(--shadow);
+  padding: 34px;
+  display: grid;
+  gap: 20px;
+  min-height: 0;
+}
+
+.public-feature-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.compact-contact {
+  margin-top: 2px;
+}
+
+.public-auth-column {
+  display: grid;
+  gap: 16px;
+  align-self: start;
+  position: sticky;
+  top: 24px;
+}
+
+.public-auth-column.is-hidden {
+  display: none;
+}
+
+.compact-auth-card {
+  padding: 28px;
+}
+
+.recovery-panel {
+  width: min(560px, 100%);
+  margin: 24px auto 0;
+}
+
+.recovery-card {
+  padding: 30px;
+}
+
 .login-overview,
 .login-side {
   display: grid;
@@ -1838,6 +1954,14 @@ input, select { outline: none; }
 }
 
 @media (max-width: 1180px) {
+  .public-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .public-auth-column {
+    position: static;
+  }
+
   .metrics-grid,
   .dashboard-grid,
   .content-grid,
@@ -1874,6 +1998,16 @@ input, select { outline: none; }
 
   .login-form-grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .public-topbar {
+    padding: 12px 14px;
+  }
+
+  .public-hero-copy,
+  .compact-auth-card,
+  .recovery-card {
+    padding: 26px;
   }
 
   .landing-contact {
@@ -1930,6 +2064,20 @@ input, select { outline: none; }
     padding: 14px;
   }
 
+  .public-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .public-topbar-actions {
+    width: 100%;
+  }
+
+  .topbar-auth-button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .login-brand-row {
     align-items: flex-start;
     flex-direction: column;
@@ -1955,6 +2103,13 @@ input, select { outline: none; }
   .login-card,
   .login-overview-card {
     padding: 20px;
+    border-radius: 22px;
+  }
+
+  .public-hero-copy,
+  .compact-auth-card,
+  .recovery-card {
+    padding: 22px;
     border-radius: 22px;
   }
 

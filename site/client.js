@@ -537,63 +537,22 @@ const getUiState = () => {
   }
 }
 
-const loginView = (ui) => `
+const loginView = (ui) => {
+  if (recoveryState) {
+    return `
   <div class="login-shell login-shell-home">
-    <div class="login-grid ${authViewMode === 'landing' ? '' : 'login-grid-stacked'} login-grid-public">
-      <section class="login-overview">
-        <div class="login-overview-card">
-          <div class="login-brand-row">
-            <img class="login-logo login-logo-large" src="/pclaf-logo.png" alt="PCLAF" />
-            <div class="login-brand-copy">
-              <p class="kicker">Sistema de gestion comercial</p>
-              <h1>${productName}</h1>
-            </div>
-          </div>
-          <p class="login-copy login-copy-hero">Una plataforma web para comercios que necesitan vender, cobrar, controlar productos y ordenar el trabajo diario desde PC o celular.</p>
-          <div class="login-badges">
-            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base online activa' : 'Activacion pendiente'}</span>
-            <span class="login-badge">Ventas y caja</span>
-            <span class="login-badge">Stock y clientes</span>
-            <span class="login-badge">Comprobantes</span>
-          </div>
-          <div class="login-seo-copy">
-            <p>PCLAF Control es un software de gestion comercial pensado para kioscos, tiendas, locales y comercios que quieren vender mejor, ordenar stock y tener una caja clara sin instalar programas.</p>
-            <p>La app arranca simple para no abrumar y despues puede crecer con usuarios, cajas, sucursales, reportes y modulos segun el tipo de negocio.</p>
-          </div>
-          <div class="landing-feature-stack">
-            <article class="landing-feature-card">
-              <strong>Vende y cobra rapido</strong>
-              <span>Ticket, caja, cobros y seguimiento diario desde una sola pantalla.</span>
-            </article>
-            <article class="landing-feature-card">
-              <strong>Controla productos y stock</strong>
-              <span>Altas, movimientos, compras y orden de inventario para cada comercio.</span>
-            </article>
-            <article class="landing-feature-card">
-              <strong>Escala cuando lo necesites</strong>
-              <span>Usuarios, permisos, sucursales y reportes sobre una base cloud real.</span>
-            </article>
-          </div>
-          <div class="login-hero-note">
-            <strong>Acceso simple y directo.</strong>
-            <span>Primero conoces la herramienta y despues eliges si quieres entrar o crear tu cuenta.</span>
-          </div>
-          <div class="landing-contact">
-            <div>
-              <strong>Contacto directo</strong>
-              <span>Soporte y consultas comerciales por WhatsApp</span>
-            </div>
-            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
-          </div>
-          <div class="login-actions login-cta-row">
-            <button type="button" class="primary-action hero-action" data-action="show-login">Iniciar sesion</button>
-            <button type="button" class="ghost-action hero-action" data-action="show-signup">Crear cuenta</button>
+    <div class="recovery-shell">
+      <header class="public-topbar">
+        <div class="public-topbar-brand">
+          <img class="public-topbar-logo" src="/pclaf-logo.png" alt="PCLAF" />
+          <div class="public-topbar-copy">
+            <strong>${productName}</strong>
+            <span>Recuperacion de acceso</span>
           </div>
         </div>
-      </section>
-      <section class="login-side login-side-public ${authViewMode === 'landing' ? 'is-hidden' : ''}">
-        ${recoveryState ? `
-        <div class="login-card" id="acceso-recovery">
+      </header>
+      <section class="recovery-panel">
+        <div class="login-card recovery-card" id="acceso-recovery">
           <p class="kicker">Recuperar acceso</p>
           <h2>Nueva clave</h2>
           <p class="login-copy">Define una clave nueva para ${maskEmail(recoveryState.email) || 'tu cuenta'} y vuelve a entrar normalmente.</p>
@@ -608,60 +567,100 @@ const loginView = (ui) => `
             <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
           </div>
         </div>
-        ` : ''}
-        ${authViewMode === 'login' ? `
-        <div class="login-card" id="acceso-login">
-          <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
-          <h2>Entrar</h2>
-          <p class="login-copy">Ingresa con los datos de tu cuenta y segui trabajando donde lo dejaste.</p>
-          <form class="login-form" data-form="login" autocomplete="off">
-            <label>Email de acceso<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
-            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
-            <button type="submit">Ingresar</button>
-          </form>
-          <div class="login-actions">
-            <button type="button" class="ghost-action" data-action="recover-password">Recuperar clave</button>
-            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
-            <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
-          </div>
-        </div>
-        ` : ''}
-        ${authViewMode === 'signup' ? `
-        <div class="login-card login-card-secondary" id="acceso-signup">
-          <p class="kicker">Prueba gratis</p>
-          <h2>Crear cuenta</h2>
-          <p class="login-copy">Completa tus datos y se crea tu comercio con acceso administrador para empezar a usarlo en minutos.</p>
-          <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
-            <div class="login-form-grid-1">
-              <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
-              <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
-              <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
-              <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
-            </div>
-            <input type="hidden" name="instanceKey" value="" />
-            <input type="hidden" name="ownerLogin" value="" />
-            <input type="hidden" name="branchName" value="Casa central" />
-            <input type="hidden" name="branchCode" value="CASA" />
-            <input type="hidden" name="registerName" value="Caja 1" />
-            <input type="hidden" name="registerCode" value="CAJA-01" />
-            <div class="login-inline-note">
-              <strong>Alta automatica</strong>
-              <span>Se crea tu comercio, tu usuario principal y la primera caja sin mostrar pasos tecnicos.</span>
-            </div>
-            ${signupMessage ? `<p class="login-error">${signupMessage}</p>` : ''}
-            <button type="submit">Crear cuenta y empezar</button>
-          </form>
-          <div class="login-actions">
-            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
-            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
-          </div>
-        </div>
-        ` : ''}
       </section>
     </div>
   </div>
 `
+  }
+
+  return `
+  <div class="login-shell login-shell-home">
+    <div class="public-home">
+      <header class="public-topbar">
+        <div class="public-topbar-brand">
+          <img class="public-topbar-logo" src="/pclaf-logo.png" alt="PCLAF" />
+          <div class="public-topbar-copy">
+            <strong>${productName}</strong>
+            <span>Control comercial online</span>
+          </div>
+        </div>
+        <div class="public-topbar-actions">
+          <button type="button" class="ghost-action topbar-auth-button" data-action="show-login">Iniciar sesion</button>
+          <button type="button" class="primary-action topbar-auth-button" data-action="show-signup">Crear cuenta</button>
+        </div>
+      </header>
+      <section class="public-hero">
+        <div class="public-hero-copy">
+          <p class="kicker">Sistema de gestion comercial</p>
+          <h1>${productName}</h1>
+          <p class="login-copy login-copy-hero">Vende, cobra, controla stock y ordena el trabajo diario desde una sola web, tanto en PC como en celular.</p>
+          <div class="login-badges">
+            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base online activa' : 'Activacion pendiente'}</span>
+            <span class="login-badge">Ventas y caja</span>
+            <span class="login-badge">Stock y clientes</span>
+            <span class="login-badge">Comprobantes</span>
+          </div>
+          <div class="public-feature-grid">
+            <article class="landing-feature-card"><strong>Vende y cobra rapido</strong><span>Ticket, caja y cobros diarios en una vista clara.</span></article>
+            <article class="landing-feature-card"><strong>Controla productos y stock</strong><span>Altas, compras, ajustes y orden de inventario.</span></article>
+            <article class="landing-feature-card"><strong>Escala cuando haga falta</strong><span>Usuarios, permisos, sucursales y reportes sobre base cloud.</span></article>
+          </div>
+          <div class="landing-contact compact-contact">
+            <div>
+              <strong>Contacto directo</strong>
+              <span>Consultas y soporte por WhatsApp</span>
+            </div>
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
+          </div>
+        </div>
+        <aside class="public-auth-column ${authViewMode === 'landing' ? 'is-hidden' : ''}">
+          ${authViewMode === 'login' ? `
+          <div class="login-card compact-auth-card" id="acceso-login">
+            <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
+            <h2>Entrar</h2>
+            <form class="login-form" data-form="login" autocomplete="off">
+              <label>Email de acceso<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+              <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
+              ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+              <button type="submit">Ingresar</button>
+            </form>
+            <div class="login-actions">
+              <button type="button" class="ghost-action" data-action="recover-password">Recuperar clave</button>
+              <button type="button" class="ghost-action" data-action="back-landing">Cerrar</button>
+            </div>
+          </div>
+          ` : ''}
+          ${authViewMode === 'signup' ? `
+          <div class="login-card compact-auth-card login-card-secondary" id="acceso-signup">
+            <p class="kicker">Prueba gratis</p>
+            <h2>Crear cuenta</h2>
+            <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
+              <div class="login-form-grid-1">
+                <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
+                <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
+                <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
+                <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+              </div>
+              <input type="hidden" name="instanceKey" value="" />
+              <input type="hidden" name="ownerLogin" value="" />
+              <input type="hidden" name="branchName" value="Casa central" />
+              <input type="hidden" name="branchCode" value="CASA" />
+              <input type="hidden" name="registerName" value="Caja 1" />
+              <input type="hidden" name="registerCode" value="CAJA-01" />
+              ${signupMessage ? `<p class="login-error">${signupMessage}</p>` : ''}
+              <button type="submit">Crear cuenta y empezar</button>
+            </form>
+            <div class="login-actions">
+              <button type="button" class="ghost-action" data-action="back-landing">Cerrar</button>
+            </div>
+          </div>
+          ` : ''}
+        </aside>
+      </section>
+    </div>
+  </div>
+`
+}
 const loginViewV2 = (ui) => `
   <div class="login-shell login-shell-home">
     <div class="login-grid">
@@ -2335,6 +2334,7 @@ const handleSubmit = async (event) => {
       if (password !== passwordConfirm) throw new Error('password_confirmation_mismatch')
       if (!authManager) throw new Error('La conexion cloud no esta lista.')
       const result = await authManager.completeRecovery({ password })
+      await authManager.clearRecoveryState()
       recoveryState = null
       authViewMode = 'login'
       feedbackMessage = result.message || 'Clave actualizada correctamente.'
