@@ -150,11 +150,13 @@ const mapPublicAuthError = (message, context = 'login') => {
     commerce_name_required: 'Escribe el nombre comercial para continuar.',
     owner_name_required: 'Escribe tu nombre para crear la cuenta.',
     owner_email_required: 'Escribe un correo valido para crear la cuenta.',
-    owner_pin_too_short: 'La clave debe tener al menos 4 caracteres.',
+    owner_pin_too_short: 'La clave debe tener al menos 6 caracteres.',
     email_required: 'Escribe tu correo para continuar.',
     duplicate_key_value_violates_unique_constraint_control_users_email_key: 'Ya existe una cuenta con ese correo. Entra o recupera el acceso.',
     password_confirmation_mismatch: 'Las claves nuevas no coinciden.',
     recovery_session_missing: 'El enlace de recuperacion ya no es valido. Pide uno nuevo.',
+    'password should be at least 6 characters.': 'La clave debe tener al menos 6 caracteres.',
+    password_too_short: 'La clave debe tener al menos 6 caracteres.',
   }
   return messages[normalized] || message
 }
@@ -557,7 +559,7 @@ const loginView = (ui) => {
           <h2>Nueva clave</h2>
           <p class="login-copy">Define una clave nueva para ${maskEmail(recoveryState.email) || 'tu cuenta'} y vuelve a entrar normalmente.</p>
           <form class="login-form" data-form="password-recovery" autocomplete="off">
-            <label>Nueva clave<input type="password" name="password" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+            <label>Nueva clave<input type="password" name="password" value="" placeholder="Minimo 6 caracteres" autocomplete="new-password" required /></label>
             <label>Repetir clave<input type="password" name="passwordConfirm" value="" placeholder="Repite la clave" autocomplete="new-password" required /></label>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Guardar nueva clave</button>
@@ -639,7 +641,7 @@ const loginView = (ui) => {
                 <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
                 <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
                 <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
-                <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+                <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 6 caracteres" autocomplete="new-password" required /></label>
               </div>
               <input type="hidden" name="instanceKey" value="" />
               <input type="hidden" name="ownerLogin" value="" />

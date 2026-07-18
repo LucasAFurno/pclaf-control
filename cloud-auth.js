@@ -234,7 +234,7 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
     const accessToken = authSession?.access_token || recovery?.accessToken || ''
     if (!accessToken) throw new Error('recovery_session_missing')
     const normalizedPassword = String(password || '')
-    if (normalizedPassword.trim().length < 4) throw new Error('owner_pin_too_short')
+    if (normalizedPassword.trim().length < 6) throw new Error('owner_pin_too_short')
     const { error } = await supabase.auth.updateUser({ password: normalizedPassword })
     if (error) throw error
     await rpcWithToken('app_sync_password_from_auth', {
