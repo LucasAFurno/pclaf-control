@@ -1,4 +1,7 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0'
+
 const authSessionStorageKey = 'pclaf-control-auth-session'
+const authRecoveryStorageKey = 'pclaf-control-auth-recovery'
 
 const normalizeUrl = (url) => String(url || '').trim().replace(/\/+$/, '')
 
@@ -36,6 +39,13 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   }
 
   let session = null
+  const supabase = createClient(baseUrl, publishableKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: false,
+      detectSessionInUrl: true,
+    },
+  })
 
   const persistSession = () => {
     try {
@@ -61,10 +71,47 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
     }
   }
 
+  const persistRecovery = (payload) => {
+    try {
+      if (!payload) {
+        sessionStorage.removeItem(authRecoveryStorageKey)
+        return
+      }
+      sessionStorage.setItem(authRecoveryStorageKey, JSON.stringify(payload))
+    } catch {
+      // ignore recovery persistence issues
+    }
+  }
+
+  const readRecovery = () => {
+    try {
+      const raw = sessionStorage.getItem(authRecoveryStorageKey)
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      if (!parsed?.email) return null
+      return parsed
+    } catch {
+      return null
+    }
+  }
+
   const rpc = async (fnName, body = {}) => {
     const response = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
       method: 'POST',
       headers: buildHeaders(publishableKey),
+      body: JSON.stringify(body),
+    })
+    const payload = await safeJson(response)
+    if (!response.ok) {
+      throw new Error(payload?.message || payload?.hint || payload?.details || `RPC failed (${response.status})`)
+    }
+    return payload
+  }
+
+  const rpcWithToken = async (fnName, body = {}, accessToken = '') => {
+    const response = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
+      method: 'POST',
+      headers: buildHeaders(publishableKey, accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       body: JSON.stringify(body),
     })
     const payload = await safeJson(response)
@@ -148,12 +195,83 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
     p_email: String(email || '').trim().toLowerCase(),
   })
 
+  const sendRecoveryMagicLink = async ({ email, redirectTo }) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    await requestPasswordReset({ email: normalizedEmail })
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        emailRedirectTo: redirectTo,
+        shouldCreateUser: true,
+      },
+    })
+    if (error) throw error
+    persistRecovery({ email: normalizedEmail, requestedAt: new Date().toISOString() })
+    return {
+      ok: true,
+      message: 'Te enviamos un enlace para recuperar el acceso. Revisa tu correo y luego define una clave nueva.',
+    }
+  }
+
+  const consumeRecoverySession = async () => {
+    const url = new URL(window.location.href)
+    const isRecoveryRoute = url.searchParams.get('auth_action') === 'recover'
+    const { data } = await supabase.auth.getSession()
+    const sessionData = data?.session || null
+    if (!isRecoveryRoute || !sessionData?.access_token) return null
+    const payload = {
+      email: sessionData.user?.email || readRecovery()?.email || '',
+      accessToken: sessionData.access_token,
+    }
+    persistRecovery(payload)
+    return payload
+  }
+
+  const completeRecovery = async ({ password }) => {
+    const recovery = readRecovery()
+    const { data } = await supabase.auth.getSession()
+    const authSession = data?.session || null
+    const accessToken = authSession?.access_token || recovery?.accessToken || ''
+    if (!accessToken) throw new Error('recovery_session_missing')
+    const normalizedPassword = String(password || '')
+    if (normalizedPassword.trim().length < 4) throw new Error('owner_pin_too_short')
+    const { error } = await supabase.auth.updateUser({ password: normalizedPassword })
+    if (error) throw error
+    await rpcWithToken('app_sync_password_from_auth', {
+      p_new_pin: normalizedPassword,
+    }, accessToken)
+    await supabase.auth.signOut()
+    persistRecovery(null)
+    return {
+      ok: true,
+      message: 'Clave actualizada. Ya puedes entrar con la nueva clave.',
+    }
+  }
+
+  const clearRecoveryState = async () => {
+    persistRecovery(null)
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignore cleanup issues
+    }
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('auth_action') === 'recover' || url.hash) {
+      url.searchParams.delete('auth_action')
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`)
+    }
+  }
+
   return {
     getSession: () => session,
     getSetupStatus,
     setupInstance,
     signIn,
     requestPasswordReset,
+    sendRecoveryMagicLink,
+    consumeRecoverySession,
+    completeRecovery,
+    clearRecoveryState,
     restoreSession,
     signOut,
   }

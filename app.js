@@ -86,6 +86,7 @@ let commerceContext = null
 let setupStatus = null
 let authInstanceKey = ''
 let authViewMode = 'landing'
+let recoveryState = null
 let hardwareScanBuffer = ''
 let hardwareScanTimer = null
 let hardwareScanListenerBound = false
@@ -121,6 +122,14 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#39;')
+const maskEmail = (value) => {
+  const email = String(value || '').trim().toLowerCase()
+  if (!email || !email.includes('@')) return ''
+  const [name, domain] = email.split('@')
+  if (!name || !domain) return email
+  if (name.length <= 2) return `${name[0] || '*'}***@${domain}`
+  return `${name.slice(0, 2)}***${name.slice(-1)}@${domain}`
+}
 const mapPublicAuthError = (message, context = 'login') => {
   const normalized = String(message || '').trim().toLowerCase()
   if (!normalized) return context === 'signup' ? 'No se pudo crear la cuenta.' : 'No se pudo iniciar sesion.'
@@ -130,11 +139,15 @@ const mapPublicAuthError = (message, context = 'login') => {
     owner_email_already_exists: 'Ya existe una cuenta con ese correo. Puedes entrar o recuperar la clave.',
     login_name_already_exists: 'Ese acceso ya existe. Prueba con otro correo o inicia sesion.',
     instance_already_initialized: 'Ese comercio ya existe. Inicia sesion con la cuenta principal.',
+    instance_not_initialized: 'Ese acceso todavia no tiene una cuenta activa. Crea tu comercio o pide ayuda.',
     commerce_name_required: 'Escribe el nombre comercial para continuar.',
     owner_name_required: 'Escribe tu nombre para crear la cuenta.',
     owner_email_required: 'Escribe un correo valido para crear la cuenta.',
     owner_pin_too_short: 'La clave debe tener al menos 4 caracteres.',
     email_required: 'Escribe tu correo para continuar.',
+    duplicate_key_value_violates_unique_constraint_control_users_email_key: 'Ya existe una cuenta con ese correo. Entra o recupera el acceso.',
+    password_confirmation_mismatch: 'Las claves nuevas no coinciden.',
+    recovery_session_missing: 'El enlace de recuperacion ya no es valido. Pide uno nuevo.',
   }
   return messages[normalized] || message
 }
@@ -572,6 +585,23 @@ const loginView = (ui) => `
         </div>
       </section>
       <section class="login-side login-side-public">
+        ${recoveryState ? `
+        <div class="login-card" id="acceso-recovery">
+          <p class="kicker">Recuperar acceso</p>
+          <h2>Nueva clave</h2>
+          <p class="login-copy">Define una clave nueva para ${maskEmail(recoveryState.email) || 'tu cuenta'} y vuelve a entrar normalmente.</p>
+          <form class="login-form" data-form="password-recovery" autocomplete="off">
+            <label>Nueva clave<input type="password" name="password" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+            <label>Repetir clave<input type="password" name="passwordConfirm" value="" placeholder="Repite la clave" autocomplete="new-password" required /></label>
+            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+            <button type="submit">Guardar nueva clave</button>
+          </form>
+          <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="cancel-recovery">Cancelar</button>
+            <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
+          </div>
+        </div>
+        ` : ''}
         <div class="login-card" id="acceso-login">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
@@ -679,16 +709,17 @@ const loginViewV2 = (ui) => `
         <div class="login-card">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
-          <p class="login-copy">Ingresa con los datos de tu comercio y continua donde lo dejaste.</p>
+          <p class="login-copy">Ingresa con tu correo y tu clave para volver a tu panel.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre corto de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Email de acceso<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" required /></label>
             <label>Clave<input type="password" name="pin" placeholder="Tu clave" autocomplete="current-password" required /></label>
-            <p class="login-hints">Usa el nombre corto que quedo creado para tu comercio cuando abriste la cuenta.</p>
+            <input type="hidden" name="instanceKey" value="${ui.cloudConnection.environment === 'development' ? (ui.cloudConnection.instanceKey || 'pclaf-dev') : ''}" />
+            <p class="login-hints">Si no recuerdas tu clave, puedes pedir recuperacion o hablar con soporte.</p>
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
           <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="recover-password">Recuperar acceso</button>
             <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
             <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
           </div>
@@ -716,7 +747,7 @@ const loginViewV2 = (ui) => `
               <strong>Alta automatica</strong>
               <span>Se crea tu comercio, tu usuario administrador y la primera caja para arrancar sin pasos tecnicos.</span>
             </div>
-            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+            ${signupMessage ? `<p class="login-error">${signupMessage}</p>` : ''}
             <button type="submit">Crear cuenta y empezar</button>
           </form>
           <div class="login-actions">
@@ -1643,28 +1674,55 @@ const ownerAdminViewV2 = (ui) => {
   const currentPlanName = planLabels[currentPlanKey] || currentPlanKey
   const activeModules = Object.values(ui.moduleCatalog).filter((module) => ui.snapshot.business.enabledModules.includes(module.key))
   const activeUsers = ui.snapshot.users.filter((user) => user.isActive).length
+  const syncLabel = ui.snapshot.meta.syncStatus === 'online'
+    ? 'Cloud operativa'
+    : ui.snapshot.meta.syncStatus === 'syncing'
+      ? 'Sincronizando'
+      : ui.snapshot.meta.syncStatus === 'pending'
+        ? 'Pendiente'
+        : ui.snapshot.meta.syncStatus || 'offline'
   return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Comercio actual</span><strong>${ui.commerceContext?.commerce_name || ui.snapshot.business.name || 'Sin nombre'}</strong><p>${ui.currentBranch?.name || 'Sucursal'} activa</p></article>
       <article class="metric-card compact"><span>Pack aplicado</span><strong>${currentPlanName}</strong><p>${activeModules.length} modulos visibles</p></article>
-      <article class="metric-card compact"><span>Usuarios activos</span><strong>${activeUsers}</strong><p>${ui.snapshot.users.length} cuentas cargadas</p></article>
+      <article class="metric-card compact"><span>Usuarios activos</span><strong>${activeUsers}</strong><p>Acceso del equipo listo</p></article>
     </section>
     <section class="module-board admin-board">
-      <article class="panel module-side"><div class="panel-head"><div><h3>Flujo de entrega</h3><p>Como conviene vender y habilitar la herramienta</p></div></div>
-        <div class="timeline-list">
-          <div class="timeline-item"><strong>1. Base inicial</strong><p>Creas comercio, sucursal inicial, caja y primer usuario administrador.</p><span>El cliente no toca configuracion tecnica al inicio.</span></div>
-          <div class="timeline-item"><strong>2. Pack por necesidad</strong><p>Mostras solo los modulos que ese negocio necesita hoy.</p><span>Si despues crece, habilitas mas sin rehacer el sistema.</span></div>
-          <div class="timeline-item"><strong>3. Operacion guiada</strong><p>El cliente entra y ve un panel corto, claro y util para su rubro.</p><span>Menos botones, menos errores, mejor adopcion.</span></div>
+      <article class="panel module-side"><div class="panel-head"><div><h3>Estado general</h3><p>Resumen corto de la cuenta actual</p></div></div>
+        <div class="priority-list">
+          <div class="priority-item"><strong>Propietario</strong><p>${ui.user.fullName}<br /><small>${maskEmail(ui.user.email) || 'Sin email'}</small></p></div>
+          <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}<br /><small>${ui.snapshot.business.organization || 'Sin razon social'}</small></p></div>
+          <div class="priority-item"><strong>Acceso</strong><p>${currentPlanName}<br /><small>${activeModules.length} modulos activos</small></p></div>
+          <div class="priority-item"><strong>Respaldo</strong><p>${syncLabel}<br /><small>${ui.snapshot.meta.lastSyncedAt ? ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ') : 'Aun sin sincronizar'}</small></p></div>
         </div>
+        <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Soporte por WhatsApp</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
       <div class="module-main">
-        <article class="panel"><div class="panel-head"><div><h3>Vista actual del cliente</h3><p>Esto es lo que hoy le queda habilitado</p></div></div>
+        <div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Datos base del negocio</p></div></div>
+            <form class="form-grid compact-form" data-form="commerce-profile">
+              <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" required /></label>
+              <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" required /></label>
+              <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" /></label>
+              <button type="submit">Guardar comercio</button>
+            </form>
+            <div class="panel-note"><span>Este correo queda como acceso principal del comercio.</span><span>La configuracion tecnica se mantiene fuera de esta vista.</span></div>
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Cuenta y respaldo</h3><p>Control rapido del estado general</p></div></div>
+            <div class="timeline-list">
+              <div class="timeline-item"><strong>Estado del servicio</strong><p>${syncLabel}</p><span>La informacion del negocio queda respaldada en la nube.</span></div>
+              <div class="timeline-item"><strong>Ultima sincronizacion</strong><p>${ui.snapshot.meta.lastSyncedAt ? ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ') : 'Pendiente'}</p><span>Podes forzar un guardado manual cuando lo necesites.</span></div>
+            </div>
+            <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label></div>
+          </article>
+        </div>
+        <article class="panel"><div class="panel-head"><div><h3>Modulos activos</h3><p>Esto es lo que hoy ve el cliente</p></div></div>
           <div class="chip-grid">${activeModules.map((module) => `<span class="module-chip is-active">${module.name}</span>`).join('') || '<p class="empty-state">No hay modulos activos.</p>'}</div>
-          <div class="panel-note"><span>Si el negocio tiene una sola caja, evita mostrar Sucursales, Cajas multiples y Tickets.</span><span>Si no usa proveedores, tambien conviene ocultar Compras hasta que lo necesite.</span></div>
+          <div class="panel-note"><span>Mientras mas simple sea el panel, mas facil es que el cliente lo adopte.</span><span>Si no necesita una funcion, conviene esconderla.</span></div>
         </article>
-        <article class="panel"><div class="panel-head"><div><h3>Packs por necesidad</h3><p>No por precio: cada comercio ve solo lo justo</p></div></div>
+        <article class="panel"><div class="panel-head"><div><h3>Packs por necesidad</h3><p>Cada comercio ve solo lo justo</p></div></div>
           <div class="preset-grid">
             ${Object.entries(planCatalog).map(([key, plan]) => {
               const isCurrent = currentPlanKey === key
@@ -1679,12 +1737,11 @@ const ownerAdminViewV2 = (ui) => {
             }).join('')}
           </div>
         </article>
-        <article class="panel"><div class="panel-head"><div><h3>Proximos pasos de negocio</h3><p>Para venderlo mejor</p></div></div>
-          <div class="timeline-list">
-            <div class="timeline-item"><strong>Onboarding por rubro</strong><p>Asistentes iniciales para kiosco, servicio tÃ©cnico o local general.</p><span>Cada uno deberia arrancar con un pack distinto.</span></div>
-            <div class="timeline-item"><strong>Limites por plan</strong><p>1 caja, varias cajas, varias sucursales, tickets, reportes avanzados.</p><span>Eso hace mas facil venderlo y explicarlo.</span></div>
-            <div class="timeline-item"><strong>Consola tuya</strong><p>Mas adelante conviene un superadmin global para ver todos tus clientes.</p><span>Eso ya seria tu consola PCLAF.</span></div>
-          </div>
+        <article class="panel"><div class="panel-head"><div><h3>Cuentas y permisos</h3><p>Quien entra y que puede usar</p></div></div>
+          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>? Propietario</small>' : ''}<br /><small>${maskEmail(entry.email) || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Actividad reciente</h3><p>Movimientos y cambios del sistema</p></div></div>
+          <div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
         </article>
       </div>
     </section>
@@ -1790,7 +1847,7 @@ const settingsViewV2 = (ui) => `
     <section class="module-board settings-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div>
         <div class="priority-list">
-          <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div>
+          <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${maskEmail(ui.user.email) || 'Sin email'}</small></p></div>
           <div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}</p></div>
           <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}</p></div>
           <div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div>
@@ -1813,7 +1870,7 @@ const settingsViewV2 = (ui) => `
             <div class="timeline-list">
               <div class="timeline-item"><strong>Comercio activo</strong><p>${ui.commerceContext?.commerce_name || 'Comercio configurado'}</p><span>La sesion y los datos quedan ligados a este negocio.</span></div>
               <div class="timeline-item"><strong>Pack actual</strong><p>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</p><span>Se usan solo los modulos habilitados para esta cuenta.</span></div>
-              <div class="timeline-item"><strong>Acceso comercial</strong><p>${ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail || 'Sin correo principal'}</p><span>La configuracion tecnica queda fuera de la vista del cliente.</span></div>
+              <div class="timeline-item"><strong>Acceso comercial</strong><p>${maskEmail(ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail) || 'Sin correo principal'}</p><span>La configuracion tecnica queda fuera de la vista del cliente.</span></div>
             </div>
             <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button></div>
           </article>
@@ -1871,7 +1928,7 @@ const basicSettingsView = (ui) => `
     <section class="dashboard-grid reports-layout">
       <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Informacion segura de tu sesion</p></div></div>
         <div class="priority-list">
-          <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div>
+          <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${maskEmail(ui.user.email) || 'Sin email'}</small></p></div>
           <div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}</p></div>
           <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}</p></div>
           <div class="priority-item"><strong>Estado</strong><p>${ui.snapshot.meta.syncStatus === 'online' ? 'Cloud operativa' : (ui.snapshot.meta.syncStatus || 'offline')}</p></div>
@@ -2004,6 +2061,14 @@ const bootstrap = async () => {
     ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey, instanceKey: initialCloudConfig.instanceKey })
     : null
   try {
+    if (authManager) {
+      recoveryState = await authManager.consumeRecoverySession()
+      if (recoveryState) {
+        authViewMode = 'login'
+        loginMessage = ''
+        signupMessage = ''
+      }
+    }
     if (store.getCloudConnection().enabled && authManager) {
       setupStatus = await authManager.getSetupStatus({ instanceKey: authInstanceKey })
     }
@@ -2238,6 +2303,25 @@ const handleSubmit = async (event) => {
       setupStatus = await authManager.getSetupStatus({ instanceKey: authInstanceKey })
       await loadCloudAccess(sessionPayload)
       feedbackMessage = 'Sesion iniciada correctamente.'
+    } catch (error) {
+      loginMessage = mapPublicAuthError(error.message, 'login')
+    }
+    render()
+    return
+  }
+  if (kind === 'password-recovery') {
+    loginMessage = ''
+    feedbackMessage = ''
+    try {
+      const password = String(formData.get('password') || '')
+      const passwordConfirm = String(formData.get('passwordConfirm') || '')
+      if (password !== passwordConfirm) throw new Error('password_confirmation_mismatch')
+      if (!authManager) throw new Error('La conexion cloud no esta lista.')
+      const result = await authManager.completeRecovery({ password })
+      recoveryState = null
+      authViewMode = 'login'
+      feedbackMessage = result.message || 'Clave actualizada correctamente.'
+      loginMessage = ''
     } catch (error) {
       loginMessage = mapPublicAuthError(error.message, 'login')
     }
@@ -2688,11 +2772,22 @@ const bindEvents = () => {
       }
       try {
         if (!authManager) throw new Error('La conexion cloud no esta lista.')
-        const result = await authManager.requestPasswordReset({ email })
-        loginMessage = result?.message || 'Si existe una cuenta con ese correo, te ayudaremos a recuperar el acceso.'
+        const result = await authManager.sendRecoveryMagicLink({
+          email,
+          redirectTo: `${window.location.origin}${window.location.pathname}?auth_action=recover`,
+        })
+        loginMessage = result?.message || 'Te enviamos un enlace para recuperar el acceso.'
       } catch (error) {
         loginMessage = mapPublicAuthError(error.message, 'login')
       }
+      render()
+    })
+  }
+  for (const cancelRecoveryButton of document.querySelectorAll('[data-action="cancel-recovery"]')) {
+    cancelRecoveryButton.addEventListener('click', async () => {
+      recoveryState = null
+      loginMessage = ''
+      if (authManager) await authManager.clearRecoveryState()
       render()
     })
   }
