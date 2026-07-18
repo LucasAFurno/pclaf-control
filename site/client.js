@@ -156,7 +156,7 @@ const isWithinDateRange = (value, from, to) => {
   if (to && normalized > to) return false
   return true
 }
-const csvEscape = (value) => `"${String(value ? '').replaceAll('"', '""')}"`
+const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
 const readCurrentSaleQuantities = () => Object.fromEntries(
   [...document.querySelectorAll('input[name^="qty_"]')]
     .map((input) => [input.name.replace('qty_', ''), Number(input.value || 0)])
