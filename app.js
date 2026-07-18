@@ -532,7 +532,7 @@ const getUiState = () => {
 
 const loginView = (ui) => `
   <div class="login-shell login-shell-home">
-    <div class="login-grid login-grid-stacked login-grid-public">
+    <div class="login-grid ${authViewMode === 'landing' ? '' : 'login-grid-stacked'} login-grid-public">
       <section class="login-overview">
         <div class="login-overview-card">
           <div class="login-brand-row">
@@ -584,7 +584,7 @@ const loginView = (ui) => `
           </div>
         </div>
       </section>
-      <section class="login-side login-side-public">
+      <section class="login-side login-side-public ${authViewMode === 'landing' ? 'is-hidden' : ''}">
         ${recoveryState ? `
         <div class="login-card" id="acceso-recovery">
           <p class="kicker">Recuperar acceso</p>
@@ -602,6 +602,7 @@ const loginView = (ui) => `
           </div>
         </div>
         ` : ''}
+        ${authViewMode === 'login' ? `
         <div class="login-card" id="acceso-login">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
@@ -609,15 +610,17 @@ const loginView = (ui) => `
           <form class="login-form" data-form="login" autocomplete="off">
             <label>Email de acceso<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
-            <input type="hidden" name="instanceKey" value="${ui.cloudConnection.environment === 'development' ? (ui.cloudConnection.instanceKey || 'pclaf-dev') : ''}" />
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
           <div class="login-actions">
             <button type="button" class="ghost-action" data-action="recover-password">Recuperar clave</button>
+            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
             <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
           </div>
         </div>
+        ` : ''}
+        ${authViewMode === 'signup' ? `
         <div class="login-card login-card-secondary" id="acceso-signup">
           <p class="kicker">Prueba gratis</p>
           <h2>Crear cuenta</h2>
@@ -643,9 +646,11 @@ const loginView = (ui) => `
             <button type="submit">Crear cuenta y empezar</button>
           </form>
           <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
             <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
           </div>
         </div>
+        ` : ''}
       </section>
     </div>
   </div>
@@ -767,24 +772,29 @@ const setupView = (ui) => `
       <img class="login-logo" src="/pclaf-logo.png" alt="PCLAF" />
       <p class="kicker">Alta inicial</p>
       <h1>${productName}</h1>
-      <p class="login-copy">Todavia no existe este comercio. Completa estos datos y queda lista la cuenta administradora, la primera sucursal y la primera caja para empezar a operar.</p>
-      <form class="login-form" data-form="instance-setup" autocomplete="off">
-        <div class="login-form-grid-2">
-          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'pclaf-dev'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-          <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Mi comercio" required /></label>
-          <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" required /></label>
-          <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
-          <label>Email admin<input type="email" name="ownerEmail" placeholder="admin@negocio.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></label>
-          <label>Clave admin<input type="password" name="ownerPin" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
-          <label>Sucursal inicial<input type="text" name="branchName" placeholder="Casa central" autocomplete="off" required /></label>
-          <label>Codigo sucursal<input type="text" name="branchCode" value="CASA" required /></label>
-          <label>Caja inicial<input type="text" name="registerName" value="Caja 1" autocomplete="off" required /></label>
-          <label>Codigo caja<input type="text" name="registerCode" value="CAJA-01" required /></label>
+      <p class="login-copy">Completa tus datos y dejamos listo tu comercio con una cuenta administradora para empezar a trabajar sin configuraciones raras.</p>
+      <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
+        <div class="login-form-grid-1">
+          <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
+          <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
+          <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+        </div>
+        <input type="hidden" name="instanceKey" value="" />
+        <input type="hidden" name="ownerLogin" value="" />
+        <input type="hidden" name="branchName" value="Casa central" />
+        <input type="hidden" name="branchCode" value="CASA" />
+        <input type="hidden" name="registerName" value="Caja 1" />
+        <input type="hidden" name="registerCode" value="CAJA-01" />
+        <div class="login-inline-note">
+          <strong>Alta automatica</strong>
+          <span>Se crea tu cuenta principal y una caja inicial lista para arrancar.</span>
         </div>
         ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
-        <button type="submit">Crear comercio</button>
+        <button type="submit">Crear cuenta y empezar</button>
       </form>
       <div class="login-actions">
+        <button type="button" class="ghost-action" data-action="back-landing">Volver</button>
         <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
       </div>
     </div>
