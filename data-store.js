@@ -758,7 +758,9 @@ export const createBrowserDataStore = (options = {}) => {
     ? {
         url: String(options.initialCloudConfig.url || '').trim(),
         anonKey: String(options.initialCloudConfig.anonKey || '').trim(),
-        instanceKey: String(options.initialCloudConfig.instanceKey || 'principal').trim().toLowerCase(),
+        instanceKey: String(options.initialCloudConfig.instanceKey || 'pclaf-dev').trim().toLowerCase(),
+        environment: String(options.initialCloudConfig.environment || 'production').trim().toLowerCase(),
+        environmentLabel: String(options.initialCloudConfig.environmentLabel || '').trim(),
       }
     : null
   const readCloudConfig = () => {
@@ -771,7 +773,9 @@ export const createBrowserDataStore = (options = {}) => {
       return {
         url: String(parsed.url || '').trim(),
         anonKey: String(parsed.anonKey || '').trim(),
-        instanceKey: String(parsed.instanceKey || 'principal').trim().toLowerCase(),
+        instanceKey: String(parsed.instanceKey || 'pclaf-dev').trim().toLowerCase(),
+        environment: String(parsed.environment || initialCloudConfig?.environment || 'production').trim().toLowerCase(),
+        environmentLabel: String(parsed.environmentLabel || initialCloudConfig?.environmentLabel || '').trim(),
       }
     } catch {
       return null
@@ -786,7 +790,9 @@ export const createBrowserDataStore = (options = {}) => {
     const normalized = {
       url: String(config.url || '').trim().replace(/\/+$/, ''),
       anonKey: String(config.anonKey || '').trim(),
-      instanceKey: String(config.instanceKey || 'principal').trim().toLowerCase(),
+      instanceKey: String(config.instanceKey || 'pclaf-dev').trim().toLowerCase(),
+      environment: String(config.environment || cloudConfig?.environment || initialCloudConfig?.environment || 'production').trim().toLowerCase(),
+      environmentLabel: String(config.environmentLabel || cloudConfig?.environmentLabel || initialCloudConfig?.environmentLabel || '').trim(),
     }
     safeStorage.setItem(cloudConfigStorageKey, JSON.stringify(normalized))
     return normalized
@@ -841,7 +847,9 @@ export const createBrowserDataStore = (options = {}) => {
       adapter: cloudAdapter ? 'supabase-rest' : (isDesktop ? 'desktop-sqlite' : (requireCloud ? 'cloud-required' : 'browser-localstorage')),
       syncStatus: requireCloud && !cloudAdapter ? 'required' : mode,
       lastSyncedAt: syncedAt || state.meta?.lastSyncedAt || '',
-      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || (requireCloud ? 'principal' : 'local-demo'),
+      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || (requireCloud ? 'pclaf-dev' : 'local-demo'),
+      environment: cloudConfig?.environment || state.meta?.environment || 'production',
+      environmentLabel: cloudConfig?.environmentLabel || state.meta?.environmentLabel || '',
     }
   }
   applyCloudMeta()
@@ -2129,7 +2137,9 @@ export const createBrowserDataStore = (options = {}) => {
     enabled: Boolean(cloudAdapter),
     url: cloudConfig?.url || defaultCloudUrl,
     anonKey: cloudConfig?.anonKey || '',
-    instanceKey: cloudConfig?.instanceKey || 'principal',
+    instanceKey: cloudConfig?.instanceKey || 'pclaf-dev',
+    environment: cloudConfig?.environment || 'production',
+    environmentLabel: cloudConfig?.environmentLabel || '',
     required: requireCloud,
   })
 

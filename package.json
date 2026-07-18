@@ -8,7 +8,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs prod",
+    "build:prod": "node scripts/build.mjs prod",
+    "build:dev": "node scripts/build.mjs dev",
     "preview": "vite preview",
     "desktop:start": "npm run build && electron desktop/main.mjs",
     "desktop:pack": "npm run build && electron-builder --dir",

@@ -26,10 +26,10 @@ const normalizeSessionPayload = (payload) => {
   }
 }
 
-export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'principal' }) => {
+export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev' }) => {
   const baseUrl = normalizeUrl(url)
   const publishableKey = String(anonKey || '').trim()
-  const currentInstanceKey = String(instanceKey || 'principal').trim().toLowerCase()
+  const currentInstanceKey = String(instanceKey || 'pclaf-dev').trim().toLowerCase()
 
   if (!baseUrl || !publishableKey) {
     return null
@@ -80,7 +80,12 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'principal'
     return session
   }
 
-  const normalizeInstanceKey = (value) => String(value || currentInstanceKey || 'principal').trim().toLowerCase() || 'principal'
+  const normalizeInstanceKey = (value) => String(value || currentInstanceKey || 'pclaf-dev').trim().toLowerCase() || 'pclaf-dev'
+  const normalizeOptionalInstanceKey = (value) => {
+    if (value == null) return ''
+    const normalized = String(value).trim().toLowerCase()
+    return normalized || ''
+  }
 
   const getSetupStatus = async ({ instanceKey: requestedInstanceKey } = {}) => rpc('app_get_setup_status', {
     p_instance_key: normalizeInstanceKey(requestedInstanceKey),
@@ -104,7 +109,7 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'principal'
 
   const signIn = async ({ instanceKey: requestedInstanceKey, identifier, pin }) => {
     const payload = await rpc('app_public_sign_in', {
-      p_instance_key: normalizeInstanceKey(requestedInstanceKey),
+      p_instance_key: normalizeOptionalInstanceKey(requestedInstanceKey),
       p_identifier: identifier,
       p_pin: pin,
     })
@@ -139,11 +144,16 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'principal'
     persistSession()
   }
 
+  const requestPasswordReset = async ({ email }) => rpc('app_public_request_password_reset', {
+    p_email: String(email || '').trim().toLowerCase(),
+  })
+
   return {
     getSession: () => session,
     getSetupStatus,
     setupInstance,
     signIn,
+    requestPasswordReset,
     restoreSession,
     signOut,
   }

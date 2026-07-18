@@ -23,7 +23,7 @@ Entrar a `Ajustes > Conexion cloud` y completar:
 
 - `URL Supabase`: `https://rfwsnqmjkclxhbmidbkm.supabase.co`
 - `Clave publica`: la publishable key del proyecto
-- `Instancia`: `principal`
+- `Instancia`: `pclaf-dev`
 
 Luego usar `Conectar Supabase` y despues `Sincronizar ahora`.
 

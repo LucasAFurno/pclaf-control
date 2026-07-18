@@ -77,6 +77,10 @@ input, select { outline: none; }
   gap: 24px;
 }
 
+.login-grid-public {
+  width: min(960px, 100%);
+}
+
 .login-overview,
 .login-side {
   display: grid;
@@ -90,6 +94,10 @@ input, select { outline: none; }
 .login-grid-stacked .login-side {
   padding-top: 10px;
   border-top: 1px solid var(--line);
+}
+
+.login-side-public {
+  grid-template-columns: 1fr;
 }
 
 .login-overview-card,
@@ -126,6 +134,10 @@ input, select { outline: none; }
   width: 100%;
   display: grid;
   gap: 10px;
+}
+
+.login-side-public .login-card + .login-card {
+  margin-top: 2px;
 }
 
 #acceso-login,
@@ -180,6 +192,10 @@ input, select { outline: none; }
   max-width: 48ch;
   font-size: 1.08rem;
   line-height: 1.65;
+}
+
+.login-overview-card .login-actions {
+  margin-top: 8px;
 }
 
 .login-form {
@@ -799,6 +815,12 @@ input, select { outline: none; }
   background: color-mix(in srgb, var(--panel) 96%, transparent);
   font-size: 0.76rem;
   font-weight: 600;
+}
+
+.topbar-runtime.is-dev {
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #ffd089;
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .topbar-bell {

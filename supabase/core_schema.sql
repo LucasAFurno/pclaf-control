@@ -611,7 +611,7 @@ begin
 end;
 $$;
 
-create or replace function public.import_snapshot_to_core(p_instance_key text default 'principal')
+create or replace function public.import_snapshot_to_core(p_instance_key text default 'pclaf-dev')
 returns jsonb
 language plpgsql
 security definer

@@ -66,6 +66,7 @@ const bootStatus = document.querySelector('#boot-status')
 let theme = safeStorage.getItem(themeStorageKey, 'dark') || 'dark'
 let activeSection = safeStorage.getItem(sectionStorageKey, 'dashboard') || 'dashboard'
 let loginMessage = ''
+let signupMessage = ''
 let feedbackMessage = ''
 let saleEditingId = ''
 let purchaseEditingId = ''
@@ -89,7 +90,7 @@ let hardwareScanBuffer = ''
 let hardwareScanTimer = null
 let hardwareScanListenerBound = false
 
-const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'principal'
+const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
 const persistInstanceKey = (value) => {
   authInstanceKey = normalizeInstanceKey(value)
@@ -120,6 +121,23 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#39;')
+const mapPublicAuthError = (message, context = 'login') => {
+  const normalized = String(message || '').trim().toLowerCase()
+  if (!normalized) return context === 'signup' ? 'No se pudo crear la cuenta.' : 'No se pudo iniciar sesion.'
+  const messages = {
+    user_not_found: 'No encontramos una cuenta con ese correo.',
+    invalid_pin: 'La clave no coincide. Pruebala de nuevo o recupera el acceso.',
+    owner_email_already_exists: 'Ya existe una cuenta con ese correo. Puedes entrar o recuperar la clave.',
+    login_name_already_exists: 'Ese acceso ya existe. Prueba con otro correo o inicia sesion.',
+    instance_already_initialized: 'Ese comercio ya existe. Inicia sesion con la cuenta principal.',
+    commerce_name_required: 'Escribe el nombre comercial para continuar.',
+    owner_name_required: 'Escribe tu nombre para crear la cuenta.',
+    owner_email_required: 'Escribe un correo valido para crear la cuenta.',
+    owner_pin_too_short: 'La clave debe tener al menos 4 caracteres.',
+    email_required: 'Escribe tu correo para continuar.',
+  }
+  return messages[normalized] || message
+}
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
 const markBootComplete = () => {
   window.__pclafBooted = true
@@ -138,7 +156,7 @@ const isWithinDateRange = (value, from, to) => {
   if (to && normalized > to) return false
   return true
 }
-const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
+const csvEscape = (value) => `"${String(value ? '').replaceAll('"', '""')}"`
 const readCurrentSaleQuantities = () => Object.fromEntries(
   [...document.querySelectorAll('input[name^="qty_"]')]
     .map((input) => [input.name.replace('qty_', ''), Number(input.value || 0)])
@@ -501,7 +519,7 @@ const getUiState = () => {
 
 const loginView = (ui) => `
   <div class="login-shell login-shell-home">
-    <div class="login-grid login-grid-stacked">
+    <div class="login-grid login-grid-stacked login-grid-public">
       <section class="login-overview">
         <div class="login-overview-card">
           <div class="login-brand-row">
@@ -537,8 +555,8 @@ const loginView = (ui) => `
             </article>
           </div>
           <div class="login-hero-note">
-            <strong>Entra si ya tienes cuenta.</strong>
-            <span>Si es tu primera vez, crea tu cuenta y empieza la prueba cuando quieras.</span>
+            <strong>Acceso simple y directo.</strong>
+            <span>Primero conoces la herramienta y despues eliges si quieres entrar o crear tu cuenta.</span>
           </div>
           <div class="landing-contact">
             <div>
@@ -553,19 +571,20 @@ const loginView = (ui) => `
           </div>
         </div>
       </section>
-      <section class="login-side">
+      <section class="login-side login-side-public">
         <div class="login-card" id="acceso-login">
           <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
           <h2>Entrar</h2>
           <p class="login-copy">Ingresa con los datos de tu cuenta y segui trabajando donde lo dejaste.</p>
           <form class="login-form" data-form="login" autocomplete="off">
-            <label>Comercio<input type="text" name="instanceKey" value="" placeholder="Nombre de tu comercio" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
-            <label>Usuario o email<input type="text" name="identifier" value="" placeholder="Tu usuario o email" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Email de acceso<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
+            <input type="hidden" name="instanceKey" value="${ui.cloudConnection.environment === 'development' ? (ui.cloudConnection.instanceKey || 'pclaf-dev') : ''}" />
             ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
           <div class="login-actions">
+            <button type="button" class="ghost-action" data-action="recover-password">Recuperar clave</button>
             <button type="button" class="ghost-action" data-action="open-support">Necesito ayuda</button>
           </div>
         </div>
@@ -588,9 +607,9 @@ const loginView = (ui) => `
             <input type="hidden" name="registerCode" value="CAJA-01" />
             <div class="login-inline-note">
               <strong>Alta automatica</strong>
-              <span>Se crea tu comercio, tu usuario principal y la primera caja sin mostrar configuracion tecnica.</span>
+              <span>Se crea tu comercio, tu usuario principal y la primera caja sin mostrar pasos tecnicos.</span>
             </div>
-            ${loginMessage ? `<p class="login-error">${loginMessage}</p>` : ''}
+            ${signupMessage ? `<p class="login-error">${signupMessage}</p>` : ''}
             <button type="submit">Crear cuenta y empezar</button>
           </form>
           <div class="login-actions">
@@ -720,7 +739,7 @@ const setupView = (ui) => `
       <p class="login-copy">Todavia no existe este comercio. Completa estos datos y queda lista la cuenta administradora, la primera sucursal y la primera caja para empezar a operar.</p>
       <form class="login-form" data-form="instance-setup" autocomplete="off">
         <div class="login-form-grid-2">
-          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'principal'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
+          <label>Codigo del comercio<input type="text" name="instanceKey" value="${authInstanceKey || ui.cloudConnection.instanceKey || 'pclaf-dev'}" placeholder="mi-local" autocomplete="off" autocapitalize="off" spellcheck="false" required /></label>
           <label>Nombre del comercio<input type="text" name="commerceName" placeholder="Mi comercio" required /></label>
           <label>Administrador<input type="text" name="ownerName" placeholder="Nombre del administrador" required /></label>
           <label>Login admin<input type="text" name="ownerLogin" placeholder="admin" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
@@ -753,7 +772,7 @@ const cloudActivationView = (ui) => `
         <div class="login-form-grid-2">
           <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
           <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
-          <label class="full-span">Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
+          <label class="full-span">Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'pclaf-dev'}" placeholder="pclaf-dev" required /></label>
         </div>
         <button type="submit">Activar base</button>
       </form>
@@ -818,7 +837,7 @@ const customersViewV2 = (ui) => `
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Clientes activos</span><strong>${ui.snapshot.customers.length}</strong><p>Base disponible para ventas y facturas</p></article>
       <article class="metric-card compact"><span>Saldo total</span><strong>${money(ui.snapshot.customers.reduce((sum, customer) => sum + Number(customer.balance || 0), 0))}</strong><p>Cuentas corrientes acumuladas</p></article>
-      <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genÃ©ricos o rÃ¡pidos</p></article>
+      <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genericos o rapidos</p></article>
     </section>
     <section class="module-board customers-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>Alta de cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
@@ -833,7 +852,7 @@ const customersViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <article class="panel">
-          <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rÃ¡pida de la cartera actual</p></div></div>
+          <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rapida de la cartera actual</p></div></div>
           <div class="priority-list sales-kpis">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || 'Principal'}</p></div>
             <div class="priority-item"><strong>Clientes con saldo</strong><p>${ui.snapshot.customers.filter((customer) => Number(customer.balance || 0) > 0).length}</p></div>
@@ -898,7 +917,7 @@ const salesView = (ui) => `
           <div class="full-span cart-builder">
             ${ui.scopedProducts.map((product) => `
               <div class="cart-line">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} Â· stock ${product.scopedStock} Â· cod. ${product.barcode || '-'}</p></div>
+                <div><strong>${product.name}</strong><p>${money(product.salePrice)} · stock ${product.scopedStock} · cod. ${product.barcode || '-'}</p></div>
                 <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
               </div>`).join('')}
           </div>
@@ -1029,7 +1048,7 @@ const salesViewV2 = (ui) => `
           </div>
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
-          <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} Â· ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
+          <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} · ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
         </article>
       </div>
     </section>
@@ -1734,7 +1753,7 @@ const settingsView = (ui) => `
         <form class="form-grid" data-form="cloud-connection">
           <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
           <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
-          <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'principal'}" placeholder="principal" required /></label>
+          <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'pclaf-dev'}" placeholder="pclaf-dev" required /></label>
           <button type="submit">${ui.cloudConnection.enabled ? 'Guardar conexion' : 'Conectar Supabase'}</button>
         </form>
         <div class="panel-note"><span>La app ya no trabaja en demo local cuando esta en web.</span><span>Todo lo que se use aca debe terminar guardado en Supabase.</span></div>
@@ -1896,6 +1915,8 @@ const renderApp = (ui) => {
   const registerName = ui.currentRegister?.name || 'Sin caja asignada'
   const edition = String(ui.snapshot.meta?.edition || '').toLowerCase()
   const isLocalMode = edition.includes('local')
+  const isDevEnvironment = ui.cloudConnection.environment === 'development'
+  const environmentLabel = ui.cloudConnection.environmentLabel || 'Sandbox'
   const statusTitle = ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'
   const statusHint = ui.branchRegisters.length > 1 ? registerName : ''
   const searchOptions = buildQuickSearchTargets(ui).slice(0, 40).map((item) => `<option value="${item.label}"></option>`).join('')
@@ -1916,7 +1937,7 @@ const renderApp = (ui) => {
       </aside>
       <div class="workspace">
         <header class="topbar">
-          <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${productName}</h1><span>${branchName}</span></div>
+          <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${ui.commerceContext?.commerce_name || productName}</h1><span>${branchName}</span></div>
           <div class="topbar-center">
             <form class="quick-search" data-form="topbar-jump">
               <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
@@ -1929,6 +1950,7 @@ const renderApp = (ui) => {
               <span class="status-led" aria-hidden="true"></span>
               <div class="status-copy"><strong>${statusTitle}</strong>${statusHint ? `<span>${statusHint}</span>` : ''}</div>
             </button>
+            ${isDevEnvironment ? `<span class="topbar-runtime is-dev">${environmentLabel}</span>` : ''}
             <button class="account-card compact-meta" type="button" data-section="${ui.user?.isOwner ? 'mi-admin' : 'ajustes'}" aria-label="Abrir perfil">
               <span class="account-avatar">${userInitials}</span>
               <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` · ${notificationCount} alertas` : ''}</span></span>
@@ -1971,7 +1993,7 @@ const bootstrap = async () => {
   authInstanceKey = normalizeInstanceKey(
     safeStorage.getItem(instanceStorageKey, '')
     || initialCloudConfig?.instanceKey
-    || 'principal'
+    || 'pclaf-dev'
   )
   const storeOptions = {
     initialCloudConfig,
@@ -2204,24 +2226,27 @@ const handleSubmit = async (event) => {
 
   if (kind === 'login') {
     loginMessage = ''
+    signupMessage = ''
     feedbackMessage = ''
     try {
-      const instanceKey = persistInstanceKey(formData.get('instanceKey'))
+      const requestedInstanceKey = String(formData.get('instanceKey') || '').trim()
       const identifier = String(formData.get('identifier') || '').trim()
       const pin = String(formData.get('pin') || '')
       if (!authManager) throw new Error('La conexion cloud no esta lista.')
-      setupStatus = await authManager.getSetupStatus({ instanceKey })
-      const sessionPayload = await authManager.signIn({ instanceKey, identifier, pin })
+      const sessionPayload = await authManager.signIn({ instanceKey: requestedInstanceKey || null, identifier, pin })
+      persistInstanceKey(sessionPayload?.commerceContext?.instance_key || requestedInstanceKey || authInstanceKey)
+      setupStatus = await authManager.getSetupStatus({ instanceKey: authInstanceKey })
       await loadCloudAccess(sessionPayload)
       feedbackMessage = 'Sesion iniciada correctamente.'
     } catch (error) {
-      loginMessage = error.message || 'No se pudo iniciar sesion.'
+      loginMessage = mapPublicAuthError(error.message, 'login')
     }
     render()
     return
   }
   if (kind === 'instance-setup') {
     loginMessage = ''
+    signupMessage = ''
     feedbackMessage = ''
     try {
       const commerceName = String(formData.get('commerceName') || '').trim()
@@ -2243,9 +2268,9 @@ const handleSubmit = async (event) => {
       })
       setupStatus = await authManager.getSetupStatus({ instanceKey })
       await loadCloudAccess(sessionPayload)
-      feedbackMessage = 'Instancia creada y lista para operar.'
+      feedbackMessage = 'Cuenta creada y lista para operar.'
     } catch (error) {
-      loginMessage = error.message || 'No se pudo crear la instancia.'
+      signupMessage = mapPublicAuthError(error.message, 'signup')
     }
     render()
     return
@@ -2452,8 +2477,8 @@ const bindEvents = () => {
     })
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
-  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => { loginMessage = ''; scrollToAuthBlock('#acceso-login') })
-  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => { loginMessage = ''; scrollToAuthBlock('#acceso-signup') })
+  for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => { loginMessage = ''; signupMessage = ''; scrollToAuthBlock('#acceso-login') })
+  for (const button of document.querySelectorAll('[data-action="show-signup"]')) button.addEventListener('click', () => { loginMessage = ''; signupMessage = ''; scrollToAuthBlock('#acceso-signup') })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
   const quickAddButton = document.querySelector('[data-action="quick-add-sale"]')
   if (quickAddButton) quickAddButton.addEventListener('click', runQuickAdd)
@@ -2647,9 +2672,30 @@ const bindEvents = () => {
     commerceContext = null
     authViewMode = 'landing'
     loginMessage = ''
+    signupMessage = ''
     feedbackMessage = ''
     render()
   })
+  for (const recoveryButton of document.querySelectorAll('[data-action="recover-password"]')) {
+    recoveryButton.addEventListener('click', async () => {
+      const loginForm = document.querySelector('form[data-form="login"]')
+      const emailInput = loginForm?.querySelector('input[name="identifier"]')
+      const email = String(emailInput?.value || '').trim().toLowerCase()
+      if (!email) {
+        loginMessage = 'Escribe tu correo y luego toca "Recuperar clave".'
+        render()
+        return
+      }
+      try {
+        if (!authManager) throw new Error('La conexion cloud no esta lista.')
+        const result = await authManager.requestPasswordReset({ email })
+        loginMessage = result?.message || 'Si existe una cuenta con ese correo, te ayudaremos a recuperar el acceso.'
+      } catch (error) {
+        loginMessage = mapPublicAuthError(error.message, 'login')
+      }
+      render()
+    })
+  }
   for (const supportButton of document.querySelectorAll('[data-action="open-support"]')) {
     supportButton.addEventListener('click', () => {
       window.open(supportUrl, '_blank', 'noopener,noreferrer')

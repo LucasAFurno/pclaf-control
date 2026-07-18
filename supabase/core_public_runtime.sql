@@ -30,6 +30,19 @@ create table if not exists public.control_user_sessions (
 create index if not exists idx_control_user_sessions_user_id on public.control_user_sessions(user_id);
 create index if not exists idx_control_user_sessions_commerce_id on public.control_user_sessions(commerce_id);
 
+create table if not exists public.control_user_password_reset_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.control_users(id) on delete cascade,
+  email text not null,
+  requested_at timestamptz not null default now(),
+  status text not null default 'pending',
+  channel text not null default 'email',
+  metadata jsonb not null default '{}'::jsonb
+);
+
+create index if not exists idx_control_user_password_reset_requests_user_id
+  on public.control_user_password_reset_requests(user_id, requested_at desc);
+
 create or replace function public.app_slugify(p_value text)
 returns text
 language sql
@@ -151,7 +164,7 @@ end;
 $$;
 
 create or replace function public.app_get_setup_status(
-  p_instance_key text default 'principal'
+  p_instance_key text default 'pclaf-dev'
 )
 returns jsonb
 language plpgsql
@@ -165,7 +178,7 @@ begin
   select *
   into v_commerce
   from public.commerce_accounts
-  where lower(instance_key) = lower(coalesce(nullif(p_instance_key, ''), 'principal'))
+  where lower(instance_key) = lower(coalesce(nullif(p_instance_key, ''), 'pclaf-dev'))
   limit 1;
 
   if v_commerce.id is not null then
@@ -183,7 +196,7 @@ begin
     'initialized', v_commerce.id is not null and v_user_count > 0,
     'commerce_id', v_commerce.id,
     'commerce_name', coalesce(v_commerce.name, ''),
-    'instance_key', coalesce(v_commerce.instance_key, lower(coalesce(nullif(p_instance_key, ''), 'principal'))),
+    'instance_key', coalesce(v_commerce.instance_key, lower(coalesce(nullif(p_instance_key, ''), 'pclaf-dev'))),
     'user_count', v_user_count
   );
 end;
@@ -207,7 +220,7 @@ security definer
 set search_path = public
 as $$
 declare
-  v_instance_key text := lower(coalesce(nullif(trim(p_instance_key), ''), 'principal'));
+  v_instance_key text := lower(coalesce(nullif(trim(p_instance_key), ''), 'pclaf-dev'));
   v_commerce public.commerce_accounts;
   v_existing_count integer := 0;
   v_user_id uuid := gen_random_uuid();
@@ -221,6 +234,9 @@ begin
   end if;
   if nullif(trim(coalesce(p_owner_name, '')), '') is null then
     raise exception 'owner_name_required';
+  end if;
+  if nullif(trim(coalesce(p_owner_email, '')), '') is null then
+    raise exception 'owner_email_required';
   end if;
   if nullif(trim(coalesce(p_owner_pin, '')), '') is null or length(trim(p_owner_pin)) < 4 then
     raise exception 'owner_pin_too_short';
@@ -250,6 +266,13 @@ begin
     where lower(coalesce(login_name, '')) = lower(v_login_name)
   ) then
     raise exception 'login_name_already_exists';
+  end if;
+
+  if exists (
+    select 1 from public.control_users
+    where lower(coalesce(email, '')) = lower(trim(coalesce(p_owner_email, '')))
+  ) then
+    raise exception 'owner_email_already_exists';
   end if;
 
   if v_commerce.id is null then
@@ -407,53 +430,86 @@ security definer
 set search_path = public
 as $$
 declare
-  v_instance_key text := lower(coalesce(nullif(trim(p_instance_key), ''), 'principal'));
+  v_instance_key text := lower(nullif(trim(coalesce(p_instance_key, '')), ''));
   v_identifier text := lower(trim(coalesce(p_identifier, '')));
   v_commerce public.commerce_accounts;
   v_user public.control_users;
   v_membership public.commerce_memberships;
+  v_match_commerce_id uuid;
+  v_match_user_id uuid;
+  v_match_membership_id uuid;
   v_token uuid;
 begin
   if v_identifier = '' then
     raise exception 'identifier_required';
   end if;
 
-  select *
-  into v_commerce
-  from public.commerce_accounts
-  where lower(instance_key) = v_instance_key
-    and status = 'active'
-  limit 1;
+  if v_instance_key is not null then
+    select *
+    into v_commerce
+    from public.commerce_accounts
+    where lower(instance_key) = v_instance_key
+      and status = 'active'
+    limit 1;
 
-  if v_commerce.id is null then
-    raise exception 'instance_not_initialized';
+    if v_commerce.id is null then
+      raise exception 'instance_not_initialized';
+    end if;
+
+    select user_row.*
+    into v_user
+    from public.control_users user_row
+    join public.commerce_memberships membership
+      on membership.user_id = user_row.id
+     and membership.commerce_id = v_commerce.id
+    where (
+        lower(coalesce(user_row.login_name, '')) = v_identifier
+        or lower(coalesce(user_row.email, '')) = v_identifier
+        or lower(split_part(coalesce(user_row.email, ''), '@', 1)) = v_identifier
+        or lower(coalesce(user_row.full_name, '')) = v_identifier
+      )
+    order by membership.is_owner desc, user_row.created_at asc
+    limit 1;
+  else
+    select commerce_row.id, user_row.id, membership.id
+    into v_match_commerce_id, v_match_user_id, v_match_membership_id
+    from public.control_users user_row
+    join public.commerce_memberships membership
+      on membership.user_id = user_row.id
+     and membership.status = 'active'
+    join public.commerce_accounts commerce_row
+      on commerce_row.id = membership.commerce_id
+     and commerce_row.status = 'active'
+     and lower(coalesce(commerce_row.instance_key, '')) <> 'pclaf-dev'
+    where (
+        lower(coalesce(user_row.email, '')) = v_identifier
+      )
+    order by
+      case when user_row.active_commerce_id = commerce_row.id then 0 else 1 end,
+      membership.is_owner desc,
+      membership.updated_at desc,
+      user_row.created_at asc
+    limit 1;
+
+    if v_match_commerce_id is not null then
+      select * into v_commerce from public.commerce_accounts where id = v_match_commerce_id;
+      select * into v_user from public.control_users where id = v_match_user_id;
+      select * into v_membership from public.commerce_memberships where id = v_match_membership_id;
+    end if;
   end if;
-
-  select user_row.*
-  into v_user
-  from public.control_users user_row
-  join public.commerce_memberships membership
-    on membership.user_id = user_row.id
-   and membership.commerce_id = v_commerce.id
-  where (
-      lower(coalesce(user_row.login_name, '')) = v_identifier
-      or lower(coalesce(user_row.email, '')) = v_identifier
-      or lower(split_part(coalesce(user_row.email, ''), '@', 1)) = v_identifier
-      or lower(coalesce(user_row.full_name, '')) = v_identifier
-    )
-  order by membership.is_owner desc, user_row.created_at asc
-  limit 1;
 
   if v_user.id is null then
     raise exception 'user_not_found';
   end if;
 
-  select *
-  into v_membership
-  from public.commerce_memberships
-  where commerce_id = v_commerce.id
-    and user_id = v_user.id
-  limit 1;
+  if v_membership.id is null then
+    select *
+    into v_membership
+    from public.commerce_memberships
+    where commerce_id = v_commerce.id
+      and user_id = v_user.id
+    limit 1;
+  end if;
 
   if v_user.status <> 'active' or v_membership.status <> 'active' then
     raise exception 'user_inactive';
@@ -535,6 +591,51 @@ begin
   end if;
 
   return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.app_public_request_password_reset(
+  p_email text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text := lower(trim(coalesce(p_email, '')));
+  v_user public.control_users;
+begin
+  if nullif(v_email, '') is null then
+    raise exception 'email_required';
+  end if;
+
+  select *
+  into v_user
+  from public.control_users
+  where lower(coalesce(email, '')) = v_email
+  limit 1;
+
+  if v_user.id is not null then
+    insert into public.control_user_password_reset_requests (
+      user_id,
+      email,
+      metadata
+    )
+    values (
+      v_user.id,
+      v_email,
+      jsonb_build_object(
+        'source', 'public_login',
+        'delivery_status', 'pending_email_setup'
+      )
+    );
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'message', 'Si existe una cuenta con ese correo, te ayudaremos a recuperar el acceso.'
+  );
 end;
 $$;
 
@@ -1342,6 +1443,7 @@ revoke all on function public.app_setup_instance(text, text, text, text, text, t
 revoke all on function public.app_public_sign_in(text, text, text) from public;
 revoke all on function public.app_public_restore_session(text) from public;
 revoke all on function public.app_public_sign_out(text) from public;
+revoke all on function public.app_public_request_password_reset(text) from public;
 revoke all on function public.app_public_export_snapshot(text) from public;
 revoke all on function public.app_public_save_snapshot(text, jsonb) from public;
 
@@ -1350,5 +1452,6 @@ grant execute on function public.app_setup_instance(text, text, text, text, text
 grant execute on function public.app_public_sign_in(text, text, text) to anon, authenticated;
 grant execute on function public.app_public_restore_session(text) to anon, authenticated;
 grant execute on function public.app_public_sign_out(text) to anon, authenticated;
+grant execute on function public.app_public_request_password_reset(text) to anon, authenticated;
 grant execute on function public.app_public_export_snapshot(text) to anon, authenticated;
 grant execute on function public.app_public_save_snapshot(text, jsonb) to anon, authenticated;
