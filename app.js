@@ -1,5 +1,5 @@
-import { createBrowserDataStore } from './data-store.js'
-import { createCloudAuthManager } from './cloud-auth.js'
+import { createBrowserDataStore } from './data-store.js?v=20260718c'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260718c'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)

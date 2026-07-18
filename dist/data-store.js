@@ -1,5 +1,5 @@
-import { createSupabaseSnapshotAdapter } from './cloud-sync.js'
-import { createSupabaseCoreAdapter } from './cloud-core.js'
+import { createSupabaseSnapshotAdapter } from './cloud-sync.js?v=20260718c'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260718c'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'

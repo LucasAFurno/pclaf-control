@@ -10,6 +10,7 @@ const hostingDir = path.join(dist, '.openai')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
+const assetVersion = '20260718c'
 
 const clientJs = await readFile(path.join(root, 'site', 'client.js'), 'utf8')
 const dataStoreJs = await readFile(path.join(root, 'site', 'data-store.js'), 'utf8')
@@ -101,7 +102,7 @@ const html = `<!doctype html>
         shell.innerHTML = '<div class="boot-card is-error"><strong>No se pudo iniciar</strong><p>' + message + '</p><p>Si sigue igual, avisame y reviso el error puntual.</p></div>';
       }, 4000);
     </script>
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="/app.js?v=${assetVersion}"></script>
   </body>
 </html>
 `
