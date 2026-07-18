@@ -6,7 +6,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const dist = path.join(root, 'dist')
 const serverDir = path.join(dist, 'server')
-const hostingDir = path.join(dist, '.openai')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
@@ -19,7 +18,6 @@ const cloudAuthJs = await readFile(path.join(root, 'site', 'cloud-auth.js'), 'ut
 const cloudCoreJs = await readFile(path.join(root, 'site', 'cloud-core.js'), 'utf8')
 const stylesCss = await readFile(path.join(root, 'site', 'styles.css'), 'utf8')
 const cloudConfigJson = await readFile(path.join(root, 'site', selectedCloudConfigFile), 'utf8')
-const hostingJson = await readFile(path.join(root, '.openai', 'hosting.json'), 'utf8')
 const faviconSvg = await readFile(path.join(root, 'public', 'favicon.svg'), 'utf8')
 const pclafLogo = await readFile(path.join(root, 'public', 'pclaf-logo.png'))
 const cnameFile = await readFile(path.join(root, 'public', 'CNAME'), 'utf8')
@@ -155,7 +153,6 @@ export default {
 
 await rm(dist, { recursive: true, force: true })
 await mkdir(serverDir, { recursive: true })
-await mkdir(hostingDir, { recursive: true })
 
 await writeFile(path.join(dist, 'index.html'), html)
 await writeFile(path.join(dist, 'app.css'), stylesCss)
@@ -166,7 +163,6 @@ await writeFile(path.join(dist, 'cloud-auth.js'), cloudAuthJs)
 await writeFile(path.join(dist, 'cloud-core.js'), cloudCoreJs)
 await writeFile(path.join(dist, 'cloud-config.json'), cloudConfigJson)
 await writeFile(path.join(serverDir, 'index.js'), serverCode)
-await writeFile(path.join(hostingDir, 'hosting.json'), hostingJson)
 await copyFile(path.join(root, 'public', 'favicon.svg'), path.join(dist, 'favicon.svg'))
 await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(dist, 'pclaf-logo.png'))
 if (!isDevBuild) {

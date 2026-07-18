@@ -1,0 +1,62 @@
+# PCLAF Control
+
+Base web real de PCLAF Control orientada a GitHub como origen unico y Supabase como backend.
+
+## Objetivo
+
+Construir un sistema comercial web que despues se pueda vender por modulos:
+
+- ventas y caja
+- productos y stock
+- clientes y proveedores
+- comprobantes
+- sucursales, cajas y usuarios
+
+## Stack recomendado
+
+- frontend: Vite + JavaScript
+- backend: Supabase
+- deploy demo: GitHub Pages
+- dominio final: `www.pclafcontrol.com.ar`
+
+## Ambientes
+
+Conviene separar desde el arranque:
+
+- `pclaf-dev`: desarrollo y pruebas
+- `pclaf-prod`: produccion real
+
+No mezclar datos de clientes reales con desarrollo.
+
+## Flujo recomendado
+
+1. Trabajar siempre en local.
+2. Probar contra `pclaf-dev`.
+3. Subir cambios a GitHub.
+4. Validar demo web.
+5. Recién después promover a `pclaf-prod`.
+
+## Variables
+
+Copiar `.env.example` a `.env` y completar:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_INSTANCE_ENV`
+- `VITE_INSTANCE_KEY`
+
+## Primeros pasos
+
+```bash
+npm install
+npm run dev
+```
+
+## Siguiente etapa
+
+Lo siguiente más importante para construir sin rehacer después es:
+
+1. modelar Supabase real para comercios, usuarios, sucursales, cajas y permisos
+2. hacer login, alta de cuenta y recupero de clave amigable
+3. armar dashboard operativo y modulos por pack
+

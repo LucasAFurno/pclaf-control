@@ -1,8 +1,8 @@
 {
-  "name": "storefront-manager",
+  "name": "pclaf-control",
   "version": "0.0.0",
   "private": true,
-  "description": "Herramienta de control comercial para PCLAF.",
+  "description": "Sistema comercial web para PCLAF Control.",
   "author": "PCLAF",
   "main": "desktop/main.mjs",
   "type": "module",

@@ -7,7 +7,7 @@ Proyecto objetivo:
 
 ## 1. Crear la tabla de sincronizacion
 
-Ejecuta el SQL de [app_snapshots.sql](C:\Users\bandido\Documents\Codex\2026-07-12\sites-plugin-sites-openai-bundled-crea\work\storefront-manager\supabase\app_snapshots.sql) en el SQL Editor de Supabase.
+Ejecuta el archivo local [app_snapshots.sql](C:\Users\bandido\Documents\pclaf-control\supabase\app_snapshots.sql) en el SQL Editor de Supabase.
 
 ## 2. Buscar la clave publica
 
