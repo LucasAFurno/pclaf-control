@@ -590,36 +590,13 @@ const loginView = (ui) => {
           <button type="button" class="ghost-action topbar-auth-button" data-action="show-login">Iniciar sesion</button>
           <button type="button" class="primary-action topbar-auth-button" data-action="show-signup">Crear cuenta</button>
         </div>
-      </header>
-      <section class="public-hero">
-        <div class="public-hero-copy">
-          <p class="kicker">Sistema de gestion comercial</p>
-          <h1>${productName}</h1>
-          <p class="login-copy login-copy-hero">Vende, cobra, controla stock y ordena el trabajo diario desde una sola web, tanto en PC como en celular.</p>
-          <div class="login-badges">
-            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base online activa' : 'Activacion pendiente'}</span>
-            <span class="login-badge">Ventas y caja</span>
-            <span class="login-badge">Stock y clientes</span>
-            <span class="login-badge">Comprobantes</span>
-          </div>
-          <div class="public-feature-grid">
-            <article class="landing-feature-card"><strong>Vende y cobra rapido</strong><span>Ticket, caja y cobros diarios en una vista clara.</span></article>
-            <article class="landing-feature-card"><strong>Controla productos y stock</strong><span>Altas, compras, ajustes y orden de inventario.</span></article>
-            <article class="landing-feature-card"><strong>Escala cuando haga falta</strong><span>Usuarios, permisos, sucursales y reportes sobre base cloud.</span></article>
-          </div>
-          <div class="landing-contact compact-contact">
-            <div>
-              <strong>Contacto directo</strong>
-              <span>Consultas y soporte por WhatsApp</span>
-            </div>
-            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
-          </div>
-        </div>
-        <aside class="public-auth-column ${authViewMode === 'landing' ? 'is-hidden' : ''}">
+        ${authViewMode !== 'landing' ? `
+        <div class="public-auth-popover">
           ${authViewMode === 'login' ? `
           <div class="login-card compact-auth-card" id="acceso-login">
             <p class="kicker">${ui.cloudConnection.enabled ? 'Ingreso al sistema' : 'Acceso temporalmente bloqueado'}</p>
             <h2>Entrar</h2>
+            <p class="login-copy">Ingresa con tu correo y tu clave para seguir trabajando.</p>
             <form class="login-form" data-form="login" autocomplete="off">
               <label>Email de acceso<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
               <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
@@ -636,6 +613,7 @@ const loginView = (ui) => {
           <div class="login-card compact-auth-card login-card-secondary" id="acceso-signup">
             <p class="kicker">Prueba gratis</p>
             <h2>Crear cuenta</h2>
+            <p class="login-copy">Crea tu acceso principal y empieza a usar el sistema en minutos.</p>
             <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="off">
               <div class="login-form-grid-1">
                 <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
@@ -657,7 +635,34 @@ const loginView = (ui) => {
             </div>
           </div>
           ` : ''}
-        </aside>
+        </div>
+        ` : ''}
+      </header>
+      <section class="public-hero">
+        <div class="public-hero-copy">
+          <p class="kicker">Sistema de gestion comercial</p>
+          <h1>${productName}</h1>
+          <p class="login-copy login-copy-hero">Vende, cobra, controla stock y ordena el trabajo diario desde una sola web, tanto en PC como en celular.</p>
+          ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+          <div class="login-badges">
+            <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base online activa' : 'Activacion pendiente'}</span>
+            <span class="login-badge">Ventas y caja</span>
+            <span class="login-badge">Stock y clientes</span>
+            <span class="login-badge">Comprobantes</span>
+          </div>
+          <div class="public-feature-grid">
+            <article class="landing-feature-card"><strong>Vende y cobra rapido</strong><span>Ticket, caja y cobros diarios en una vista clara.</span></article>
+            <article class="landing-feature-card"><strong>Controla productos y stock</strong><span>Altas, compras, ajustes y orden de inventario.</span></article>
+            <article class="landing-feature-card"><strong>Escala cuando haga falta</strong><span>Usuarios, permisos, sucursales y reportes sobre base cloud.</span></article>
+          </div>
+          <div class="landing-contact compact-contact">
+            <div>
+              <strong>Contacto directo</strong>
+              <span>Consultas y soporte por WhatsApp</span>
+            </div>
+            <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
+          </div>
+        </div>
       </section>
     </div>
   </div>

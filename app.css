@@ -88,6 +88,7 @@ input, select { outline: none; }
 }
 
 .public-topbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -138,6 +139,14 @@ input, select { outline: none; }
   justify-content: flex-end;
 }
 
+.public-auth-popover {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(420px, calc(100vw - 32px));
+  z-index: 40;
+}
+
 .topbar-auth-button {
   min-height: 44px;
   min-width: 148px;
@@ -146,7 +155,7 @@ input, select { outline: none; }
 
 .public-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 420px);
+  grid-template-columns: 1fr;
   gap: 28px;
   align-items: start;
   margin-top: 22px;
@@ -170,18 +179,6 @@ input, select { outline: none; }
 
 .compact-contact {
   margin-top: 2px;
-}
-
-.public-auth-column {
-  display: grid;
-  gap: 16px;
-  align-self: start;
-  position: sticky;
-  top: 24px;
-}
-
-.public-auth-column.is-hidden {
-  display: none;
 }
 
 .compact-auth-card {
@@ -1954,14 +1951,6 @@ input, select { outline: none; }
 }
 
 @media (max-width: 1180px) {
-  .public-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .public-auth-column {
-    position: static;
-  }
-
   .metrics-grid,
   .dashboard-grid,
   .content-grid,
@@ -2002,6 +1991,10 @@ input, select { outline: none; }
 
   .public-topbar {
     padding: 12px 14px;
+  }
+
+  .public-auth-popover {
+    width: min(440px, calc(100vw - 28px));
   }
 
   .public-hero-copy,
@@ -2071,6 +2064,12 @@ input, select { outline: none; }
 
   .public-topbar-actions {
     width: 100%;
+  }
+
+  .public-auth-popover {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
   }
 
   .topbar-auth-button {
