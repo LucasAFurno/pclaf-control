@@ -754,8 +754,8 @@ input, select { outline: none; }
 }
 
 .brand-logo {
-  width: 52px;
-  height: 56px;
+  width: 44px;
+  height: 48px;
   object-fit: cover;
   border-radius: 10px;
   display: block;
@@ -801,6 +801,8 @@ input, select { outline: none; }
   align-items: center;
   padding: 10px 14px;
   min-height: 58px;
+  color: #ffffff;
+  text-align: left;
 }
 
 .status-card:hover,
@@ -852,7 +854,8 @@ input, select { outline: none; }
 }
 
 .status-copy strong {
-  font-size: 0.88rem;
+  font-size: 0.84rem;
+  color: #ffffff;
 }
 
 .status-chip .status-copy {
@@ -868,7 +871,8 @@ input, select { outline: none; }
 }
 
 .status-chip .status-copy span {
-  font-size: 0.64rem;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .quick-search {
@@ -910,9 +914,15 @@ input, select { outline: none; }
   flex-wrap: nowrap;
 }
 
+.topbar-controls {
+  display: grid;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .topbar-logout {
-  min-width: 78px;
-  min-height: 40px;
+  min-width: 72px;
+  min-height: 38px;
   justify-content: center;
 }
 
@@ -1640,11 +1650,18 @@ input, select { outline: none; }
 }
 
 .feedback-banner {
-  border: 1px solid rgba(214, 16, 16, 0.16);
-  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 120;
+  width: min(420px, calc(100vw - 36px));
+  border: 1px solid rgba(214, 16, 16, 0.18);
+  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
   color: var(--text);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 13px 15px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
 }
 
 .inline-action,
@@ -2016,19 +2033,34 @@ input, select { outline: none; }
   }
 
   .sidebar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .sidebar-brand {
+    justify-items: start;
+    padding-bottom: 10px;
   }
 
   .sidebar-nav {
-    grid-template-columns: repeat(6, minmax(0, 64px));
-    width: auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
   }
 
   .sidebar-support {
-    width: auto;
+    width: 100%;
     margin-top: 0;
+  }
+
+  .nav-square {
+    min-height: 58px;
+    gap: 6px;
+    padding: 8px 4px;
+  }
+
+  .nav-label {
+    font-size: 0.66rem;
   }
 
   .topbar-center {
@@ -2173,13 +2205,69 @@ input, select { outline: none; }
     width: 100%;
   }
 
-  .account-card,
-  .mode-badge,
+  .sidebar-brand {
+    justify-items: center;
+  }
+
+  .brand-logo {
+    width: 36px;
+    height: 40px;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .topbar-left .kicker {
+    display: none;
+  }
+
+  .topbar-left h1 {
+    font-size: 1.45rem;
+  }
+
+  .status-chip,
+  .account-card {
+    width: 100%;
+  }
+
+  .topbar-right {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .topbar-controls {
+    grid-template-columns: 1fr;
+  }
+
   .theme-switch,
   .topbar-runtime,
   .topbar-logout {
     width: 100%;
-    justify-content: flex-start;
+    justify-content: center;
+  }
+
+  .theme-switch {
+    min-height: 38px;
+  }
+
+  .theme-switch-label {
+    font-size: 0.78rem;
+  }
+
+  .status-card {
+    min-height: 48px;
+    padding: 8px 12px;
+  }
+
+  .status-chip .status-copy strong {
+    font-size: 0.76rem;
+  }
+
+  .status-chip .status-copy span {
+    font-size: 0.66rem;
   }
 
   .list-row,
@@ -2191,4 +2279,11 @@ input, select { outline: none; }
   }
 
   .right { text-align: left; }
+
+  .feedback-banner {
+    top: 12px;
+    right: 12px;
+    width: calc(100vw - 24px);
+    font-size: 0.9rem;
+  }
 }

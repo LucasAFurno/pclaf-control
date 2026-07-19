@@ -101,6 +101,7 @@ let recoveryState = null
 let hardwareScanBuffer = ''
 let hardwareScanTimer = null
 let hardwareScanListenerBound = false
+let feedbackTimer = null
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -430,6 +431,16 @@ const buildQuickSearchTargets = (ui) => {
   for (const branch of ui.snapshot.branches) pushTarget('sucursales', branch.name, [branch.code, branch.address])
   for (const register of ui.snapshot.registers) pushTarget('cajeros', register.name, [register.code])
   return normalizedEntries
+}
+const clearFeedbackSoon = () => {
+  if (feedbackTimer) window.clearTimeout(feedbackTimer)
+  if (!feedbackMessage) return
+  const currentMessage = feedbackMessage
+  feedbackTimer = window.setTimeout(() => {
+    if (feedbackMessage !== currentMessage) return
+    feedbackMessage = ''
+    render()
+  }, 2800)
 }
 const getAllowedNav = (ui) => navItems.filter((item) => (
   store.canAccessModule(item.moduleKey, item.permission)
@@ -1315,13 +1326,6 @@ const productsView = (ui) => `
           </form>
         </article>` : ''}
       </div>
-    </section>
-    <section class="content-grid single-focus">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Base cloud actual</h3><p>Estado de persistencia con Supabase</p></div></div>
-        <div class="info-strip"><strong>Modo actual</strong><span>${ui.snapshot.meta?.adapter || 'sin adaptador'}</span></div>
-        <div class="panel-note"><span>Hoy esta guardando en Supabase por snapshot cloud.</span><span>El siguiente paso profesional es pasar productos, ventas, caja y facturas a tablas core separadas.</span></div>
-      </article>
     </section>
   </section>
 `
@@ -2247,7 +2251,7 @@ const renderApp = (ui) => {
   const isLocalMode = edition.includes('local')
   const isDevEnvironment = ui.cloudConnection.environment === 'development'
   const environmentLabel = ui.cloudConnection.environmentLabel || 'Sandbox'
-  const statusTitle = ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'
+  const statusTitle = ui.openCashSession ? 'Abierta' : 'Cerrada'
   const statusHint = ui.branchRegisters.length > 1 ? registerName : ''
   const searchOptions = buildQuickSearchTargets(ui).slice(0, 40).map((item) => `<option value="${item.label}"></option>`).join('')
   const userName = ui.user?.fullName || 'Usuario'
@@ -2276,21 +2280,23 @@ const renderApp = (ui) => {
             </form>
           </div>
           <div class="topbar-right">
-            <button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="${statusTitle}">
+            <button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="Caja ${statusTitle}">
               <span class="status-led" aria-hidden="true"></span>
-              <div class="status-copy"><strong>${statusTitle}</strong>${statusHint ? `<span>${statusHint}</span>` : ''}</div>
+              <div class="status-copy"><strong>Caja</strong><span>${statusTitle}${statusHint ? ` · ${statusHint}` : ''}</span></div>
             </button>
             ${isDevEnvironment ? `<span class="topbar-runtime is-dev">${environmentLabel}</span>` : ''}
             <button class="account-card compact-meta" type="button" data-section="${ui.user?.isOwner ? 'mi-admin' : 'ajustes'}" aria-label="Abrir perfil">
               <span class="account-avatar">${userInitials}</span>
               <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` · ${notificationCount} alertas` : ''}</span></span>
             </button>
-            <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
-              <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
-              <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
-            </button>
-            ${isLocalMode ? '<span class="topbar-runtime">Local</span>' : ''}
-            <button class="inline-action danger topbar-logout" type="button" data-action="sign-out">Salir</button>
+            <div class="topbar-controls">
+              <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
+                <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
+                <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
+              </button>
+              ${isLocalMode ? '<span class="topbar-runtime">Local</span>' : ''}
+              <button class="inline-action danger topbar-logout" type="button" data-action="sign-out">Salir</button>
+            </div>
           </div>
         </header>
         <main class="page">${renderCurrentView(ui)}</main>
@@ -2306,6 +2312,7 @@ const render = () => {
     : (ui.isAuthenticated ? renderApp(ui) : loginView(ui))
   markBootComplete()
   bindEvents()
+  clearFeedbackSoon()
 }
 
 const readSiteCloudConfig = async () => {
@@ -2356,7 +2363,6 @@ const bootstrap = async () => {
     if (store.getCloudConnection().enabled && authManager?.getSession()?.sessionToken) {
       cloudSyncBusy = true
       await loadCloudAccess()
-      if (!feedbackMessage) feedbackMessage = 'Sesion cloud restaurada correctamente.'
     }
   } catch (error) {
     loginMessage = error.message || 'No se pudo iniciar la sesion cloud.'
@@ -2848,6 +2854,28 @@ const bindEvents = () => {
         runQuickAdd()
       }
     })
+  }
+  const quickSearchInput = document.querySelector('.quick-search input[name="query"]')
+  const jumpToSearchMatch = (value) => {
+    const normalized = String(value || '').trim().toLowerCase()
+    if (!normalized) return
+    const ui = getUiState()
+    const match = buildQuickSearchTargets(ui).find((item) => item.label.toLowerCase() === normalized)
+      || buildQuickSearchTargets(ui).find((item) => item.search.includes(normalized))
+    if (!match) return
+    activeSection = match.section
+    topbarSearch = ''
+    saveSection()
+    render()
+  }
+  if (quickSearchInput) {
+    quickSearchInput.addEventListener('input', () => {
+      topbarSearch = quickSearchInput.value
+      const ui = getUiState()
+      const exactMatch = buildQuickSearchTargets(ui).find((item) => item.label.toLowerCase() === String(quickSearchInput.value || '').trim().toLowerCase())
+      if (exactMatch) jumpToSearchMatch(quickSearchInput.value)
+    })
+    quickSearchInput.addEventListener('change', () => jumpToSearchMatch(quickSearchInput.value))
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
   for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => {
