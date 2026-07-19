@@ -1080,6 +1080,81 @@ input, select { outline: none; }
   color: rgba(255, 255, 255, 0.66);
 }
 
+.account-alerts-wrap {
+  position: relative;
+}
+
+.account-card.is-open {
+  border-color: rgba(214, 16, 16, 0.22);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+
+.account-alerts-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  z-index: 60;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-soft) 100%);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.28);
+}
+
+.account-alerts-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-alerts-head strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+}
+
+.account-alerts-link {
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 12px;
+}
+
+.account-alerts-list {
+  display: grid;
+  gap: 8px;
+}
+
+.account-alert-item {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  color: var(--text);
+}
+
+.account-alert-item strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.96rem;
+  line-height: 1;
+}
+
+.account-alert-item span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.account-alert-item.is-empty {
+  cursor: default;
+}
+
 .theme-switch {
   display: inline-flex;
   align-items: center;

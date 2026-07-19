@@ -105,6 +105,7 @@ let hardwareScanTimer = null
 let hardwareScanListenerBound = false
 let feedbackTimer = null
 let pendingScrollTop = false
+let accountAlertsOpen = false
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -2277,6 +2278,19 @@ const renderApp = (ui) => {
   const lowStockCount = ui.lowStock.length
   const pendingInvoiceCount = ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length
   const notificationCount = lowStockCount + pendingInvoiceCount + (ui.openCashSession ? 0 : 1)
+  const alertItems = [
+    ...(!ui.openCashSession ? [{ title: 'Caja cerrada', detail: 'No hay una caja abierta para operar en efectivo.', section: 'caja' }] : []),
+    ...ui.lowStock.slice(0, 4).map((product) => ({
+      title: 'Stock bajo',
+      detail: `${product.name}: ${product.scopedStock} unidades en ${ui.currentBranch?.name || 'la sucursal'} (min. ${product.minStock}).`,
+      section: 'productos',
+    })),
+    ...ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').slice(0, 4).map((invoice) => ({
+      title: 'Factura pendiente',
+      detail: `${invoice.number} · ${invoice.customerName} · ${money(invoice.totalAmount)}.`,
+      section: 'facturacion',
+    })),
+  ]
   const showStatusChip = ['dashboard', 'ventas', 'caja'].includes(activeSection)
   const showSessionControls = ['dashboard', 'ajustes', 'mi-admin'].includes(activeSection)
   const topbarRightClass = [
@@ -2310,10 +2324,24 @@ const renderApp = (ui) => {
               <div class="status-copy"><strong>Caja</strong><span>${statusTitle}${statusHint ? ` · ${statusHint}` : ''}</span></div>
             </button>` : ''}
             ${isDevEnvironment ? `<span class="topbar-runtime is-dev">${environmentLabel}</span>` : ''}
-            <button class="account-card compact-meta" type="button" data-section="${ui.user?.isOwner ? 'mi-admin' : 'ajustes'}" aria-label="Abrir perfil">
-              <span class="account-avatar">${userInitials}</span>
-              <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` · ${notificationCount} alertas` : ''}</span></span>
-            </button>
+            <div class="account-alerts-wrap">
+              <button class="account-card compact-meta ${accountAlertsOpen ? 'is-open' : ''}" type="button" data-action="toggle-account-alerts" aria-label="Ver alertas y cuenta" aria-expanded="${accountAlertsOpen ? 'true' : 'false'}">
+                <span class="account-avatar">${userInitials}</span>
+                <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` · ${notificationCount} alertas` : ' · Sin alertas'}</span></span>
+              </button>
+              ${accountAlertsOpen ? `<div class="account-alerts-popover">
+                <div class="account-alerts-head">
+                  <strong>Alertas</strong>
+                  <button type="button" class="ghost-action account-alerts-link" data-action="open-account-panel">Mi cuenta</button>
+                </div>
+                <div class="account-alerts-list">
+                  ${alertItems.length ? alertItems.map((item) => `<button type="button" class="account-alert-item" data-alert-section="${item.section}">
+                    <strong>${item.title}</strong>
+                    <span>${item.detail}</span>
+                  </button>`).join('') : `<div class="account-alert-item is-empty"><strong>Todo en orden</strong><span>No hay alertas activas en este momento.</span></div>`}
+                </div>
+              </div>` : ''}
+            </div>
             ${showSessionControls ? `<div class="topbar-controls">
               <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
                 <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
@@ -2909,6 +2937,33 @@ const bindEvents = () => {
     quickSearchInput.addEventListener('change', () => jumpToSearchMatch(quickSearchInput.value))
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); requestScrollTop(); render() })
+  for (const toggleAlertsButton of document.querySelectorAll('[data-action="toggle-account-alerts"]')) {
+    toggleAlertsButton.addEventListener('click', (event) => {
+      event.stopPropagation()
+      accountAlertsOpen = !accountAlertsOpen
+      render()
+    })
+  }
+  for (const openAccountPanelButton of document.querySelectorAll('[data-action="open-account-panel"]')) {
+    openAccountPanelButton.addEventListener('click', (event) => {
+      event.stopPropagation()
+      accountAlertsOpen = false
+      activeSection = getUiState().user?.isOwner ? 'mi-admin' : 'ajustes'
+      saveSection()
+      requestScrollTop()
+      render()
+    })
+  }
+  for (const alertSectionButton of document.querySelectorAll('[data-alert-section]')) {
+    alertSectionButton.addEventListener('click', (event) => {
+      event.stopPropagation()
+      accountAlertsOpen = false
+      activeSection = alertSectionButton.dataset.alertSection || 'dashboard'
+      saveSection()
+      requestScrollTop()
+      render()
+    })
+  }
   for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => {
     authViewMode = 'login'
     loginMessage = ''
@@ -3275,6 +3330,13 @@ const bindEvents = () => {
       window.open(supportUrl, '_blank', 'noopener,noreferrer')
     })
   }
+  document.addEventListener('click', (event) => {
+    if (!accountAlertsOpen) return
+    const target = event.target
+    if (target instanceof Element && target.closest('.account-alerts-wrap')) return
+    accountAlertsOpen = false
+    render()
+  }, { once: true })
   const cancelSaleEdit = document.querySelector('[data-action="cancel-sale-edit"]')
   if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; saleDraftQuantities = {}; saleQuickAddCode = ''; saleFormOpen = false; feedbackMessage = 'Edicion de venta cancelada.'; render() })
   const cancelPurchaseEdit = document.querySelector('[data-action="cancel-purchase-edit"]')
