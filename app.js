@@ -1477,9 +1477,26 @@ const purchasesViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><span>Saldo proveedor</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-board purchases-board ${showPurchaseForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showPurchaseForm ? '' : 'style="display:none"'}>
-        <div class="panel-head"><div><h3>${editingReceipt ? 'Editar compra' : 'Nueva compra'}</h3><p>Ingresa stock y costo del proveedor</p></div></div>
+    <section class="stacked-section">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Base de compras</h3><p>Ves proveedores y recepciones, y agregas solo cuando hace falta</p></div></div>
+        <div class="split-actions">
+          ${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}
+          ${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}
+        </div>
+        <div class="compact-form-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div></div>
+            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div></div>
+            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
+          </article>
+        </div>
+      </article>
+      ${showPurchaseForm ? `<article class="panel">
+        <div class="panel-head"><div><h3>${editingReceipt ? 'Editar compra' : 'Nueva compra'}</h3><p>Ingresa stock y costo del proveedor</p></div><div class="settings-actions">${editingReceipt ? '' : '<button type="button" class="ghost-action" data-action="close-purchase-form">Cerrar</button>'}</div></div>
         <form class="form-grid compact-form" data-form="purchase-receipt">
           <input type="hidden" name="receiptId" value="${editingReceipt?.id || ''}" />
           <label>Proveedor<select name="supplierId" required>${ui.snapshot.suppliers.map((supplier) => `<option value="${supplier.id}" ${editingReceipt?.supplierId === supplier.id ? 'selected' : ''}>${supplier.name}</option>`).join('')}</select></label>
@@ -1491,26 +1508,18 @@ const purchasesViewV2 = (ui) => `
           <button type="submit">${editingReceipt ? 'Guardar cambios' : 'Registrar compra'}</button>
           ${editingReceipt ? '<button type="button" class="danger-action" data-action="cancel-purchase-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-purchase-form">Cancelar</button>'}
         </form>
-      </article>
-      <div class="module-main">
-        <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div><div class="settings-actions">${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}</div></div>
-          ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div><div class="settings-actions">${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}</div></div>
-          ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
-        </article>
-        ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-supplier-form">Cerrar</button></div></div>
-          <form class="form-grid" data-form="supplier">
-            <label>Empresa<input type="text" name="name" required /></label>
-            <label>Contacto<input type="text" name="contact" /></label>
-            <label>Telefono<input type="text" name="phone" /></label>
-            <label>Saldo pendiente<input type="number" name="balance" min="0" value="0" /></label>
-            <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
-            <label>Categoria<input type="text" name="category" required /></label>
-            <button type="submit">Guardar proveedor</button>
-          </form>
-        </article>` : ''}
-      </div>
+      </article>` : ''}
+      ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-supplier-form">Cerrar</button></div></div>
+        <form class="form-grid" data-form="supplier">
+          <label>Empresa<input type="text" name="name" required /></label>
+          <label>Contacto<input type="text" name="contact" /></label>
+          <label>Telefono<input type="text" name="phone" /></label>
+          <label>Saldo pendiente<input type="number" name="balance" min="0" value="0" /></label>
+          <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
+          <label>Categoria<input type="text" name="category" required /></label>
+          <button type="submit">Guardar proveedor</button>
+        </form>
+      </article>` : ''}
     </section>
   </section>
 `})()}
@@ -1557,8 +1566,17 @@ const invoicesViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><span>Monto total</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-board invoices-board ${showInvoiceForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showInvoiceForm ? '' : 'style="display:none"'}><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
+    <section class="stacked-section">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Estado fiscal</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${editingInvoice ? '' : createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+          <div class="summary-mini-card"><strong>Ultimo estado</strong><span>${ui.enrichedInvoices[0]?.fiscalStatus || 'Sin comprobantes'}</span></div>
+          <div class="summary-mini-card"><strong>Tipo mas usado</strong><span>${ui.enrichedInvoices[0]?.type || 'B'}</span></div>
+        </div>
+        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+      </article>
+      ${showInvoiceForm ? `<article class="panel"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="invoice">
           <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
           <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
@@ -1573,20 +1591,7 @@ const invoicesViewV2 = (ui) => `
           ${!editingInvoice ? '<button type="button" class="ghost-action" data-action="close-invoice-form">Cancelar</button>' : ''}
           ${editingInvoice ? '<button type="button" class="danger-action" data-action="cancel-invoice-edit">Cancelar edicion</button>' : ''}
         </form>
-      </article>
-      <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Estado fiscal</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${editingInvoice ? '' : createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
-          <div class="summary-mini-row">
-            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
-            <div class="summary-mini-card"><strong>Ultimo estado</strong><span>${ui.enrichedInvoices[0]?.fiscalStatus || 'Sin comprobantes'}</span></div>
-            <div class="summary-mini-card"><strong>Tipo mas usado</strong><span>${ui.enrichedInvoices[0]?.type || 'B'}</span></div>
-          </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
-          ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
-        </article>
-      </div>
+      </article>` : ''}
     </section>
   </section>
 `})()}
@@ -1630,8 +1635,17 @@ const ticketsViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'Listo para entregar').length}</strong><span>Listos</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-board tickets-board ${showTicketForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showTicketForm ? '' : 'style="display:none"'}><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-ticket-form">Cerrar</button></div></div>
+    <section class="stacked-section">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Estado del taller</h3><p>Vista rapida del flujo operativo</p></div><div class="settings-actions">${editingTicket ? '' : createToggleButton('ticket', showTicketForm, 'Agregar ticket')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+          <div class="summary-mini-card"><strong>Ultimo ticket</strong><span>${ui.enrichedTickets[0]?.number || 'Sin tickets'}</span></div>
+          <div class="summary-mini-card"><strong>Cliente reciente</strong><span>${ui.enrichedTickets[0]?.customerName || 'Sin actividad'}</span></div>
+        </div>
+        ${dataTable(['Ticket', 'Cliente', 'Sucursal', 'Actualizado', 'Accion'], ui.enrichedTickets.map((ticket) => `<div class="data-row"><span>${ticket.number}<br /><small>${ticket.device}</small></span><span>${ticket.customerName}<br /><small>${ticket.status}</small></span><span>${ticket.branchName}</span><span>${ticket.updatedAt}</span><span>${ticketActionButtons(ticket)}</span></div>`))}
+      </article>
+      ${showTicketForm ? `<article class="panel"><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-ticket-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="ticket">
           <input type="hidden" name="ticketId" value="${editingTicket?.id || ''}" />
           <label>Numero<input type="text" name="number" value="${editingTicket?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
@@ -1643,20 +1657,7 @@ const ticketsViewV2 = (ui) => `
           ${!editingTicket ? '<button type="button" class="ghost-action" data-action="close-ticket-form">Cancelar</button>' : ''}
           ${editingTicket ? '<button type="button" class="danger-action" data-action="cancel-ticket-edit">Cancelar edicion</button>' : ''}
         </form>
-      </article>
-      <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Estado del taller</h3><p>Vista rapida del flujo operativo</p></div></div>
-          <div class="summary-mini-row">
-            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
-            <div class="summary-mini-card"><strong>Ultimo ticket</strong><span>${ui.enrichedTickets[0]?.number || 'Sin tickets'}</span></div>
-            <div class="summary-mini-card"><strong>Cliente reciente</strong><span>${ui.enrichedTickets[0]?.customerName || 'Sin actividad'}</span></div>
-          </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Tickets activos</h3><p>Historial rapido</p></div><div class="settings-actions">${editingTicket ? '' : createToggleButton('ticket', showTicketForm, 'Agregar ticket')}</div></div>
-          ${dataTable(['Ticket', 'Cliente', 'Sucursal', 'Actualizado', 'Accion'], ui.enrichedTickets.map((ticket) => `<div class="data-row"><span>${ticket.number}<br /><small>${ticket.device}</small></span><span>${ticket.customerName}<br /><small>${ticket.status}</small></span><span>${ticket.branchName}</span><span>${ticket.updatedAt}</span><span>${ticketActionButtons(ticket)}</span></div>`))}
-        </article>
-      </div>
+      </article>` : ''}
     </section>
   </section>
 `})()}
@@ -1737,8 +1738,17 @@ const branchesViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${ui.currentBranch?.name || '-'}</strong><span>Sucursal activa</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-board branches-board ${showBranchForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showBranchForm ? '' : 'style="display:none"'}>
+    <section class="stacked-section">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Operacion por sucursal</h3><p>Contexto actual del comercio</p></div><div class="settings-actions">${editingBranch ? '' : createToggleButton('branch', showBranchForm, 'Agregar sucursal')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Actual</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+          <div class="summary-mini-card"><strong>Cajas ligadas</strong><span>${ui.branchRegisters.length}</span></div>
+          <div class="summary-mini-card"><strong>Direccion</strong><span>${ui.currentBranch?.address || 'Sin direccion'}</span></div>
+        </div>
+        ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
+      </article>
+      ${showBranchForm ? `<article class="panel">
         <div class="panel-head"><div><h3>${editingBranch ? 'Editar sucursal' : 'Nueva sucursal'}</h3><p>La sucursal actual define la numeracion</p></div></div>
         <form class="form-grid" data-form="branch">
           <input type="hidden" name="branchId" value="${editingBranch?.id || ''}" />
@@ -1748,20 +1758,7 @@ const branchesViewV2 = (ui) => `
           <button type="submit">${editingBranch ? 'Guardar cambios' : 'Guardar sucursal'}</button>
           ${editingBranch ? '<button type="button" class="danger-action" data-action="cancel-branch-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-branch-form">Cancelar</button>'}
         </form>
-      </article>
-      <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Operacion por sucursal</h3><p>Contexto actual del comercio</p></div></div>
-          <div class="summary-mini-row">
-            <div class="summary-mini-card"><strong>Actual</strong><span>${ui.currentBranch?.name || '-'}</span></div>
-            <div class="summary-mini-card"><strong>Cajas ligadas</strong><span>${ui.branchRegisters.length}</span></div>
-            <div class="summary-mini-card"><strong>Direccion</strong><span>${ui.currentBranch?.address || 'Sin direccion'}</span></div>
-          </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Sucursales</h3><p>Actual: ${ui.currentBranch?.name || '-'}</p></div><div class="settings-actions">${editingBranch ? '' : createToggleButton('branch', showBranchForm, 'Agregar sucursal')}</div></div>
-          ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
-        </article>
-      </div>
+      </article>` : ''}
     </section>
   </section>
 `})()}
@@ -1844,8 +1841,17 @@ const registersViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><span>Cajeros</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-board registers-board ${showRegisterForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showRegisterForm ? '' : 'style="display:none"'}>
+    <section class="stacked-section">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Uso operativo</h3><p>Control de puestos de cobro</p></div><div class="settings-actions">${editingRegister ? '' : createToggleButton('register', showRegisterForm, 'Agregar caja')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+          <div class="summary-mini-card"><strong>Sesion abierta</strong><span>${ui.openCashSession ? 'Si' : 'No'}</span></div>
+          <div class="summary-mini-card"><strong>Caja actual</strong><span>${ui.currentRegister?.name || 'Sin asignar'}</span></div>
+        </div>
+        ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
+      </article>
+      ${showRegisterForm ? `<article class="panel">
         <div class="panel-head"><div><h3>${editingRegister ? 'Editar caja' : 'Nueva caja'}</h3><p>Asignacion por sucursal y cajero</p></div></div>
         <form class="form-grid" data-form="register">
           <input type="hidden" name="registerId" value="${editingRegister?.id || ''}" />
@@ -1856,20 +1862,7 @@ const registersViewV2 = (ui) => `
           <button type="submit">${editingRegister ? 'Guardar cambios' : 'Guardar caja'}</button>
           ${editingRegister ? '<button type="button" class="danger-action" data-action="cancel-register-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-register-form">Cancelar</button>'}
         </form>
-      </article>
-      <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Uso operativo</h3><p>Control de puestos de cobro</p></div></div>
-          <div class="summary-mini-row">
-            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
-            <div class="summary-mini-card"><strong>Sesion abierta</strong><span>${ui.openCashSession ? 'Si' : 'No'}</span></div>
-            <div class="summary-mini-card"><strong>Caja actual</strong><span>${ui.currentRegister?.name || 'Sin asignar'}</span></div>
-          </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Cajas</h3><p>Preparado para varias cajas por sucursal</p></div><div class="settings-actions">${editingRegister ? '' : createToggleButton('register', showRegisterForm, 'Agregar caja')}</div></div>
-          ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
-        </article>
-      </div>
+      </article>` : ''}
     </section>
   </section>
 `})()}
