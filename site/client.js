@@ -948,15 +948,12 @@ const customersViewV2 = (ui) => `
     </section>
     <section class="module-board customers-board">
       <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rapida de la cartera actual</p></div></div>
-          <div class="priority-list sales-kpis">
-            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || 'Principal'}</p></div>
-            <div class="priority-item"><strong>Clientes con saldo</strong><p>${ui.snapshot.customers.filter((customer) => Number(customer.balance || 0) > 0).length}</p></div>
-            <div class="priority-item"><strong>Listos para venta</strong><p>${ui.snapshot.customers.length ? 'Base disponible' : 'Sin clientes cargados'}</p></div>
-          </div>
-        </article>
         <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
+          <div class="summary-mini-row">
+            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || 'Principal'}</span></div>
+            <div class="summary-mini-card"><strong>Con saldo</strong><span>${ui.snapshot.customers.filter((customer) => Number(customer.balance || 0) > 0).length}</span></div>
+            <div class="summary-mini-card"><strong>Listos</strong><span>${ui.snapshot.customers.length ? 'Base disponible' : 'Sin clientes'}</span></div>
+          </div>
           <div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div>
           ${dataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers.map((customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`))}
         </article>
