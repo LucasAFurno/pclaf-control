@@ -1222,12 +1222,11 @@ const cashViewV2 = (ui) => `
     const showCashForm = cashFormOpen
     const lastClosedSession = byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt')[0]
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div></div>
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Estado</span><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
-      <article class="metric-card compact"><span>Efectivo esperado</span><strong>${money(ui.expectedCash)}</strong><p>Incluye ventas cash y ajustes</p></article>
-      <article class="metric-card compact"><span>Movimientos</span><strong>${ui.enrichedCashMovements.length}</strong><p>Bitacora visible del turno</p></article>
-    </section>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><span>Estado</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.expectedCash)}</strong><span>Efectivo esperado</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedCashMovements.length}</strong><span>Movimientos</span></span>
+    </div></div>
     <section class="module-board cash-board ${showCashForm ? '' : 'board-expanded'}">
       <article class="panel module-side" ${showCashForm ? '' : 'style="display:none"'}>
         <div class="panel-head"><div><h3>Estado actual</h3><p>Control diario de efectivo</p></div></div>
@@ -1281,18 +1280,17 @@ const cashViewV2 = (ui) => `
 `
 
 const productsView = (ui) => `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Productos</p><h2>Catalogo y stock</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Productos</p><h2>Catalogo y stock</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.scopedProducts.length}</strong><span>Productos</span></span>
+      <span class="panel-inline-stat"><strong>${ui.lowStock.length}</strong><span>Stock bajo</span></span>
+      <span class="panel-inline-stat"><strong>${ui.scopedStockMovements.length}</strong><span>Movimientos</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-board products-board">
       <div class="module-main">
         <article class="panel inventory-panel">
           <div class="panel-head inventory-headline">
             <div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div>
-            <div class="panel-inline-stats">
-              <span class="panel-inline-stat"><strong>${ui.scopedProducts.length}</strong><span>Productos</span></span>
-              <span class="panel-inline-stat"><strong>${ui.lowStock.length}</strong><span>Stock bajo</span></span>
-              <span class="panel-inline-stat"><strong>${ui.scopedStockMovements.length}</strong><span>Movimientos</span></span>
-            </div>
           </div>
           <div class="settings-actions dual-actions">
             ${createToggleButton('product', productFormOpen, 'Agregar producto')}
@@ -1449,13 +1447,12 @@ const purchasesViewV2 = (ui) => `
     const editingReceipt = ui.snapshot.purchaseReceipts.find((receipt) => receipt.id === purchaseEditingId)
     const showPurchaseForm = purchaseFormOpen || Boolean(editingReceipt)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Compras</p><h2>Proveedores y recepcion</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Compras</p><h2>Proveedores y recepcion</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.snapshot.suppliers.length}</strong><span>Proveedores</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedReceipts.length}</strong><span>Recepciones</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><span>Saldo proveedor</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Proveedores</span><strong>${ui.snapshot.suppliers.length}</strong><p>Base de compras disponible</p></article>
-      <article class="metric-card compact"><span>Recepciones</span><strong>${ui.enrichedReceipts.length}</strong><p>Ingresos registrados</p></article>
-      <article class="metric-card compact"><span>Saldo proveedor</span><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><p>Compromiso comercial actual</p></article>
-    </section>
     <section class="module-board purchases-board ${showPurchaseForm ? '' : 'board-expanded'}">
       <article class="panel module-side" ${showPurchaseForm ? '' : 'style="display:none"'}>
         <div class="panel-head"><div><h3>${editingReceipt ? 'Editar compra' : 'Nueva compra'}</h3><p>Ingresa stock y costo del proveedor</p></div></div>
@@ -1530,13 +1527,12 @@ const invoicesViewV2 = (ui) => `
     const editingInvoice = ui.snapshot.invoices.find((invoice) => invoice.id === invoiceEditingId)
     const showInvoiceForm = invoiceFormOpen || Boolean(editingInvoice)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Facturacion</p><h2>Comprobantes</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Facturacion</p><h2>Comprobantes</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.enrichedInvoices.length}</strong><span>Comprobantes</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length}</strong><span>Abiertas</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><span>Monto total</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Comprobantes</span><strong>${ui.enrichedInvoices.length}</strong><p>Emitidos para ${ui.currentBranch?.name || 'esta sucursal'}</p></article>
-      <article class="metric-card compact"><span>Abiertas</span><strong>${ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length}</strong><p>Pendientes de cobro o revision</p></article>
-      <article class="metric-card compact"><span>Monto total</span><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><p>Facturacion visible del filtro</p></article>
-    </section>
     <section class="module-board invoices-board ${showInvoiceForm ? '' : 'board-expanded'}">
       <article class="panel module-side" ${showInvoiceForm ? '' : 'style="display:none"'}><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="invoice">
@@ -1604,13 +1600,12 @@ const ticketsViewV2 = (ui) => `
     const editingTicket = ui.snapshot.tickets.find((ticket) => ticket.id === ticketEditingId)
     const showTicketForm = ticketFormOpen || Boolean(editingTicket)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Tickets</p><h2>Seguimiento operativo</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Tickets</p><h2>Seguimiento operativo</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.enrichedTickets.length}</strong><span>Tickets activos</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'En curso').length}</strong><span>En curso</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'Listo para entregar').length}</strong><span>Listos</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Tickets activos</span><strong>${ui.enrichedTickets.length}</strong><p>Casos visibles de la sucursal</p></article>
-      <article class="metric-card compact"><span>En curso</span><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'En curso').length}</strong><p>Equipos en trabajo</p></article>
-      <article class="metric-card compact"><span>Listos</span><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'Listo para entregar').length}</strong><p>Entregas pendientes</p></article>
-    </section>
     <section class="module-board tickets-board ${showTicketForm ? '' : 'board-expanded'}">
       <article class="panel module-side" ${showTicketForm ? '' : 'style="display:none"'}><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-ticket-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="ticket">
@@ -1712,13 +1707,12 @@ const branchesViewV2 = (ui) => `
     const editingBranch = ui.snapshot.branches.find((branch) => branch.id === branchEditingId)
     const showBranchForm = branchFormOpen || Boolean(editingBranch)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Sucursales</p><h2>Locales y numeracion</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Sucursales</p><h2>Locales y numeracion</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.snapshot.branches.length}</strong><span>Sucursales</span></span>
+      <span class="panel-inline-stat"><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><span>Caja actual</span></span>
+      <span class="panel-inline-stat"><strong>${ui.currentBranch?.name || '-'}</strong><span>Sucursal activa</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Sucursales</span><strong>${ui.snapshot.branches.length}</strong><p>Estructura comercial disponible</p></article>
-      <article class="metric-card compact"><span>Caja actual</span><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><p>Ligada a ${ui.currentBranch?.name || 'sin sucursal'}</p></article>
-      <article class="metric-card compact"><span>Sucursal activa</span><strong>${ui.currentBranch?.name || '-'}</strong><p>Define numeracion y reportes</p></article>
-    </section>
     <section class="module-board branches-board ${showBranchForm ? '' : 'board-expanded'}">
       <article class="panel module-side" ${showBranchForm ? '' : 'style="display:none"'}>
         <div class="panel-head"><div><h3>${editingBranch ? 'Editar sucursal' : 'Nueva sucursal'}</h3><p>La sucursal actual define la numeracion</p></div></div>
@@ -1820,13 +1814,12 @@ const registersViewV2 = (ui) => `
     const editingRegister = ui.snapshot.registers.find((register) => register.id === registerEditingId)
     const showRegisterForm = registerFormOpen || Boolean(editingRegister)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Cajas</p><h2>Cajeros y puestos de cobro</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Cajas</p><h2>Cajeros y puestos de cobro</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.enrichedRegisters.length}</strong><span>Cajas</span></span>
+      <span class="panel-inline-stat"><strong>${ui.currentRegister?.name || '-'}</strong><span>Caja activa</span></span>
+      <span class="panel-inline-stat"><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><span>Cajeros</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Cajas</span><strong>${ui.enrichedRegisters.length}</strong><p>Puestos de cobro configurados</p></article>
-      <article class="metric-card compact"><span>Caja activa</span><strong>${ui.currentRegister?.name || '-'}</strong><p>${ui.currentBranch?.name || 'Sin sucursal'}</p></article>
-      <article class="metric-card compact"><span>Cajeros</span><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><p>Usuarios vinculados a cajas</p></article>
-    </section>
     <section class="module-board registers-board ${showRegisterForm ? '' : 'board-expanded'}">
       <article class="panel module-side" ${showRegisterForm ? '' : 'style="display:none"'}>
         <div class="panel-head"><div><h3>${editingRegister ? 'Editar caja' : 'Nueva caja'}</h3><p>Asignacion por sucursal y cajero</p></div></div>
@@ -1859,13 +1852,12 @@ const registersViewV2 = (ui) => `
 `
 
 const reportsView = (ui) => `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Reportes</p><h2>Indicadores y movimientos</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Reportes</p><h2>Indicadores y movimientos</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${money(ui.reportScopedSales.reduce((sum, sale) => sum + sale.totalAmount, 0))}</strong><span>Ventas filtradas</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.reportScopedInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0))}</strong><span>Facturas filtradas</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.reportScopedCashMovements.reduce((sum, movement) => sum + movement.signedAmount, 0))}</strong><span>Mov. caja</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Ventas filtradas</span><strong>${money(ui.reportScopedSales.reduce((sum, sale) => sum + sale.totalAmount, 0))}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
-      <article class="metric-card compact"><span>Facturas filtradas</span><strong>${money(ui.reportScopedInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0))}</strong><p>Rango actual</p></article>
-      <article class="metric-card compact"><span>Mov. caja</span><strong>${money(ui.reportScopedCashMovements.reduce((sum, movement) => sum + movement.signedAmount, 0))}</strong><p>Caja ${reportRegisterFilter === 'all' ? 'todas' : (ui.enrichedRegisters.find((register) => register.id === reportRegisterFilter)?.name || 'actual')}</p></article>
-    </section>
     <section class="content-grid single-focus">
       <article class="panel"><div class="panel-head"><div><h3>Filtro operativo</h3><p>Separado por sucursal y caja</p></div></div>
         <form class="form-grid compact-form" data-form="report-filter">
@@ -1885,7 +1877,7 @@ const reportsView = (ui) => `
         <div class="priority-item"><strong>Stock</strong><p>${ui.reportScopedStockMovements.length}</p></div>
       </div></article>
       <article class="panel"><div class="panel-head"><div><h3>Movimientos de stock</h3><p>Ingresos y egresos</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedStockMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.type}</strong><p>${movement.quantity} unidades</p><span>${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de stock en este rango.</p>'}</div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Movimientos de caja</h3><p>Ingresos y egresos manuales</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedCashMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${money(movement.signedAmount)} Ã‚Â· ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de caja en este rango.</p>'}</div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Movimientos de caja</h3><p>Ingresos y egresos manuales</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedCashMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${money(movement.signedAmount)} / ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de caja en este rango.</p>'}</div></article>
     </section>
   </section>
 `
