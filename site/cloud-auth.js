@@ -1,9 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0'
 
-const authSessionStorageKey = 'pclaf-control-auth-session'
-const legacyAuthSessionStorageKey = 'pclaf-control-auth-session'
-const authRecoveryStorageKey = 'pclaf-control-auth-recovery'
-
 const normalizeUrl = (url) => String(url || '').trim().replace(/\/+$/, '')
 
 const buildHeaders = (anonKey, extra = {}) => ({
@@ -42,81 +38,19 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   let session = null
   const supabase = createClient(baseUrl, publishableKey, {
     auth: {
-      persistSession: true,
+      persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: true,
     },
   })
 
-  const persistSession = () => {
-    try {
-      if (!session) {
-        sessionStorage.removeItem(authSessionStorageKey)
-        localStorage.removeItem(legacyAuthSessionStorageKey)
-        return
-      }
-      sessionStorage.setItem(authSessionStorageKey, JSON.stringify(session))
-      localStorage.removeItem(legacyAuthSessionStorageKey)
-    } catch {
-      // ignore persistence issues
-    }
-  }
-
-  const readSession = () => {
-    try {
-      const raw = sessionStorage.getItem(authSessionStorageKey)
-      if (!raw) return null
-      const parsed = JSON.parse(raw)
-      if (!parsed?.sessionToken || !parsed?.profile) return null
-      return parsed
-    } catch {
-      return null
-    }
-  }
-
-  const migrateLegacySession = () => {
-    try {
-      const legacyRaw = localStorage.getItem(legacyAuthSessionStorageKey)
-      if (!legacyRaw) return
-      const parsed = JSON.parse(legacyRaw)
-      if (!parsed?.sessionToken || !parsed?.profile) {
-        localStorage.removeItem(legacyAuthSessionStorageKey)
-        return
-      }
-      sessionStorage.setItem(authSessionStorageKey, JSON.stringify(parsed))
-      localStorage.removeItem(legacyAuthSessionStorageKey)
-    } catch {
-      try {
-        localStorage.removeItem(legacyAuthSessionStorageKey)
-      } catch {
-        // ignore cleanup issues
-      }
-    }
-  }
-
+  let recoveryState = null
+  const persistSession = () => {}
+  const readSession = () => session
   const persistRecovery = (payload) => {
-    try {
-      if (!payload) {
-        sessionStorage.removeItem(authRecoveryStorageKey)
-        return
-      }
-      sessionStorage.setItem(authRecoveryStorageKey, JSON.stringify(payload))
-    } catch {
-      // ignore recovery persistence issues
-    }
+    recoveryState = payload || null
   }
-
-  const readRecovery = () => {
-    try {
-      const raw = sessionStorage.getItem(authRecoveryStorageKey)
-      if (!raw) return null
-      const parsed = JSON.parse(raw)
-      if (!parsed?.email) return null
-      return parsed
-    } catch {
-      return null
-    }
-  }
+  const readRecovery = () => recoveryState
 
   const rpc = async (fnName, body = {}) => {
     const response = await fetch(`${baseUrl}/rest/v1/rpc/${fnName}`, {
@@ -202,7 +136,7 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   }
 
   const signOut = async () => {
-    const token = session?.sessionToken || readSession()?.sessionToken || ''
+    const token = session?.sessionToken || ''
     if (token) {
       try {
         await rpc('app_public_sign_out', { p_session_token: token })
@@ -284,8 +218,6 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
       window.history.replaceState({}, '', `${url.pathname}${url.search}`)
     }
   }
-
-  migrateLegacySession()
 
   return {
     getSession: () => session,

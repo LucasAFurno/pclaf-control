@@ -1,9 +1,10 @@
-import { createSupabaseSnapshotAdapter } from './cloud-sync.js?v=20260718c'
-import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260718c'
+import { createSupabaseSnapshotAdapter } from './cloud-sync.js?v=20260719a'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260719a'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
 const defaultCloudUrl = 'https://rfwsnqmjkclxhbmidbkm.supabase.co'
+const canPersistInBrowser = Boolean(globalThis.window?.pclafDesktop?.isDesktop)
 
 const fallbackId = () => `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 const makeId = () => {
@@ -63,6 +64,7 @@ const buildSecuredPinFields = async (pin) => {
 }
 const safeStorage = {
   getItem(key) {
+    if (!canPersistInBrowser) return null
     try {
       return globalThis.localStorage?.getItem(key) ?? null
     } catch {
@@ -70,6 +72,7 @@ const safeStorage = {
     }
   },
   setItem(key, value) {
+    if (!canPersistInBrowser) return false
     try {
       globalThis.localStorage?.setItem(key, value)
       return true
@@ -78,6 +81,7 @@ const safeStorage = {
     }
   },
   removeItem(key) {
+    if (!canPersistInBrowser) return false
     try {
       globalThis.localStorage?.removeItem(key)
       return true
@@ -100,6 +104,22 @@ const permissionCatalog = {
   tickets: 'tickets:view',
   reports: 'reports:view',
   settings: 'settings:view',
+}
+
+const actionPermissions = {
+  customersWrite: 'customers:write',
+  salesWrite: 'sales:write',
+  cashOperate: 'cash:operate',
+  branchesManage: 'branches:manage',
+  registersManage: 'registers:manage',
+  productsWrite: 'products:write',
+  productsAdjust: 'products:adjust',
+  productsTransfer: 'products:transfer',
+  purchasesWrite: 'purchases:write',
+  invoicesWrite: 'invoices:write',
+  ticketsWrite: 'tickets:write',
+  reportsExport: 'reports:export',
+  settingsManage: 'settings:manage',
 }
 
 const moduleCatalog = {
@@ -125,7 +145,7 @@ const modulePresets = {
 }
 
 const roles = [
-  { id: 'role-admin', key: 'admin', name: 'Administrador', permissions: Object.values(permissionCatalog) },
+  { id: 'role-admin', key: 'admin', name: 'Administrador', permissions: [...Object.values(permissionCatalog), ...Object.values(actionPermissions)] },
   {
     id: 'role-cashier',
     key: 'cashier',
@@ -137,6 +157,10 @@ const roles = [
       permissionCatalog.cash,
       permissionCatalog.invoices,
       permissionCatalog.reports,
+      actionPermissions.customersWrite,
+      actionPermissions.salesWrite,
+      actionPermissions.cashOperate,
+      actionPermissions.invoicesWrite,
     ],
   },
   {
@@ -149,6 +173,11 @@ const roles = [
       permissionCatalog.purchases,
       permissionCatalog.tickets,
       permissionCatalog.reports,
+      actionPermissions.productsWrite,
+      actionPermissions.productsAdjust,
+      actionPermissions.productsTransfer,
+      actionPermissions.purchasesWrite,
+      actionPermissions.ticketsWrite,
     ],
   },
 ]
@@ -977,6 +1006,10 @@ export const createBrowserDataStore = (options = {}) => {
   const hasPermission = (permission) => currentRole().permissions.includes(permission)
   const canAccessModule = (moduleKey, permission) => isModuleEnabled(state, moduleKey) && hasPermission(permission)
   const isAuthenticated = () => Boolean(state.session.authenticated && state.session.userId)
+  const ensurePermission = (permission, message = 'No tienes permiso para hacer esta accion.') => {
+    if (!hasPermission(permission)) return { ok: false, message }
+    return null
+  }
 
   const replaceCloudUsers = (users = []) => {
     const normalized = users.map(normalizeCloudUser).filter(Boolean)
@@ -1058,6 +1091,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createCustomer = async (payload) => {
+    const denied = ensurePermission(actionPermissions.customersWrite)
+    if (denied) return denied
     const normalizedName = String(payload.fullName || '').trim()
     if (!normalizedName) return { ok: false, message: 'El cliente necesita un nombre.' }
     const customerDraft = {
@@ -1088,6 +1123,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createBranch = async (payload) => {
+    const denied = ensurePermission(actionPermissions.branchesManage)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertBranch({
         id: null,
@@ -1114,6 +1151,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateBranch = async (branchId, payload) => {
+    const denied = ensurePermission(actionPermissions.branchesManage)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertBranch({
         id: branchId,
@@ -1157,6 +1196,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createRegister = async (payload) => {
+    const denied = ensurePermission(actionPermissions.registersManage)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertRegister({
         id: null,
@@ -1185,6 +1226,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateRegister = async (registerId, payload) => {
+    const denied = ensurePermission(actionPermissions.registersManage)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertRegister({
         id: registerId,
@@ -1211,6 +1254,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const setModuleEnabled = async (moduleKey, enabled) => {
+    const denied = ensurePermission(actionPermissions.settingsManage)
+    if (denied) return denied
     if (!moduleCatalog[moduleKey]) return { ok: false, message: 'Modulo no encontrado.' }
     const current = new Set(state.business.enabledModules || modulePresets.full)
     if (enabled) current.add(moduleKey)
@@ -1236,6 +1281,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const applyModulePreset = async (presetKey) => {
+    const denied = ensurePermission(actionPermissions.settingsManage)
+    if (denied) return denied
     const preset = modulePresets[presetKey]
     if (!preset) return { ok: false, message: 'Preset no encontrado.' }
     if (cloudCoreAdapter) {
@@ -1256,6 +1303,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateBusinessProfile = async (payload) => {
+    const denied = ensurePermission(actionPermissions.settingsManage)
+    if (denied) return denied
     const before = clone(state.business)
     const normalizedPayload = {
       name: String(payload.name || state.business.name || '').trim() || state.business.name,
@@ -1274,6 +1323,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createProduct = async (payload) => {
+    const denied = ensurePermission(actionPermissions.productsWrite)
+    if (denied) return denied
     const branchId = getCurrentBranch(state)?.id || state.branches[0]?.id || ''
     if (!String(payload.name || '').trim()) return { ok: false, message: 'El producto necesita un nombre.' }
     if (cloudCoreAdapter) {
@@ -1326,7 +1377,90 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Producto creado.' }
   }
 
+  const importProducts = async (rows = [], mode = 'create-only') => {
+    const denied = ensurePermission(actionPermissions.productsWrite)
+    if (denied) return denied
+    const branchId = getCurrentBranch(state)?.id || state.branches[0]?.id || ''
+    let created = 0
+    let updated = 0
+    let skipped = 0
+
+    const findExistingProduct = (row) => state.products.find((product) => (
+      (row.sku && String(product.sku || '').trim().toLowerCase() === String(row.sku || '').trim().toLowerCase())
+      || (row.barcode && String(product.barcode || '').trim().toLowerCase() === String(row.barcode || '').trim().toLowerCase())
+    )) || null
+
+    for (const row of rows) {
+      const existing = findExistingProduct(row)
+      if (existing && mode === 'create-only') {
+        skipped += 1
+        continue
+      }
+
+      if (cloudCoreAdapter) {
+        await cloudCoreAdapter.upsertProduct({
+          id: existing?.id || null,
+          name: row.name,
+          sku: row.sku,
+          barcode: row.barcode,
+          stock: Number(row.stock || 0),
+          salePrice: Number(row.salePrice || 0),
+          costPrice: Number(row.costPrice || 0),
+          minStock: Number(row.minStock || 0),
+          category: row.category || 'General',
+          trackStock: row.trackStock !== false,
+          branchId,
+        })
+      } else if (existing) {
+        existing.name = row.name
+        existing.sku = row.sku
+        existing.barcode = row.barcode
+        existing.salePrice = Number(row.salePrice || 0)
+        existing.costPrice = Number(row.costPrice || 0)
+        existing.minStock = Number(row.minStock || 0)
+        existing.category = row.category || 'General'
+        existing.trackStock = row.trackStock !== false
+        existing.stockByBranch = existing.stockByBranch || {}
+        existing.stockByBranch[branchId] = Number(row.stock || 0)
+        syncProductStock(existing)
+      } else {
+        const product = {
+          id: makeId(),
+          name: row.name,
+          sku: row.sku,
+          barcode: row.barcode,
+          stock: Number(row.stock || 0),
+          salePrice: Number(row.salePrice || 0),
+          costPrice: Number(row.costPrice || 0),
+          minStock: Number(row.minStock || 0),
+          category: row.category || 'General',
+          trackStock: row.trackStock !== false,
+          stockByBranch: branchId ? { [branchId]: Number(row.stock || 0) } : {},
+        }
+        syncProductStock(product)
+        state.products.unshift(product)
+      }
+
+      if (existing) updated += 1
+      else created += 1
+    }
+
+    if (cloudCoreAdapter) {
+      await syncFromCloud()
+    } else {
+      pushAudit(state, currentUser().id, 'product_import', null, 'imported', { created, updated, skipped, total: rows.length })
+      save()
+    }
+
+    return {
+      ok: true,
+      message: `Importacion lista. Nuevos: ${created}. Actualizados: ${updated}. Omitidos: ${skipped}.`,
+    }
+  }
+
   const createSupplier = async (payload) => {
+    const denied = ensurePermission(actionPermissions.purchasesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertSupplier({
         id: null,
@@ -1359,6 +1493,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createUser = async (payload) => {
+    const denied = ensurePermission(actionPermissions.settingsManage)
+    if (denied) return denied
     await migrateLegacyPinsIfNeeded()
     const normalizedEmail = String(payload.email || '').trim().toLowerCase()
     const rawPin = String(payload.pin || '')
@@ -1432,6 +1568,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateUser = async (userId, payload) => {
+    const denied = ensurePermission(actionPermissions.settingsManage)
+    if (denied) return denied
     await migrateLegacyPinsIfNeeded()
     const user = state.users.find((entry) => entry.id === userId)
     if (!user) return { ok: false, message: 'Usuario no encontrado.' }
@@ -1477,6 +1615,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const toggleUserActive = async (userId, isActive) => {
+    const denied = ensurePermission(actionPermissions.settingsManage)
+    if (denied) return denied
     const user = state.users.find((entry) => entry.id === userId)
     if (!user) return { ok: false, message: 'Usuario no encontrado.' }
     if (state.session.userId === user.id && !isActive) return { ok: false, message: 'No podes desactivar la sesion actual.' }
@@ -1498,6 +1638,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const openCashSession = async ({ openingAmount, registerId }) => {
+    const denied = ensurePermission(actionPermissions.cashOperate)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.openCashSession({
         registerId: registerId || state.business.currentRegisterId || '',
@@ -1530,6 +1672,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const closeCashSession = async ({ countedAmount, cashSessionId }) => {
+    const denied = ensurePermission(actionPermissions.cashOperate)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.closeCashSession({
         cashSessionId: cashSessionId || getOpenCashSession(state)?.id || null,
@@ -1554,6 +1698,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createCashMovement = async (payload) => {
+    const denied = ensurePermission(actionPermissions.cashOperate)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.createCashMovement({
         cashSessionId: payload.cashSessionId || getOpenCashSession(state)?.id || null,
@@ -1587,6 +1733,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createSale = async (payload) => {
+    const denied = ensurePermission(actionPermissions.salesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       const currentBranch = getCurrentBranch(state)
       const currentRegister = getCurrentRegister(state)
@@ -1651,6 +1799,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateSale = (saleId, payload) => {
+    const denied = ensurePermission(actionPermissions.salesWrite)
+    if (denied) return denied
     const sale = state.sales.find((entry) => entry.id === saleId)
     if (!sale) return { ok: false, message: 'Venta no encontrada.' }
 
@@ -1705,6 +1855,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createInvoiceFromSale = async (saleId) => {
+    const denied = ensurePermission(actionPermissions.invoicesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       const sale = state.sales.find((entry) => entry.id === saleId)
       if (!sale) return { ok: false, message: 'Venta no encontrada.' }
@@ -1741,6 +1893,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const cancelSale = (saleId, reason = 'Anulacion manual') => {
+    const denied = ensurePermission(actionPermissions.salesWrite)
+    if (denied) return denied
     const sale = state.sales.find((entry) => entry.id === saleId)
     if (!sale) return { ok: false, message: 'Venta no encontrada.' }
     if (sale.status === 'cancelled') return { ok: false, message: 'La venta ya esta anulada.' }
@@ -1757,6 +1911,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createReturnFromSale = (saleId, reason = 'Devolucion total') => {
+    const denied = ensurePermission(actionPermissions.salesWrite)
+    if (denied) return denied
     const sale = state.sales.find((entry) => entry.id === saleId)
     if (!sale) return { ok: false, message: 'Venta no encontrada.' }
     if (sale.status === 'returned') return { ok: false, message: 'La venta ya fue devuelta.' }
@@ -1807,6 +1963,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createTicketFromSale = async (saleId) => {
+    const denied = ensurePermission(actionPermissions.ticketsWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       const sale = state.sales.find((entry) => entry.id === saleId)
       if (!sale) return { ok: false, message: 'Venta no encontrada.' }
@@ -1868,6 +2026,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createPurchaseReceipt = async (payload) => {
+    const denied = ensurePermission(actionPermissions.purchasesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertPurchaseReceipt({
         id: null,
@@ -1908,6 +2068,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createStockAdjustment = (payload) => {
+    const denied = ensurePermission(actionPermissions.productsAdjust)
+    if (denied) return denied
     const product = getProduct(state, payload.productId)
     if (!product) return { ok: false, message: 'Producto no encontrado.' }
     const quantity = Number(payload.quantity || 0)
@@ -1934,6 +2096,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const transferStock = (payload) => {
+    const denied = ensurePermission(actionPermissions.productsTransfer)
+    if (denied) return denied
     const product = getProduct(state, payload.productId)
     if (!product) return { ok: false, message: 'Producto no encontrado.' }
     const quantity = Number(payload.quantity || 0)
@@ -1978,6 +2142,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updatePurchaseReceipt = async (receiptId, payload) => {
+    const denied = ensurePermission(actionPermissions.purchasesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertPurchaseReceipt({
         id: receiptId,
@@ -2011,6 +2177,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createInvoice = async (payload) => {
+    const denied = ensurePermission(actionPermissions.invoicesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertDocument({
         id: null,
@@ -2052,6 +2220,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateInvoice = async (invoiceId, payload) => {
+    const denied = ensurePermission(actionPermissions.invoicesWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertDocument({
         id: invoiceId,
@@ -2091,6 +2261,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createTicket = async (payload) => {
+    const denied = ensurePermission(actionPermissions.ticketsWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertDocument({
         id: null,
@@ -2129,6 +2301,8 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateTicket = async (ticketId, payload) => {
+    const denied = ensurePermission(actionPermissions.ticketsWrite)
+    if (denied) return denied
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.upsertDocument({
         id: ticketId,
@@ -2166,6 +2340,20 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const removeEntity = (entity, id) => {
+    const permissionByEntity = {
+      customer: actionPermissions.customersWrite,
+      sale: actionPermissions.salesWrite,
+      product: actionPermissions.productsWrite,
+      supplier: actionPermissions.purchasesWrite,
+      invoice: actionPermissions.invoicesWrite,
+      ticket: actionPermissions.ticketsWrite,
+      cash_movement: actionPermissions.cashOperate,
+      branch: actionPermissions.branchesManage,
+      register: actionPermissions.registersManage,
+      purchase_receipt: actionPermissions.purchasesWrite,
+    }
+    const denied = permissionByEntity[entity] ? ensurePermission(permissionByEntity[entity]) : null
+    if (denied) return denied
     const map = {
       customer: 'customers',
       sale: 'sales',
@@ -2276,6 +2464,7 @@ export const createBrowserDataStore = (options = {}) => {
     applyModulePreset,
     updateBusinessProfile,
     createProduct,
+    importProducts,
     findProductByCode: (code) => findProductByCode(state, code),
     createSupplier,
     createUser,
