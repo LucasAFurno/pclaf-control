@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0'
 
 const authSessionStorageKey = 'pclaf-control-auth-session'
+const legacyAuthSessionStorageKey = 'pclaf-control-auth-session'
 const authRecoveryStorageKey = 'pclaf-control-auth-recovery'
 
 const normalizeUrl = (url) => String(url || '').trim().replace(/\/+$/, '')
@@ -50,10 +51,12 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   const persistSession = () => {
     try {
       if (!session) {
-        localStorage.removeItem(authSessionStorageKey)
+        sessionStorage.removeItem(authSessionStorageKey)
+        localStorage.removeItem(legacyAuthSessionStorageKey)
         return
       }
-      localStorage.setItem(authSessionStorageKey, JSON.stringify(session))
+      sessionStorage.setItem(authSessionStorageKey, JSON.stringify(session))
+      localStorage.removeItem(legacyAuthSessionStorageKey)
     } catch {
       // ignore persistence issues
     }
@@ -61,13 +64,33 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
 
   const readSession = () => {
     try {
-      const raw = localStorage.getItem(authSessionStorageKey)
+      const raw = sessionStorage.getItem(authSessionStorageKey)
       if (!raw) return null
       const parsed = JSON.parse(raw)
       if (!parsed?.sessionToken || !parsed?.profile) return null
       return parsed
     } catch {
       return null
+    }
+  }
+
+  const migrateLegacySession = () => {
+    try {
+      const legacyRaw = localStorage.getItem(legacyAuthSessionStorageKey)
+      if (!legacyRaw) return
+      const parsed = JSON.parse(legacyRaw)
+      if (!parsed?.sessionToken || !parsed?.profile) {
+        localStorage.removeItem(legacyAuthSessionStorageKey)
+        return
+      }
+      sessionStorage.setItem(authSessionStorageKey, JSON.stringify(parsed))
+      localStorage.removeItem(legacyAuthSessionStorageKey)
+    } catch {
+      try {
+        localStorage.removeItem(legacyAuthSessionStorageKey)
+      } catch {
+        // ignore cleanup issues
+      }
     }
   }
 
@@ -261,6 +284,8 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
       window.history.replaceState({}, '', `${url.pathname}${url.search}`)
     }
   }
+
+  migrateLegacySession()
 
   return {
     getSession: () => session,
