@@ -914,6 +914,19 @@ input, select { outline: none; }
   flex-wrap: nowrap;
 }
 
+.topbar-right.is-compact {
+  gap: 10px;
+}
+
+.topbar-right.is-minimal .topbar-controls,
+.topbar-right.is-minimal .topbar-runtime {
+  display: none;
+}
+
+.topbar-right.is-minimal .account-card {
+  min-width: 180px;
+}
+
 .topbar-controls {
   display: grid;
   gap: 8px;
@@ -2009,6 +2022,10 @@ input, select { outline: none; }
     justify-content: flex-start;
     flex-wrap: wrap;
   }
+
+  .topbar-right.is-minimal .account-card {
+    min-width: 0;
+  }
 }
 
 @media (max-width: 880px) {
@@ -2265,6 +2282,10 @@ input, select { outline: none; }
     grid-template-columns: 1fr;
     gap: 10px;
     width: 100%;
+  }
+
+  .topbar-right.is-minimal {
+    grid-template-columns: 1fr;
   }
 
   .topbar-controls {

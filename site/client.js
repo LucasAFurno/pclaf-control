@@ -487,6 +487,10 @@ const getUiState = () => {
   const scopedSales = snapshot.sales.filter((sale) => sale.branchId === currentBranch?.id && (reportRegisterFilter === 'all' || sale.registerId === reportRegisterFilter))
   const scopedInvoices = snapshot.invoices.filter((invoice) => invoice.branchId === currentBranch?.id)
   const scopedTickets = snapshot.tickets.filter((ticket) => ticket.branchId === currentBranch?.id)
+  const scopedReceipts = snapshot.purchaseReceipts.filter((receipt) => {
+    const product = productMap.get(receipt.productId)
+    return !product?.branchId || product.branchId === currentBranch?.id || reportRegisterFilter === 'all'
+  })
   const scopedCashSessions = snapshot.cashSessions.filter((session) => session.branchId === currentBranch?.id && (reportRegisterFilter === 'all' || session.registerId === reportRegisterFilter))
   const scopedCashMovements = snapshot.cashMovements.filter((movement) => movement.branchId === currentBranch?.id && (reportRegisterFilter === 'all' || movement.registerId === reportRegisterFilter))
   const salesById = new Map(snapshot.sales.map((sale) => [sale.id, sale]))
@@ -512,7 +516,14 @@ const getUiState = () => {
   const reportScopedSales = filteredSales.filter((sale) => isWithinDateRange(sale.soldAt, reportDateFrom, reportDateTo))
   const enrichedInvoices = byRecentDate(scopedInvoices, 'dueDate').map((invoice) => ({ ...invoice, customerName: customerMap.get(invoice.customerId)?.fullName || 'Sin cliente', branchName: branchMap.get(invoice.branchId)?.name || 'Sucursal' }))
   const enrichedTickets = byRecentDate(scopedTickets, 'updatedAt').map((ticket) => ({ ...ticket, customerName: customerMap.get(ticket.customerId)?.fullName || 'Sin cliente', branchName: branchMap.get(ticket.branchId)?.name || 'Sucursal' }))
+  const enrichedScopedReceipts = byRecentDate(scopedReceipts, 'receivedAt').map((receipt) => ({
+    ...receipt,
+    supplierName: supplierMap.get(receipt.supplierId)?.name || 'Proveedor',
+    productName: productMap.get(receipt.productId)?.name || 'Producto',
+  }))
   const reportScopedInvoices = enrichedInvoices.filter((invoice) => isWithinDateRange(invoice.dueDate, reportDateFrom, reportDateTo))
+  const reportScopedTickets = enrichedTickets.filter((ticket) => isWithinDateRange(ticket.updatedAt, reportDateFrom, reportDateTo))
+  const reportScopedReceipts = enrichedScopedReceipts.filter((receipt) => isWithinDateRange(receipt.receivedAt, reportDateFrom, reportDateTo))
   const reportScopedCashMovements = scopedCashMovements.filter((movement) => isWithinDateRange(movement.createdAt, reportDateFrom, reportDateTo))
   const reportScopedStockMovements = scopedStockMovements.filter((movement) => isWithinDateRange(movement.createdAt, reportDateFrom, reportDateTo))
 
@@ -564,6 +575,8 @@ const getUiState = () => {
     reportDateTo,
     reportScopedSales,
     reportScopedInvoices,
+    reportScopedTickets,
+    reportScopedReceipts,
     reportScopedCashMovements,
     reportScopedStockMovements,
     enrichedRegisters: snapshot.registers.map((register) => ({
@@ -2275,6 +2288,13 @@ const renderApp = (ui) => {
   const lowStockCount = ui.lowStock.length
   const pendingInvoiceCount = ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length
   const notificationCount = lowStockCount + pendingInvoiceCount + (ui.openCashSession ? 0 : 1)
+  const showStatusChip = ['dashboard', 'ventas', 'caja'].includes(activeSection)
+  const showSessionControls = ['dashboard', 'ajustes', 'mi-admin'].includes(activeSection)
+  const topbarRightClass = [
+    'topbar-right',
+    showStatusChip ? '' : 'is-compact',
+    showSessionControls ? '' : 'is-minimal',
+  ].filter(Boolean).join(' ')
 
   return `
     <div class="app-shell">
@@ -2295,24 +2315,24 @@ const renderApp = (ui) => {
               <datalist id="nav-search-options">${searchOptions}</datalist>
             </form>
           </div>
-          <div class="topbar-right">
-            <button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="Caja ${statusTitle}">
+          <div class="${topbarRightClass}">
+            ${showStatusChip ? `<button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="Caja ${statusTitle}">
               <span class="status-led" aria-hidden="true"></span>
               <div class="status-copy"><strong>Caja</strong><span>${statusTitle}${statusHint ? ` · ${statusHint}` : ''}</span></div>
-            </button>
+            </button>` : ''}
             ${isDevEnvironment ? `<span class="topbar-runtime is-dev">${environmentLabel}</span>` : ''}
             <button class="account-card compact-meta" type="button" data-section="${ui.user?.isOwner ? 'mi-admin' : 'ajustes'}" aria-label="Abrir perfil">
               <span class="account-avatar">${userInitials}</span>
               <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` · ${notificationCount} alertas` : ''}</span></span>
             </button>
-            <div class="topbar-controls">
+            ${showSessionControls ? `<div class="topbar-controls">
               <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
                 <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
                 <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
               </button>
               ${isLocalMode ? '<span class="topbar-runtime">Local</span>' : ''}
               <button class="inline-action danger topbar-logout" type="button" data-action="sign-out">Salir</button>
-            </div>
+            </div>` : ''}
           </div>
         </header>
         <main class="page">${renderCurrentView(ui)}</main>
