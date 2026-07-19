@@ -2236,7 +2236,7 @@ const renderCurrentView = (ui) => {
     case 'tickets': return ticketsViewV2(ui)
     case 'reportes': return reportsView(ui)
     case 'mi-admin': return ui.user?.isOwner ? ownerAdminViewV2(ui) : settingsViewV2(ui)
-    case 'ajustes': return ui.user?.isOwner ? settingsViewV2(ui) : basicSettingsView(ui)
+    case 'ajustes': return basicSettingsView(ui)
     default: return dashboardView(ui)
   }
 }

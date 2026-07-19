@@ -1478,6 +1478,11 @@ input, select { outline: none; }
   align-items: start;
 }
 
+.module-board > .module-main:only-child,
+.module-board > .panel:only-child {
+  grid-column: 1 / -1;
+}
+
 .module-side {
   position: sticky;
   top: 24px;
@@ -1486,6 +1491,7 @@ input, select { outline: none; }
 .module-main {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 
 .compact-form-grid {
@@ -1592,6 +1598,7 @@ input, select { outline: none; }
 .data-table {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .data-head,
@@ -1600,6 +1607,7 @@ input, select { outline: none; }
   grid-template-columns: 1.7fr 1fr 1fr 1fr 0.9fr;
   gap: 12px;
   align-items: center;
+  min-width: 0;
 }
 
 .sales-table .data-head,
@@ -1632,6 +1640,7 @@ input, select { outline: none; }
 .data-row span,
 .data-head span {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .data-row span:last-child {
@@ -1903,6 +1912,7 @@ input, select { outline: none; }
   border-radius: 16px;
   padding: 16px 18px;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  min-width: 0;
 }
 
 .list-row:hover,
@@ -1920,6 +1930,8 @@ input, select { outline: none; }
 .alert-card p {
   margin: 4px 0 0;
   font-size: 0.84rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .right { text-align: right; }
@@ -2054,13 +2066,15 @@ input, select { outline: none; }
   }
 
   .nav-square {
-    min-height: 58px;
-    gap: 6px;
-    padding: 8px 4px;
+    min-height: 64px;
+    gap: 5px;
+    padding: 8px 6px;
   }
 
   .nav-label {
-    font-size: 0.66rem;
+    font-size: 0.64rem;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
   }
 
   .topbar-center {
@@ -2215,7 +2229,7 @@ input, select { outline: none; }
   }
 
   .sidebar-nav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .topbar-left .kicker {
@@ -2268,6 +2282,14 @@ input, select { outline: none; }
 
   .status-chip .status-copy span {
     font-size: 0.66rem;
+  }
+
+  .section-header {
+    padding: 16px 18px;
+  }
+
+  .section-header h2 {
+    font-size: 1.5rem;
   }
 
   .list-row,
