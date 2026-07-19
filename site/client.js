@@ -86,6 +86,8 @@ let cloudSyncBusy = false
 let customerFormOpen = false
 let productFormOpen = false
 let supplierFormOpen = false
+let invoiceFormOpen = false
+let ticketFormOpen = false
 let commerceContext = null
 let setupStatus = null
 let authInstanceKey = ''
@@ -1351,6 +1353,7 @@ const purchasesViewV2 = (ui) => `
 const invoicesView = (ui) => `
   ${(() => {
     const editingInvoice = ui.snapshot.invoices.find((invoice) => invoice.id === invoiceEditingId)
+    const showInvoiceForm = invoiceFormOpen || Boolean(editingInvoice)
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Facturacion</p><h2>Comprobantes</h2></div></div>
     <section class="content-grid single-focus">
@@ -1389,7 +1392,7 @@ const invoicesViewV2 = (ui) => `
       <article class="metric-card compact"><span>Monto total</span><strong>${money(ui.enrichedInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount || 0), 0))}</strong><p>FacturaciÃ³n visible del filtro</p></article>
     </section>
     <section class="module-board invoices-board">
-      <article class="panel module-side"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div></div>
+      <article class="panel module-side" ${showInvoiceForm ? '' : 'style="display:none"'}><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="invoice">
           <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
           <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
@@ -1401,12 +1404,13 @@ const invoicesViewV2 = (ui) => `
           <label>Estado<select name="status"><option ${editingInvoice?.status === 'Emitida' || !editingInvoice ? 'selected' : ''}>Emitida</option><option ${editingInvoice?.status === 'En revision' ? 'selected' : ''}>En revision</option><option ${editingInvoice?.status === 'Cobrada' ? 'selected' : ''}>Cobrada</option></select></label>
           <label>Estado fiscal<select name="fiscalStatus"><option ${editingInvoice?.fiscalStatus === 'Pendiente' || !editingInvoice ? 'selected' : ''}>Pendiente</option><option ${editingInvoice?.fiscalStatus === 'Listo para enviar' ? 'selected' : ''}>Listo para enviar</option><option ${editingInvoice?.fiscalStatus === 'Aprobado' ? 'selected' : ''}>Aprobado</option><option ${editingInvoice?.fiscalStatus === 'Rechazado' ? 'selected' : ''}>Rechazado</option><option ${editingInvoice?.fiscalStatus === 'Anulado' ? 'selected' : ''}>Anulado</option></select></label>
           <button type="submit">${editingInvoice ? 'Guardar cambios' : 'Guardar factura'}</button>
+          ${!editingInvoice ? '<button type="button" class="ghost-action" data-action="close-invoice-form">Cancelar</button>' : ''}
           ${editingInvoice ? '<button type="button" class="danger-action" data-action="cancel-invoice-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>
       <div class="module-main">
         <article class="panel">
-          <div class="panel-head"><div><h3>Estado fiscal</h3><p>Seguimiento comercial y numeracion</p></div></div>
+          <div class="panel-head"><div><h3>Estado fiscal</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${editingInvoice ? '' : createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
           <div class="priority-list sales-kpis">
             <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
             <div class="priority-item"><strong>Ultimo estado</strong><p>${ui.enrichedInvoices[0]?.fiscalStatus || 'Sin comprobantes'}</p></div>
@@ -1425,6 +1429,7 @@ const invoicesViewV2 = (ui) => `
 const ticketsView = (ui) => `
   ${(() => {
     const editingTicket = ui.snapshot.tickets.find((ticket) => ticket.id === ticketEditingId)
+    const showTicketForm = ticketFormOpen || Boolean(editingTicket)
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Tickets</p><h2>Seguimiento operativo</h2></div></div>
     <section class="content-grid single-focus">
@@ -1460,7 +1465,7 @@ const ticketsViewV2 = (ui) => `
       <article class="metric-card compact"><span>Listos</span><strong>${ui.enrichedTickets.filter((ticket) => ticket.status === 'Listo para entregar').length}</strong><p>Entregas pendientes</p></article>
     </section>
     <section class="module-board tickets-board">
-      <article class="panel module-side"><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div></div>
+      <article class="panel module-side" ${showTicketForm ? '' : 'style="display:none"'}><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-ticket-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="ticket">
           <input type="hidden" name="ticketId" value="${editingTicket?.id || ''}" />
           <label>Numero<input type="text" name="number" value="${editingTicket?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
@@ -1469,6 +1474,7 @@ const ticketsViewV2 = (ui) => `
           <label>Estado<select name="status"><option ${editingTicket?.status === 'Recibido' || !editingTicket ? 'selected' : ''}>Recibido</option><option ${editingTicket?.status === 'En curso' ? 'selected' : ''}>En curso</option><option ${editingTicket?.status === 'Esperando aprobacion' ? 'selected' : ''}>Esperando aprobacion</option><option ${editingTicket?.status === 'Listo para entregar' ? 'selected' : ''}>Listo para entregar</option></select></label>
           <label class="full-span">Detalle<input type="text" name="issue" value="${editingTicket?.issue || ''}" required /></label>
           <button type="submit">${editingTicket ? 'Guardar cambios' : 'Guardar ticket'}</button>
+          ${!editingTicket ? '<button type="button" class="ghost-action" data-action="close-ticket-form">Cancelar</button>' : ''}
           ${editingTicket ? '<button type="button" class="danger-action" data-action="cancel-ticket-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>
@@ -1481,7 +1487,7 @@ const ticketsViewV2 = (ui) => `
             <div class="priority-item"><strong>Cliente reciente</strong><p>${ui.enrichedTickets[0]?.customerName || 'Sin actividad'}</p></div>
           </div>
         </article>
-        <article class="panel"><div class="panel-head"><div><h3>Tickets activos</h3><p>Historial rapido</p></div></div>
+        <article class="panel"><div class="panel-head"><div><h3>Tickets activos</h3><p>Historial rapido</p></div><div class="settings-actions">${editingTicket ? '' : createToggleButton('ticket', showTicketForm, 'Agregar ticket')}</div></div>
           ${dataTable(['Ticket', 'Cliente', 'Sucursal', 'Actualizado', 'Accion'], ui.enrichedTickets.map((ticket) => `<div class="data-row"><span>${ticket.number}<br /><small>${ticket.device}</small></span><span>${ticket.customerName}<br /><small>${ticket.status}</small></span><span>${ticket.branchName}</span><span>${ticket.updatedAt}</span><span>${ticketActionButtons(ticket)}</span></div>`))}
         </article>
       </div>
@@ -2511,6 +2517,7 @@ const handleSubmit = async (event) => {
       : await store.createInvoice({ number: formData.get('number'), customerId: formData.get('customerId'), totalAmount: formData.get('totalAmount'), kind: formData.get('kind'), type: formData.get('type'), dueDate: formData.get('dueDate'), status: formData.get('status'), fiscalStatus: formData.get('fiscalStatus'), branchId: currentBranchId })
     feedbackMessage = result.message || ''
     invoiceEditingId = ''
+    invoiceFormOpen = false
   }
   if (kind === 'ticket') {
     const currentBranchId = getUiState().currentBranch?.id
@@ -2519,6 +2526,7 @@ const handleSubmit = async (event) => {
       : await store.createTicket({ number: formData.get('number'), customerId: formData.get('customerId'), device: formData.get('device'), issue: formData.get('issue'), status: formData.get('status'), branchId: currentBranchId })
     feedbackMessage = result.message || ''
     ticketEditingId = ''
+    ticketFormOpen = false
   }
   if (kind === 'open-cash') {
     const result = await store.openCashSession({ registerId: formData.get('registerId'), openingAmount: formData.get('openingAmount') })
@@ -2639,6 +2647,24 @@ const bindEvents = () => {
   })
   for (const button of document.querySelectorAll('[data-action="close-supplier-form"]')) button.addEventListener('click', () => {
     supplierFormOpen = false
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-invoice-form"]')) button.addEventListener('click', () => {
+    invoiceFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-invoice-form"]')) button.addEventListener('click', () => {
+    invoiceFormOpen = false
+    invoiceEditingId = ''
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-ticket-form"]')) button.addEventListener('click', () => {
+    ticketFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-ticket-form"]')) button.addEventListener('click', () => {
+    ticketFormOpen = false
+    ticketEditingId = ''
     render()
   })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
