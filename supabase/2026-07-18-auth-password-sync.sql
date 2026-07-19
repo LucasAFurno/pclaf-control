@@ -15,7 +15,7 @@ begin
     raise exception 'not_authenticated';
   end if;
 
-  if nullif(trim(coalesce(p_new_pin, '')), '') is null or length(trim(p_new_pin)) < 4 then
+  if nullif(trim(coalesce(p_new_pin, '')), '') is null or length(trim(p_new_pin)) < 6 then
     raise exception 'owner_pin_too_short';
   end if;
 

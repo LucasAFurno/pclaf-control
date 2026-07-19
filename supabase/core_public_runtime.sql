@@ -238,7 +238,7 @@ begin
   if nullif(trim(coalesce(p_owner_email, '')), '') is null then
     raise exception 'owner_email_required';
   end if;
-  if nullif(trim(coalesce(p_owner_pin, '')), '') is null or length(trim(p_owner_pin)) < 4 then
+  if nullif(trim(coalesce(p_owner_pin, '')), '') is null or length(trim(p_owner_pin)) < 6 then
     raise exception 'owner_pin_too_short';
   end if;
 

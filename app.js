@@ -83,6 +83,9 @@ let saleDraftQuantities = {}
 let saleQuickAddCode = ''
 let topbarSearch = ''
 let cloudSyncBusy = false
+let customerFormOpen = false
+let productFormOpen = false
+let supplierFormOpen = false
 let commerceContext = null
 let setupStatus = null
 let authInstanceKey = ''
@@ -157,6 +160,8 @@ const mapPublicAuthError = (message, context = 'login') => {
     recovery_session_missing: 'El enlace de recuperacion ya no es valido. Pide uno nuevo.',
     'password should be at least 6 characters.': 'La clave debe tener al menos 6 caracteres.',
     password_too_short: 'La clave debe tener al menos 6 caracteres.',
+    'column "status" of relation "branches" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
+    'column "status" of relation "registers" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
   }
   return messages[normalized] || message
 }
@@ -207,6 +212,7 @@ const inventoryTable = (rows) => `
 `
 
 const actionButton = (entity, id) => `<button type="button" class="inline-action" data-delete="${entity}" data-id="${id}">Eliminar</button>`
+const createToggleButton = (key, isOpen, label = 'Agregar') => `<button type="button" class="${isOpen ? 'ghost-action' : 'primary-action'}" data-action="${isOpen ? `close-${key}-form` : `open-${key}-form`}">${isOpen ? 'Cerrar' : label}</button>`
 const saleActionButtons = (sale) => `
   <div class="inline-action-group sale-actions-compact">
     <button type="button" class="inline-action is-strong" data-sale-action="edit" data-id="${sale.id}">Editar</button>
@@ -753,7 +759,7 @@ const loginViewV2 = (ui) => `
               <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
               <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
               <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
-              <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+              <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 6 caracteres" autocomplete="new-password" required /></label>
             </div>
             <input type="hidden" name="instanceKey" value="" />
             <input type="hidden" name="ownerLogin" value="" />
@@ -791,7 +797,7 @@ const setupView = (ui) => `
           <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
           <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
           <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
-          <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 4 caracteres" autocomplete="new-password" required /></label>
+          <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 6 caracteres" autocomplete="new-password" required /></label>
         </div>
         <input type="hidden" name="instanceKey" value="" />
         <input type="hidden" name="ownerLogin" value="" />
@@ -894,16 +900,6 @@ const customersViewV2 = (ui) => `
       <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genericos o rapidos</p></article>
     </section>
     <section class="module-board customers-board">
-      <article class="panel module-side"><div class="panel-head"><div><h3>Alta de cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
-        <form class="form-grid" data-form="customer">
-          <label>Nombre<input type="text" name="fullName" required /></label>
-          <label>Telefono<input type="text" name="phone" required /></label>
-          <label>Email<input type="email" name="email" /></label>
-          <label>Saldo inicial<input type="number" name="balance" min="0" value="0" required /></label>
-          <label class="full-span">Etiqueta<input type="text" name="tag" placeholder="Mayorista, taller, mostrador..." required /></label>
-          <button type="submit">Guardar cliente</button>
-        </form>
-      </article>
       <div class="module-main">
         <article class="panel">
           <div class="panel-head"><div><h3>Resumen comercial</h3><p>Vista rapida de la cartera actual</p></div></div>
@@ -913,9 +909,20 @@ const customersViewV2 = (ui) => `
             <div class="priority-item"><strong>Listos para venta</strong><p>${ui.snapshot.customers.length ? 'Base disponible' : 'Sin clientes cargados'}</p></div>
           </div>
         </article>
-        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Preparado para cuentas corrientes</p></div></div>
+        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
+          <div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div>
           ${dataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers.map((customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`))}
         </article>
+        ${customerFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
+          <form class="form-grid" data-form="customer">
+            <label>Nombre<input type="text" name="fullName" required /></label>
+            <label>Telefono<input type="text" name="phone" required /></label>
+            <label>Email<input type="email" name="email" /></label>
+            <label>Saldo inicial<input type="number" name="balance" min="0" value="0" required /></label>
+            <label class="full-span">Etiqueta<input type="text" name="tag" placeholder="Mayorista, taller, mostrador..." required /></label>
+            <button type="submit">Guardar cliente</button>
+          </form>
+        </article>` : ''}
       </div>
     </section>
   </section>
@@ -1180,24 +1187,6 @@ const productsView = (ui) => `
       </article>
     </section>
     <section class="module-board products-board">
-      <article class="panel module-side"><div class="panel-head"><div><h3>Alta de producto</h3><p>Carga simple para empezar rapido</p></div></div>
-        <form class="form-grid" data-form="product">
-          <label>Nombre<input type="text" name="name" required /></label>
-          <label>SKU<input type="text" name="sku" required /></label>
-          <label>Codigo de barras<input type="text" class="scanner-input" name="barcode" placeholder="Escanea o escribe codigo" /></label>
-          <label>Stock<input type="number" name="stock" min="0" required /></label>
-          <label>Precio venta<input type="number" name="salePrice" min="0" required /></label>
-          <label>Costo<input type="number" name="costPrice" min="0" required /></label>
-          <label>Minimo<input type="number" name="minStock" min="0" required /></label>
-          <label>Categoria<input type="text" name="category" required /></label>
-          <label class="field-check full-span"><input type="checkbox" name="trackStock" checked /><span class="field-check-box" aria-hidden="true"></span><span>Controlar stock de este articulo</span></label>
-          <div class="full-span inline-action-group scanner-row">
-            <button type="button" class="inline-action" data-action="focus-product-barcode">Usar lector</button>
-            <span class="scanner-inline-copy">Captura el codigo desde un lector USB o escribilo manualmente.</span>
-          </div>
-          <button type="submit">Guardar producto</button>
-        </form>
-      </article>
       <div class="module-main">
         <div class="compact-form-grid">
           <article class="panel">
@@ -1223,6 +1212,7 @@ const productsView = (ui) => `
         </div>
         <article class="panel inventory-panel">
           <div class="panel-head inventory-headline"><div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div></div>
+          <div class="settings-actions">${createToggleButton('product', productFormOpen, 'Agregar producto')}</div>
           ${inventoryTable(ui.scopedProducts.map((product) => `
             <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
               <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
@@ -1234,6 +1224,24 @@ const productsView = (ui) => `
             </div>
           `))}
         </article>
+        ${productFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo producto</h3><p>Carga simple para empezar rapido</p></div></div>
+          <form class="form-grid" data-form="product">
+            <label>Nombre<input type="text" name="name" required /></label>
+            <label>SKU<input type="text" name="sku" required /></label>
+            <label>Codigo de barras<input type="text" class="scanner-input" name="barcode" placeholder="Escanea o escribe codigo" /></label>
+            <label>Stock<input type="number" name="stock" min="0" required /></label>
+            <label>Precio venta<input type="number" name="salePrice" min="0" required /></label>
+            <label>Costo<input type="number" name="costPrice" min="0" required /></label>
+            <label>Minimo<input type="number" name="minStock" min="0" required /></label>
+            <label>Categoria<input type="text" name="category" required /></label>
+            <label class="field-check full-span"><input type="checkbox" name="trackStock" checked /><span class="field-check-box" aria-hidden="true"></span><span>Controlar stock de este articulo</span></label>
+            <div class="full-span inline-action-group scanner-row">
+              <button type="button" class="inline-action" data-action="focus-product-barcode">Usar lector</button>
+              <span class="scanner-inline-copy">Captura el codigo desde un lector USB o escribilo manualmente.</span>
+            </div>
+            <button type="submit">Guardar producto</button>
+          </form>
+        </article>` : ''}
       </div>
     </section>
     <section class="content-grid single-focus">
@@ -1300,17 +1308,6 @@ const purchasesViewV2 = (ui) => `
       <article class="metric-card compact"><span>Saldo proveedor</span><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><p>Compromiso comercial actual</p></article>
     </section>
     <section class="module-board purchases-board">
-      <article class="panel module-side"><div class="panel-head"><div><h3>Alta de proveedor</h3><p>Base comercial de compras</p></div></div>
-        <form class="form-grid" data-form="supplier">
-          <label>Empresa<input type="text" name="name" required /></label>
-          <label>Contacto<input type="text" name="contact" required /></label>
-          <label>Telefono<input type="text" name="phone" required /></label>
-          <label>Saldo pendiente<input type="number" name="balance" min="0" required /></label>
-          <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
-          <label>Categoria<input type="text" name="category" required /></label>
-          <button type="submit">Guardar proveedor</button>
-        </form>
-      </article>
       <div class="module-main">
         <article class="panel"><div class="panel-head"><div><h3>${editingReceipt ? 'Editar recepcion' : 'Recepcion de compra'}</h3><p>${editingReceipt ? 'Recalcula stock y saldo del proveedor' : 'Ingresa stock y costo'}</p></div></div>
           <form class="form-grid compact-form" data-form="purchase-receipt">
@@ -1329,10 +1326,22 @@ const purchasesViewV2 = (ui) => `
           <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Con impacto en stock</p></div></div>
             ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Saldos y categorias</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Base visible para comprar y reponer</p></div></div>
+            <div class="settings-actions">${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}</div>
             ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
           </article>
         </div>
+        ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div></div>
+          <form class="form-grid" data-form="supplier">
+            <label>Empresa<input type="text" name="name" required /></label>
+            <label>Contacto<input type="text" name="contact" required /></label>
+            <label>Telefono<input type="text" name="phone" required /></label>
+            <label>Saldo pendiente<input type="number" name="balance" min="0" required /></label>
+            <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
+            <label>Categoria<input type="text" name="category" required /></label>
+            <button type="submit">Guardar proveedor</button>
+          </form>
+        </article>` : ''}
       </div>
     </section>
   </section>
@@ -1904,7 +1913,7 @@ const settingsViewV2 = (ui) => `
             <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
             <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
             <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" ${canManageUsers ? 'required' : 'disabled'} /></label>
-            <label>Clave${editingUser ? ' nueva' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Solo si queres cambiarla' : 'Minimo 4 caracteres'}" ${editingUser ? (canManageUsers ? '' : 'disabled') : (canManageUsers ? 'required' : 'disabled')} /></label>
+            <label>Clave${editingUser ? ' nueva' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Solo si queres cambiarla' : 'Minimo 6 caracteres'}" ${editingUser ? (canManageUsers ? '' : 'disabled') : (canManageUsers ? 'required' : 'disabled')} /></label>
             <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
             <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
             <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
@@ -1957,10 +1966,10 @@ const basicSettingsView = (ui) => `
           <div class="priority-item"><strong>Estado</strong><p>${ui.snapshot.meta.syncStatus === 'online' ? 'Cloud operativa' : (ui.snapshot.meta.syncStatus || 'offline')}</p></div>
         </div>
       </article>
-      <article class="panel"><div class="panel-head"><div><h3>Seguridad</h3><p>Lo tecnico queda oculto para usuarios del comercio</p></div></div>
+      <article class="panel"><div class="panel-head"><div><h3>Seguridad</h3><p>Acceso simple y controlado para cada cuenta</p></div></div>
         <div class="timeline-list">
-          <div class="timeline-item"><strong>Conexion protegida</strong><p>No mostramos URL de base, publishable key ni configuracion cloud.</p><span>Solo el propietario accede a esa capa.</span></div>
-          <div class="timeline-item"><strong>Permisos centralizados</strong><p>Los roles, usuarios y niveles de acceso los administra el propietario del comercio.</p><span>Esta cuenta usa solo lo necesario para operar.</span></div>
+          <div class="timeline-item"><strong>Acceso seguro</strong><p>Cada usuario entra con su cuenta y ve solo lo necesario para trabajar.</p><span>La informacion del negocio queda ordenada y protegida.</span></div>
+          <div class="timeline-item"><strong>Permisos por usuario</strong><p>El administrador decide que puede usar cada persona dentro del sistema.</p><span>Asi cada cuenta opera solo sobre sus tareas.</span></div>
           <div class="timeline-item"><strong>Soporte directo</strong><p>Si algo falla o necesitas ayuda, te llevamos al WhatsApp oficial.</p><span>Sin pasar por menus tecnicos.</span></div>
         </div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Hablar con soporte</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
@@ -2387,6 +2396,7 @@ const handleSubmit = async (event) => {
   if (kind === 'customer') {
     const result = await store.createCustomer({ fullName: formData.get('fullName'), phone: formData.get('phone'), email: formData.get('email'), balance: formData.get('balance'), tag: formData.get('tag') })
     feedbackMessage = result.message || ''
+    customerFormOpen = false
   }
   if (kind === 'branch') {
     const result = formData.get('branchId')
@@ -2479,6 +2489,7 @@ const handleSubmit = async (event) => {
   if (kind === 'product') {
     const result = await store.createProduct({ name: formData.get('name'), sku: formData.get('sku'), barcode: formData.get('barcode'), stock: formData.get('stock'), salePrice: formData.get('salePrice'), costPrice: formData.get('costPrice'), minStock: formData.get('minStock'), category: formData.get('category'), trackStock: formData.get('trackStock') === 'on' })
     feedbackMessage = result.message || ''
+    productFormOpen = false
   }
   if (kind === 'stock-adjustment') {
     const result = store.createStockAdjustment({ productId: formData.get('productId'), quantity: formData.get('quantity'), note: formData.get('note') })
@@ -2491,6 +2502,7 @@ const handleSubmit = async (event) => {
   if (kind === 'supplier') {
     const result = await store.createSupplier({ name: formData.get('name'), contact: formData.get('contact'), phone: formData.get('phone'), balance: formData.get('balance'), lastDelivery: formData.get('lastDelivery'), category: formData.get('category') })
     feedbackMessage = result.message || ''
+    supplierFormOpen = false
   }
   if (kind === 'invoice') {
     const currentBranchId = getUiState().currentBranch?.id
@@ -2603,6 +2615,30 @@ const bindEvents = () => {
     authViewMode = 'landing'
     loginMessage = ''
     signupMessage = ''
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-customer-form"]')) button.addEventListener('click', () => {
+    customerFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-customer-form"]')) button.addEventListener('click', () => {
+    customerFormOpen = false
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-product-form"]')) button.addEventListener('click', () => {
+    productFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-product-form"]')) button.addEventListener('click', () => {
+    productFormOpen = false
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-supplier-form"]')) button.addEventListener('click', () => {
+    supplierFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-supplier-form"]')) button.addEventListener('click', () => {
+    supplierFormOpen = false
     render()
   })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
