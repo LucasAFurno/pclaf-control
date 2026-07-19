@@ -102,6 +102,7 @@ let hardwareScanBuffer = ''
 let hardwareScanTimer = null
 let hardwareScanListenerBound = false
 let feedbackTimer = null
+let pendingScrollTop = false
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -109,6 +110,21 @@ const persistInstanceKey = (value) => {
   authInstanceKey = normalizeInstanceKey(value)
   safeStorage.setItem(instanceStorageKey, authInstanceKey)
   return authInstanceKey
+}
+
+const requestScrollTop = () => {
+  pendingScrollTop = true
+}
+
+const flushScrollTop = () => {
+  if (!pendingScrollTop) return
+  pendingScrollTop = false
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    document.querySelector('.page')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' })
+  })
 }
 
 const loadCloudAccess = async (sessionPayload = null) => {
@@ -2313,6 +2329,7 @@ const render = () => {
   markBootComplete()
   bindEvents()
   clearFeedbackSoon()
+  flushScrollTop()
 }
 
 const readSiteCloudConfig = async () => {
@@ -2584,6 +2601,7 @@ const handleSubmit = async (event) => {
       activeSection = 'dashboard'
       saveSection()
       feedbackMessage = 'Sesion iniciada correctamente.'
+      requestScrollTop()
     } catch (error) {
       loginMessage = mapPublicAuthError(error.message, 'login')
     }
@@ -2604,6 +2622,7 @@ const handleSubmit = async (event) => {
       authViewMode = 'login'
       feedbackMessage = result.message || 'Clave actualizada correctamente.'
       loginMessage = ''
+      requestScrollTop()
     } catch (error) {
       loginMessage = mapPublicAuthError(error.message, 'login')
     }
@@ -2637,6 +2656,7 @@ const handleSubmit = async (event) => {
       activeSection = 'dashboard'
       saveSection()
       feedbackMessage = 'Cuenta creada y lista para operar.'
+      requestScrollTop()
     } catch (error) {
       signupMessage = mapPublicAuthError(error.message, 'signup')
     }
@@ -2701,6 +2721,7 @@ const handleSubmit = async (event) => {
       topbarSearch = ''
       saveSection()
       feedbackMessage = `Mostrando ${match.label}.`
+      requestScrollTop()
       render()
       return
     }
@@ -2866,6 +2887,7 @@ const bindEvents = () => {
     activeSection = match.section
     topbarSearch = ''
     saveSection()
+    requestScrollTop()
     render()
   }
   if (quickSearchInput) {
@@ -2877,11 +2899,12 @@ const bindEvents = () => {
     })
     quickSearchInput.addEventListener('change', () => jumpToSearchMatch(quickSearchInput.value))
   }
-  for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); render() })
+  for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); requestScrollTop(); render() })
   for (const button of document.querySelectorAll('[data-action="show-login"]')) button.addEventListener('click', () => {
     authViewMode = 'login'
     loginMessage = ''
     signupMessage = ''
+    requestScrollTop()
     render()
     scrollToAuthBlock('#acceso-login')
   })
@@ -2889,6 +2912,7 @@ const bindEvents = () => {
     authViewMode = 'signup'
     loginMessage = ''
     signupMessage = ''
+    requestScrollTop()
     render()
     scrollToAuthBlock('#acceso-signup')
   })
@@ -2896,6 +2920,7 @@ const bindEvents = () => {
     authViewMode = 'landing'
     loginMessage = ''
     signupMessage = ''
+    requestScrollTop()
     render()
   })
   for (const button of document.querySelectorAll('[data-action="open-customer-form"]')) button.addEventListener('click', () => {
@@ -3185,6 +3210,7 @@ const bindEvents = () => {
     loginMessage = ''
     signupMessage = ''
     feedbackMessage = ''
+    requestScrollTop()
     render()
   })
   for (const recoveryButton of document.querySelectorAll('[data-action="recover-password"]')) {
@@ -3215,6 +3241,7 @@ const bindEvents = () => {
       recoveryState = null
       loginMessage = ''
       if (authManager) await authManager.clearRecoveryState()
+      requestScrollTop()
       render()
     })
   }

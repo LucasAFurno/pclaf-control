@@ -2050,14 +2050,14 @@ input, select { outline: none; }
   }
 
   .sidebar-brand {
-    justify-items: start;
-    padding-bottom: 10px;
+    justify-items: center;
+    padding-bottom: 8px;
   }
 
   .sidebar-nav {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     width: 100%;
-    gap: 8px;
+    gap: 6px;
   }
 
   .sidebar-support {
@@ -2066,13 +2066,13 @@ input, select { outline: none; }
   }
 
   .nav-square {
-    min-height: 64px;
-    gap: 5px;
-    padding: 8px 6px;
+    min-height: 52px;
+    gap: 4px;
+    padding: 6px 4px;
   }
 
   .nav-label {
-    font-size: 0.64rem;
+    font-size: 0.56rem;
     line-height: 1.05;
     overflow-wrap: anywhere;
   }
@@ -2224,12 +2224,27 @@ input, select { outline: none; }
   }
 
   .brand-logo {
-    width: 36px;
-    height: 40px;
+    width: 30px;
+    height: 34px;
   }
 
   .sidebar-nav {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .nav-square {
+    min-height: 48px;
+    padding: 5px 3px;
+  }
+
+  .nav-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .nav-label {
+    font-size: 0.52rem;
   }
 
   .topbar-left .kicker {
