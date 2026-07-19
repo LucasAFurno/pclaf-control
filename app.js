@@ -942,13 +942,12 @@ const customersView = (ui) => `
 `
 
 const customersViewV2 = (ui) => `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Clientes</p><h2>Base comercial</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Clientes</p><h2>Base comercial</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.snapshot.customers.length}</strong><span>Clientes</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.snapshot.customers.reduce((sum, customer) => sum + Number(customer.balance || 0), 0))}</strong><span>Saldo</span></span>
+      <span class="panel-inline-stat"><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><span>Mostrador</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Clientes activos</span><strong>${ui.snapshot.customers.length}</strong><p>Base disponible para ventas y facturas</p></article>
-      <article class="metric-card compact"><span>Saldo total</span><strong>${money(ui.snapshot.customers.reduce((sum, customer) => sum + Number(customer.balance || 0), 0))}</strong><p>Cuentas corrientes acumuladas</p></article>
-      <article class="metric-card compact"><span>Mostrador</span><strong>${ui.snapshot.customers.filter((customer) => String(customer.tag || '').toLowerCase().includes('mostrador')).length}</strong><p>Clientes genericos o rapidos</p></article>
-    </section>
     <section class="module-board customers-board">
       <div class="module-main">
         <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
@@ -1090,13 +1089,12 @@ const salesViewV2 = (ui) => `
     }
     const quantities = new Map(Object.entries(Object.keys(saleDraftQuantities).length ? saleDraftQuantities : Object.fromEntries((editingSale?.items || []).map((item) => [item.productId, item.quantity]))))
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Ventas</p><h2>Venta multi-item</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Ventas</p><h2>Venta multi-item</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.enrichedSales.length}</strong><span>Ventas</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.totalSales)}</strong><span>Total</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.unpaidSales)}</strong><span>Por cobrar</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Ventas visibles</span><strong>${ui.enrichedSales.length}</strong><p>Operaciones en ${ui.currentBranch?.name || 'esta sucursal'}</p></article>
-      <article class="metric-card compact"><span>Total vendido</span><strong>${money(ui.totalSales)}</strong><p>Ingresos del filtro activo</p></article>
-      <article class="metric-card compact"><span>Por cobrar</span><strong>${money(ui.unpaidSales)}</strong><p>Saldo pendiente comercial</p></article>
-    </section>
     <section class="module-board sales-board">
       <article class="panel module-side" ${showSaleForm ? '' : 'style="display:none"'}>
         <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Nueva venta'}</h3><p>${editingSale ? 'Actualiza stock, cobro y comprobantes' : 'Carga rapida para mostrador o venta asistida'}</p></div></div>
@@ -1151,10 +1149,10 @@ const salesViewV2 = (ui) => `
       <div class="module-main">
         <article class="panel">
           <div class="panel-head"><div><h3>Operacion rapida</h3><p>Resumen de la sesion actual</p></div></div>
-          <div class="priority-list sales-kpis">
-            <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession ? 'Abierta y ligada a ventas' : 'Cerrada para efectivo'}</p></div>
-            <div class="priority-item"><strong>Canal sugerido</strong><p>${editingSale?.channel || 'Mostrador'}</p></div>
-            <div class="priority-item"><strong>Cliente</strong><p>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</p></div>
+          <div class="summary-mini-row">
+            <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession ? 'Abierta y ligada a ventas' : 'Cerrada para efectivo'}</span></div>
+            <div class="summary-mini-card"><strong>Canal sugerido</strong><span>${editingSale?.channel || 'Mostrador'}</span></div>
+            <div class="summary-mini-card"><strong>Cliente</strong><span>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</span></div>
           </div>
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div><div class="settings-actions">${editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cerrar</button>' : createToggleButton('sale', showSaleForm, 'Agregar venta')}</div></div>
@@ -1167,12 +1165,11 @@ const salesViewV2 = (ui) => `
 `
 
 const cashViewLegacy = (ui) => `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div></div>
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Estado</span><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
-      <article class="metric-card compact"><span>Efectivo esperado</span><strong>${money(ui.expectedCash)}</strong><p>Incluye ventas cash y ajustes</p></article>
-      <article class="metric-card compact"><span>Movimientos</span><strong>${ui.enrichedCashMovements.length}</strong><p>Bitacora visible del turno</p></article>
-    </section>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><span>Estado</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.expectedCash)}</strong><span>Efectivo</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedCashMovements.length}</strong><span>Movimientos</span></span>
+    </div></div>
     <section class="module-board cash-board">
       <article class="panel module-side">
         <div class="panel-head"><div><h3>Estado actual</h3><p>Control diario de efectivo</p></div></div>
@@ -1241,10 +1238,10 @@ const cashViewV2 = (ui) => `
       <div class="module-main">
         <article class="panel">
           <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado, despues operas si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
-          <div class="priority-list sales-kpis">
-            <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'}</p></div>
-            <div class="priority-item"><strong>Caja actual</strong><p>${ui.currentRegister?.name || 'Sin seleccionar'}</p></div>
-            <div class="priority-item"><strong>Ultima diferencia</strong><p>${money(lastClosedSession?.differenceAmount || 0)}</p></div>
+          <div class="summary-mini-row">
+            <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'}</span></div>
+            <div class="summary-mini-card"><strong>Caja actual</strong><span>${ui.currentRegister?.name || 'Sin seleccionar'}</span></div>
+            <div class="summary-mini-card"><strong>Ultima diferencia</strong><span>${money(lastClosedSession?.differenceAmount || 0)}</span></div>
           </div>
         </article>
         <div class="compact-form-grid" ${showCashForm ? '' : 'style="display:none"'}>
@@ -1395,13 +1392,12 @@ const purchasesViewLegacy = (ui) => `
   ${(() => {
     const editingReceipt = ui.snapshot.purchaseReceipts.find((receipt) => receipt.id === purchaseEditingId)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Compras</p><h2>Proveedores y recepcion</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Compras</p><h2>Proveedores y recepcion</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.snapshot.suppliers.length}</strong><span>Proveedores</span></span>
+      <span class="panel-inline-stat"><strong>${ui.enrichedReceipts.length}</strong><span>Compras</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><span>Saldo</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Proveedores</span><strong>${ui.snapshot.suppliers.length}</strong><p>Base de compras disponible</p></article>
-      <article class="metric-card compact"><span>Recepciones</span><strong>${ui.enrichedReceipts.length}</strong><p>Ingresos registrados</p></article>
-      <article class="metric-card compact"><span>Saldo proveedor</span><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><p>Compromiso comercial actual</p></article>
-    </section>
     <section class="module-board purchases-board">
       <div class="module-main">
         <article class="panel"><div class="panel-head"><div><h3>${editingReceipt ? 'Editar recepcion' : 'Recepcion de compra'}</h3><p>${editingReceipt ? 'Recalcula stock y saldo del proveedor' : 'Ingresa stock y costo'}</p></div></div>
@@ -1471,14 +1467,12 @@ const purchasesViewV2 = (ui) => `
         </form>
       </article>
       <div class="module-main">
-        <div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div><div class="settings-actions">${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}</div></div>
-            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
-          </article>
+        <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div><div class="settings-actions">${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}</div></div>
+          ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
+        </article>
         <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div><div class="settings-actions">${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}</div></div>
-            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
-          </article>
-        </div>
+          ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
+        </article>
         ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-supplier-form">Cerrar</button></div></div>
           <form class="form-grid" data-form="supplier">
             <label>Empresa<input type="text" name="name" required /></label>
@@ -1673,13 +1667,12 @@ const branchesViewLegacy = (ui) => `
   ${(() => {
     const editingBranch = ui.snapshot.branches.find((branch) => branch.id === branchEditingId)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Sucursales</p><h2>Locales y numeracion</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Sucursales</p><h2>Locales y numeracion</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.snapshot.branches.length}</strong><span>Sucursales</span></span>
+      <span class="panel-inline-stat"><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><span>Caja actual</span></span>
+      <span class="panel-inline-stat"><strong>${ui.currentBranch?.name || '-'}</strong><span>Activa</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Sucursales</span><strong>${ui.snapshot.branches.length}</strong><p>Estructura comercial disponible</p></article>
-      <article class="metric-card compact"><span>Caja actual</span><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><p>Ligada a ${ui.currentBranch?.name || 'sin sucursal'}</p></article>
-      <article class="metric-card compact"><span>Sucursal activa</span><strong>${ui.currentBranch?.name || '-'}</strong><p>Define numeracion y reportes</p></article>
-    </section>
     <section class="module-board branches-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>${editingBranch ? 'Editar sucursal' : 'Nueva sucursal'}</h3><p>La sucursal actual define la numeracion</p></div></div>
         <form class="form-grid" data-form="branch">
@@ -1694,10 +1687,10 @@ const branchesViewLegacy = (ui) => `
       <div class="module-main">
         <article class="panel">
           <div class="panel-head"><div><h3>Operacion por sucursal</h3><p>Contexto actual del comercio</p></div></div>
-          <div class="priority-list sales-kpis">
-            <div class="priority-item"><strong>Actual</strong><p>${ui.currentBranch?.name || '-'}</p></div>
-            <div class="priority-item"><strong>Cajas ligadas</strong><p>${ui.branchRegisters.length}</p></div>
-            <div class="priority-item"><strong>Direccion</strong><p>${ui.currentBranch?.address || 'Sin direccion'}</p></div>
+          <div class="summary-mini-row">
+            <div class="summary-mini-card"><strong>Actual</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+            <div class="summary-mini-card"><strong>Cajas ligadas</strong><span>${ui.branchRegisters.length}</span></div>
+            <div class="summary-mini-card"><strong>Direccion</strong><span>${ui.currentBranch?.address || 'Sin direccion'}</span></div>
           </div>
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Sucursales</h3><p>Actual: ${ui.currentBranch?.name || '-'}</p></div></div>
@@ -1781,13 +1774,12 @@ const registersViewLegacy = (ui) => `
   ${(() => {
     const editingRegister = ui.snapshot.registers.find((register) => register.id === registerEditingId)
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Cajas</p><h2>Cajeros y puestos de cobro</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Cajas</p><h2>Cajeros y puestos de cobro</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.enrichedRegisters.length}</strong><span>Cajas</span></span>
+      <span class="panel-inline-stat"><strong>${ui.currentRegister?.name || '-'}</strong><span>Activa</span></span>
+      <span class="panel-inline-stat"><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><span>Cajeros</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Cajas</span><strong>${ui.enrichedRegisters.length}</strong><p>Puestos de cobro configurados</p></article>
-      <article class="metric-card compact"><span>Caja activa</span><strong>${ui.currentRegister?.name || '-'}</strong><p>${ui.currentBranch?.name || 'Sin sucursal'}</p></article>
-      <article class="metric-card compact"><span>Cajeros</span><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><p>Usuarios vinculados a cajas</p></article>
-    </section>
     <section class="module-board registers-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>${editingRegister ? 'Editar caja' : 'Nueva caja'}</h3><p>Asignacion por sucursal y cajero</p></div></div>
         <form class="form-grid" data-form="register">
@@ -1803,10 +1795,10 @@ const registersViewLegacy = (ui) => `
       <div class="module-main">
         <article class="panel">
           <div class="panel-head"><div><h3>Uso operativo</h3><p>Control de puestos de cobro</p></div></div>
-          <div class="priority-list sales-kpis">
-            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
-            <div class="priority-item"><strong>Sesion abierta</strong><p>${ui.openCashSession ? 'Si' : 'No'}</p></div>
-            <div class="priority-item"><strong>Caja actual</strong><p>${ui.currentRegister?.name || 'Sin asignar'}</p></div>
+          <div class="summary-mini-row">
+            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+            <div class="summary-mini-card"><strong>Sesion abierta</strong><span>${ui.openCashSession ? 'Si' : 'No'}</span></div>
+            <div class="summary-mini-card"><strong>Caja actual</strong><span>${ui.currentRegister?.name || 'Sin asignar'}</span></div>
           </div>
         </article>
         <article class="panel"><div class="panel-head"><div><h3>Cajas</h3><p>Preparado para varias cajas por sucursal</p></div></div>

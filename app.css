@@ -1415,6 +1415,10 @@ input, select { outline: none; }
   justify-content: flex-end;
 }
 
+.section-inline-stats {
+  max-width: min(100%, 540px);
+}
+
 .panel-inline-stat {
   display: inline-grid;
   gap: 2px;
@@ -2140,6 +2144,10 @@ input, select { outline: none; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .compact-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   .module-board {
     grid-template-columns: 1fr;
   }
@@ -2150,6 +2158,22 @@ input, select { outline: none; }
 
   .sales-kpis {
     grid-template-columns: 1fr;
+  }
+
+  .data-head {
+    display: none;
+  }
+
+  .data-row,
+  .sales-history-row,
+  .sales-table .data-head,
+  .inventory-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .inventory-head {
+    display: none;
   }
 
   .topbar {
@@ -2235,6 +2259,17 @@ input, select { outline: none; }
   .topbar-center {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .section-inline-stats {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .status-chip {
