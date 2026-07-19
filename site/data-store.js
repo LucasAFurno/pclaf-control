@@ -795,6 +795,7 @@ export const createBrowserDataStore = (options = {}) => {
   const desktopBridge = globalThis.window?.pclafDesktop
   const isDesktop = Boolean(desktopBridge?.isDesktop)
   const requireCloud = Boolean(options.requireCloud) && !isDesktop
+  const useBrowserBusinessCache = !requireCloud && !isDesktop
   const initialCloudConfig = options.initialCloudConfig && options.initialCloudConfig.url && options.initialCloudConfig.anonKey
     ? {
         url: String(options.initialCloudConfig.url || '').trim(),
@@ -874,6 +875,7 @@ export const createBrowserDataStore = (options = {}) => {
   const readState = () => {
     if (isDesktop) return migrateState(desktopBridge.initialize(defaultState))
     if (requireCloud && !cloudAdapter) return clone(defaultState)
+    if (!useBrowserBusinessCache) return clone(defaultState)
     const saved = safeStorage.getItem(dataStorageKey)
     if (!saved) return clone(defaultState)
     try {
@@ -919,6 +921,7 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const persistLocalState = () => {
+    if (!useBrowserBusinessCache) return
     safeStorage.setItem(dataStorageKey, JSON.stringify(state))
   }
 

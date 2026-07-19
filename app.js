@@ -2388,6 +2388,9 @@ const readSiteCloudConfig = async () => {
 
 const bootstrap = async () => {
   const initialCloudConfig = await readSiteCloudConfig()
+  if (!window.pclafDesktop) {
+    safeStorage.removeItem(dataStorageKey)
+  }
   authInstanceKey = normalizeInstanceKey(
     safeStorage.getItem(instanceStorageKey, '')
     || initialCloudConfig?.instanceKey
