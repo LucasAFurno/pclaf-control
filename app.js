@@ -84,10 +84,15 @@ let saleQuickAddCode = ''
 let topbarSearch = ''
 let cloudSyncBusy = false
 let customerFormOpen = false
+let saleFormOpen = false
+let cashFormOpen = false
 let productFormOpen = false
 let supplierFormOpen = false
+let purchaseFormOpen = false
 let invoiceFormOpen = false
 let ticketFormOpen = false
+let branchFormOpen = false
+let registerFormOpen = false
 let commerceContext = null
 let setupStatus = null
 let authInstanceKey = ''
@@ -1039,6 +1044,7 @@ const cashView = (ui) => `
 const salesViewV2 = (ui) => `
   ${(() => {
     const editingSale = ui.snapshot.sales.find((sale) => sale.id === saleEditingId)
+    const showSaleForm = saleFormOpen || Boolean(editingSale)
     if (editingSale && !Object.keys(saleDraftQuantities).length) {
       saleDraftQuantities = Object.fromEntries((editingSale.items || []).map((item) => [item.productId, item.quantity]))
     }
@@ -1052,7 +1058,7 @@ const salesViewV2 = (ui) => `
       <article class="metric-card compact"><span>Por cobrar</span><strong>${money(ui.unpaidSales)}</strong><p>Saldo pendiente comercial</p></article>
     </section>
     <section class="module-board sales-board">
-      <article class="panel module-side">
+      <article class="panel module-side" ${showSaleForm ? '' : 'style="display:none"'}>
         <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Nueva venta'}</h3><p>${editingSale ? 'Actualiza stock, cobro y comprobantes' : 'Carga rapida para mostrador o venta asistida'}</p></div></div>
         <form class="form-grid sales-form" data-form="sale">
           <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
@@ -1098,6 +1104,7 @@ const salesViewV2 = (ui) => `
               </div>`).join('')}
           </div>
           <button type="submit">${editingSale ? 'Guardar cambios' : 'Registrar venta'}</button>
+          ${!editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cancelar</button>' : ''}
           ${editingSale ? '<button type="button" class="danger-action" data-action="cancel-sale-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>
@@ -1110,7 +1117,7 @@ const salesViewV2 = (ui) => `
             <div class="priority-item"><strong>Cliente</strong><p>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</p></div>
           </div>
         </article>
-        <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
+        <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div><div class="settings-actions">${editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cerrar</button>' : createToggleButton('sale', showSaleForm, 'Agregar venta')}</div></div>
           <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} · ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
         </article>
       </div>
@@ -1119,7 +1126,7 @@ const salesViewV2 = (ui) => `
 `})()}
 `
 
-const cashViewV2 = (ui) => `
+const cashViewLegacy = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div></div>
     <section class="module-summary-grid">
       <article class="metric-card compact"><span>Estado</span><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
@@ -1166,6 +1173,69 @@ const cashViewV2 = (ui) => `
       </div>
     </section>
   </section>
+`
+
+const cashViewV2 = (ui) => `
+  ${(() => {
+    const showCashForm = cashFormOpen
+    const lastClosedSession = byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt')[0]
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Caja</p><h2>Apertura y cierre</h2></div></div>
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Estado</span><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
+      <article class="metric-card compact"><span>Efectivo esperado</span><strong>${money(ui.expectedCash)}</strong><p>Incluye ventas cash y ajustes</p></article>
+      <article class="metric-card compact"><span>Movimientos</span><strong>${ui.enrichedCashMovements.length}</strong><p>Bitacora visible del turno</p></article>
+    </section>
+    <section class="module-board cash-board">
+      <article class="panel module-side" ${showCashForm ? '' : 'style="display:none"'}>
+        <div class="panel-head"><div><h3>Estado actual</h3><p>Control diario de efectivo</p></div></div>
+        <div class="priority-list">
+          <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</p></div>
+          <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+          <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegi una caja')}</p></div>
+          <div class="priority-item"><strong>Fondo inicial</strong><p>${money(ui.openCashSession?.openingAmount || 0)}</p></div>
+          <div class="priority-item"><strong>Ajustes manuales</strong><p>${money(ui.sessionCashMovementTotal)}</p></div>
+          <div class="priority-item"><strong>Efectivo esperado</strong><p>${money(ui.expectedCash)}</p></div>
+        </div>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado, despues operas si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Caja abierta' : 'Caja cerrada'}</p></div>
+            <div class="priority-item"><strong>Caja actual</strong><p>${ui.currentRegister?.name || 'Sin seleccionar'}</p></div>
+            <div class="priority-item"><strong>Ultima diferencia</strong><p>${money(lastClosedSession?.differenceAmount || 0)}</p></div>
+          </div>
+        </article>
+        <div class="compact-form-grid" ${showCashForm ? '' : 'style="display:none"'}>
+          <article class="panel">
+            <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informa el efectivo contado' : 'Define el fondo inicial'}</p></div></div>
+            <form class="form-grid compact-form" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
+              ${ui.openCashSession ? '' : `<label>Caja<select name="registerId" required>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${ui.currentRegister?.id === register.id ? 'selected' : ''}>${register.name} (${register.code})</option>`).join('')}</select></label>`}
+              <label>${ui.openCashSession ? 'Efectivo contado' : 'Monto inicial'}<input type="number" min="0" name="${ui.openCashSession ? 'countedAmount' : 'openingAmount'}" value="${ui.openCashSession ? ui.expectedCash : 0}" required /></label>
+              <button type="submit">${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</button>
+              <button type="button" class="ghost-action" data-action="close-cash-form">Cancelar</button>
+            </form>
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Movimiento manual</h3><p>Ingresos, gastos y retiros</p></div></div>
+            ${ui.openCashSession ? `<form class="form-grid compact-form" data-form="cash-movement">
+              <label>Tipo<select name="kind"><option value="income">Ingreso</option><option value="deposit">Deposito</option><option value="expense">Gasto</option><option value="withdrawal">Retiro</option></select></label>
+              <label>Importe<input type="number" min="1" name="amount" required /></label>
+              <label class="full-span">Detalle<input type="text" name="note" placeholder="Motivo del movimiento" required /></label>
+              <button type="submit">Registrar movimiento</button>
+            </form>` : '<p class="empty-state">Abri una caja para registrar movimientos manuales.</p>'}
+          </article>
+        </div>
+        <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
+          ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavia no hay cierres para este filtro.</p>'}
+        </div></article>
+        <article class="panel"><div class="panel-head"><div><h3>Bitacora de caja</h3><p>Impacta en el arqueo esperado</p></div></div><div class="timeline-list">
+          ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} · ${money(movement.signedAmount)} · ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay movimientos manuales.</p>'}
+        </div></article>
+      </div>
+    </section>
+  </section>
+`})()}
 `
 
 const productsView = (ui) => `
@@ -1298,7 +1368,7 @@ const purchasesView = (ui) => `
 `})()}
 `
 
-const purchasesViewV2 = (ui) => `
+const purchasesViewLegacy = (ui) => `
   ${(() => {
     const editingReceipt = ui.snapshot.purchaseReceipts.find((receipt) => receipt.id === purchaseEditingId)
     return `
@@ -1334,6 +1404,59 @@ const purchasesViewV2 = (ui) => `
           </article>
         </div>
         ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div></div>
+          <form class="form-grid" data-form="supplier">
+            <label>Empresa<input type="text" name="name" required /></label>
+            <label>Contacto<input type="text" name="contact" required /></label>
+            <label>Telefono<input type="text" name="phone" required /></label>
+            <label>Saldo pendiente<input type="number" name="balance" min="0" required /></label>
+            <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
+            <label>Categoria<input type="text" name="category" required /></label>
+            <button type="submit">Guardar proveedor</button>
+          </form>
+        </article>` : ''}
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
+const purchasesViewV2 = (ui) => `
+  ${(() => {
+    const editingReceipt = ui.snapshot.purchaseReceipts.find((receipt) => receipt.id === purchaseEditingId)
+    const showPurchaseForm = purchaseFormOpen || Boolean(editingReceipt)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Compras</p><h2>Proveedores y recepcion</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Proveedores</span><strong>${ui.snapshot.suppliers.length}</strong><p>Base de compras disponible</p></article>
+      <article class="metric-card compact"><span>Recepciones</span><strong>${ui.enrichedReceipts.length}</strong><p>Ingresos registrados</p></article>
+      <article class="metric-card compact"><span>Saldo proveedor</span><strong>${money(ui.snapshot.suppliers.reduce((sum, supplier) => sum + Number(supplier.balance || 0), 0))}</strong><p>Compromiso comercial actual</p></article>
+    </section>
+    <section class="module-board purchases-board">
+      <article class="panel module-side" ${showPurchaseForm ? '' : 'style="display:none"'}>
+        <div class="panel-head"><div><h3>${editingReceipt ? 'Editar compra' : 'Nueva compra'}</h3><p>Ingresa stock y costo del proveedor</p></div></div>
+        <form class="form-grid compact-form" data-form="purchase-receipt">
+          <input type="hidden" name="receiptId" value="${editingReceipt?.id || ''}" />
+          <label>Proveedor<select name="supplierId" required>${ui.snapshot.suppliers.map((supplier) => `<option value="${supplier.id}" ${editingReceipt?.supplierId === supplier.id ? 'selected' : ''}>${supplier.name}</option>`).join('')}</select></label>
+          <label>Producto<select name="productId" required>${ui.snapshot.products.map((product) => `<option value="${product.id}" ${editingReceipt?.productId === product.id ? 'selected' : ''}>${product.name}</option>`).join('')}</select></label>
+          <label>Comprobante<input type="text" name="documentNumber" value="${editingReceipt?.documentNumber || ''}" placeholder="FAC-000123" /></label>
+          <label>Cantidad<input type="number" min="1" name="quantity" value="${editingReceipt?.quantity || ''}" required /></label>
+          <label>Costo unitario<input type="number" min="0" name="unitCost" value="${editingReceipt?.unitCost || ''}" required /></label>
+          <label class="full-span">Observaciones<input type="text" name="note" value="${editingReceipt?.note || ''}" placeholder="Pedido, lote o condicion" /></label>
+          <button type="submit">${editingReceipt ? 'Guardar cambios' : 'Registrar compra'}</button>
+          ${editingReceipt ? '<button type="button" class="danger-action" data-action="cancel-purchase-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-purchase-form">Cancelar</button>'}
+        </form>
+      </article>
+      <div class="module-main">
+        <div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div><div class="settings-actions">${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}</div></div>
+            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div><div class="settings-actions">${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}</div></div>
+            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
+          </article>
+        </div>
+        ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-supplier-form">Cerrar</button></div></div>
           <form class="form-grid" data-form="supplier">
             <label>Empresa<input type="text" name="name" required /></label>
             <label>Contacto<input type="text" name="contact" required /></label>
@@ -1521,7 +1644,7 @@ const branchesView = (ui) => `
 `})()}
 `
 
-const branchesViewV2 = (ui) => `
+const branchesViewLegacy = (ui) => `
   ${(() => {
     const editingBranch = ui.snapshot.branches.find((branch) => branch.id === branchEditingId)
     return `
@@ -1561,6 +1684,48 @@ const branchesViewV2 = (ui) => `
 `})()}
 `
 
+const branchesViewV2 = (ui) => `
+  ${(() => {
+    const editingBranch = ui.snapshot.branches.find((branch) => branch.id === branchEditingId)
+    const showBranchForm = branchFormOpen || Boolean(editingBranch)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Sucursales</p><h2>Locales y numeracion</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Sucursales</span><strong>${ui.snapshot.branches.length}</strong><p>Estructura comercial disponible</p></article>
+      <article class="metric-card compact"><span>Caja actual</span><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><p>Ligada a ${ui.currentBranch?.name || 'sin sucursal'}</p></article>
+      <article class="metric-card compact"><span>Sucursal activa</span><strong>${ui.currentBranch?.name || '-'}</strong><p>Define numeracion y reportes</p></article>
+    </section>
+    <section class="module-board branches-board">
+      <article class="panel module-side" ${showBranchForm ? '' : 'style="display:none"'}>
+        <div class="panel-head"><div><h3>${editingBranch ? 'Editar sucursal' : 'Nueva sucursal'}</h3><p>La sucursal actual define la numeracion</p></div></div>
+        <form class="form-grid" data-form="branch">
+          <input type="hidden" name="branchId" value="${editingBranch?.id || ''}" />
+          <label>Nombre<input type="text" name="name" value="${editingBranch?.name || ''}" required /></label>
+          <label>Codigo<input type="text" name="code" value="${editingBranch?.code || ''}" required /></label>
+          <label class="full-span">Direccion<input type="text" name="address" value="${editingBranch?.address || ''}" required /></label>
+          <button type="submit">${editingBranch ? 'Guardar cambios' : 'Guardar sucursal'}</button>
+          ${editingBranch ? '<button type="button" class="danger-action" data-action="cancel-branch-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-branch-form">Cancelar</button>'}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Operacion por sucursal</h3><p>Contexto actual del comercio</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Actual</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Cajas ligadas</strong><p>${ui.branchRegisters.length}</p></div>
+            <div class="priority-item"><strong>Direccion</strong><p>${ui.currentBranch?.address || 'Sin direccion'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Sucursales</h3><p>Actual: ${ui.currentBranch?.name || '-'}</p></div><div class="settings-actions">${editingBranch ? '' : createToggleButton('branch', showBranchForm, 'Agregar sucursal')}</div></div>
+          ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
+        </article>
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
 const registersView = (ui) => `
   ${(() => {
     const editingRegister = ui.snapshot.registers.find((register) => register.id === registerEditingId)
@@ -1587,7 +1752,7 @@ const registersView = (ui) => `
 `})()}
 `
 
-const registersViewV2 = (ui) => `
+const registersViewLegacy = (ui) => `
   ${(() => {
     const editingRegister = ui.snapshot.registers.find((register) => register.id === registerEditingId)
     return `
@@ -1628,7 +1793,82 @@ const registersViewV2 = (ui) => `
 `})()}
 `
 
+const registersViewV2 = (ui) => `
+  ${(() => {
+    const editingRegister = ui.snapshot.registers.find((register) => register.id === registerEditingId)
+    const showRegisterForm = registerFormOpen || Boolean(editingRegister)
+    return `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Cajas</p><h2>Cajeros y puestos de cobro</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Cajas</span><strong>${ui.enrichedRegisters.length}</strong><p>Puestos de cobro configurados</p></article>
+      <article class="metric-card compact"><span>Caja activa</span><strong>${ui.currentRegister?.name || '-'}</strong><p>${ui.currentBranch?.name || 'Sin sucursal'}</p></article>
+      <article class="metric-card compact"><span>Cajeros</span><strong>${new Set(ui.enrichedRegisters.map((register) => register.cashierName)).size}</strong><p>Usuarios vinculados a cajas</p></article>
+    </section>
+    <section class="module-board registers-board">
+      <article class="panel module-side" ${showRegisterForm ? '' : 'style="display:none"'}>
+        <div class="panel-head"><div><h3>${editingRegister ? 'Editar caja' : 'Nueva caja'}</h3><p>Asignacion por sucursal y cajero</p></div></div>
+        <form class="form-grid" data-form="register">
+          <input type="hidden" name="registerId" value="${editingRegister?.id || ''}" />
+          <label>Sucursal<select name="branchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${editingRegister?.branchId === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
+          <label>Nombre<input type="text" name="name" value="${editingRegister?.name || ''}" required /></label>
+          <label>Codigo<input type="text" name="code" value="${editingRegister?.code || ''}" required /></label>
+          <label>Cajero<select name="cashierUserId">${ui.snapshot.users.map((user) => `<option value="${user.id}" ${editingRegister?.cashierUserId === user.id ? 'selected' : ''}>${user.fullName}</option>`).join('')}</select></label>
+          <button type="submit">${editingRegister ? 'Guardar cambios' : 'Guardar caja'}</button>
+          ${editingRegister ? '<button type="button" class="danger-action" data-action="cancel-register-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-register-form">Cancelar</button>'}
+        </form>
+      </article>
+      <div class="module-main">
+        <article class="panel">
+          <div class="panel-head"><div><h3>Uso operativo</h3><p>Control de puestos de cobro</p></div></div>
+          <div class="priority-list sales-kpis">
+            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
+            <div class="priority-item"><strong>Sesion abierta</strong><p>${ui.openCashSession ? 'Si' : 'No'}</p></div>
+            <div class="priority-item"><strong>Caja actual</strong><p>${ui.currentRegister?.name || 'Sin asignar'}</p></div>
+          </div>
+        </article>
+        <article class="panel"><div class="panel-head"><div><h3>Cajas</h3><p>Preparado para varias cajas por sucursal</p></div><div class="settings-actions">${editingRegister ? '' : createToggleButton('register', showRegisterForm, 'Agregar caja')}</div></div>
+          ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
+        </article>
+      </div>
+    </section>
+  </section>
+`})()}
+`
+
 const reportsView = (ui) => `
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Reportes</p><h2>Indicadores y movimientos</h2></div></div>
+    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
+    <section class="module-summary-grid">
+      <article class="metric-card compact"><span>Ventas filtradas</span><strong>${money(ui.reportScopedSales.reduce((sum, sale) => sum + sale.totalAmount, 0))}</strong><p>${ui.currentBranch?.name || 'Sucursal actual'}</p></article>
+      <article class="metric-card compact"><span>Facturas filtradas</span><strong>${money(ui.reportScopedInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0))}</strong><p>Rango actual</p></article>
+      <article class="metric-card compact"><span>Mov. caja</span><strong>${money(ui.reportScopedCashMovements.reduce((sum, movement) => sum + movement.signedAmount, 0))}</strong><p>Caja ${reportRegisterFilter === 'all' ? 'todas' : (ui.enrichedRegisters.find((register) => register.id === reportRegisterFilter)?.name || 'actual')}</p></article>
+    </section>
+    <section class="content-grid single-focus">
+      <article class="panel"><div class="panel-head"><div><h3>Filtro operativo</h3><p>Separado por sucursal y caja</p></div></div>
+        <form class="form-grid compact-form" data-form="report-filter">
+          <label>Sucursal actual<input type="text" value="${ui.currentBranch?.name || '-'}" disabled /></label>
+          <label>Caja<select name="registerFilter"><option value="all">Todas</option>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${reportRegisterFilter === register.id ? 'selected' : ''}>${register.name}</option>`).join('')}</select></label>
+          <label>Desde<input type="date" name="dateFrom" value="${ui.reportDateFrom}" /></label>
+          <label>Hasta<input type="date" name="dateTo" value="${ui.reportDateTo}" /></label>
+          <button type="submit">Aplicar filtro</button>
+        </form>
+      </article>
+    </section>
+    <section class="dashboard-grid reports-layout">
+      <article class="panel"><div class="panel-head"><div><h3>Top productos</h3><p>Movimiento comercial filtrado</p></div></div><div class="top-list">${[...ui.reportScopedSales.reduce((map, sale) => { for (const item of sale.items) { const current = map.get(item.productId) || { name: ui.snapshot.products.find((product) => product.id === item.productId)?.name || 'Articulo', qty: 0 }; current.qty += item.quantity; map.set(item.productId, current) } return map }, new Map()).values()].sort((a, b) => b.qty - a.qty).slice(0, 5).map((item, index) => `<div class="top-row"><span>${index + 1}</span><div><strong>${item.name}</strong><p>${item.qty} unidades vendidas</p></div></div>`).join('') || '<p class="empty-state">Sin ventas en este rango.</p>'}</div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Balance rapido</h3><p>${ui.currentBranch?.name || 'Sucursal'}${reportRegisterFilter === 'all' ? '' : ` / ${ui.enrichedRegisters.find((register) => register.id === reportRegisterFilter)?.name || 'Caja'}`}</p></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-report">Exportar CSV</button></div></div><div class="priority-list">
+        <div class="priority-item"><strong>Tickets</strong><p>${ui.reportScopedTickets.length}</p></div>
+        <div class="priority-item"><strong>Compras</strong><p>${ui.reportScopedReceipts.length}</p></div>
+        <div class="priority-item"><strong>Stock</strong><p>${ui.reportScopedStockMovements.length}</p></div>
+      </div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Movimientos de stock</h3><p>Ingresos y egresos</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedStockMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.type}</strong><p>${movement.quantity} unidades</p><span>${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de stock en este rango.</p>'}</div></article>
+      <article class="panel"><div class="panel-head"><div><h3>Movimientos de caja</h3><p>Ingresos y egresos manuales</p></div></div><div class="timeline-list">${byRecentDate(ui.reportScopedCashMovements, 'createdAt').slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${money(movement.signedAmount)} · ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Sin movimientos de caja en este rango.</p>'}</div></article>
+    </section>
+  </section>
+`
+
+const reportsViewLegacy = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Reportes</p><h2>Indicadores y movimientos</h2></div></div>
     <section class="content-grid single-focus">
       <article class="panel"><div class="panel-head"><div><h3>Filtro operativo</h3><p>Separado por sucursal y caja</p></div></div>
@@ -1799,7 +2039,7 @@ const settingsView = (ui) => `
           ? 'Pendiente'
           : ui.snapshot.meta.syncStatus || 'offline'
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Seguridad y backup</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Cuenta y negocio</h2></div></div>
     <section class="dashboard-grid reports-layout">
       <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div><div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}${ui.user.isOwner ? '<br /><small>Propietario de la instancia</small>' : `<br /><small>Plan ${ui.commerceContext?.active_plan ? (planLabels[ui.commerceContext.active_plan] || ui.commerceContext.active_plan) : (planLabels[ui.snapshot.business.activePlan] || 'Full')}</small>`}</p></div><div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}<br /><small>${ui.commerceContext?.owner_email || ui.cloudConnection.instanceKey}</small></p></div><div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
       <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura el negocio, el mail dueÃ±o y la migracion a tablas reales</p></div></div>
@@ -1894,26 +2134,26 @@ const settingsViewV2 = (ui) => `
       </article>
       <div class="module-main">
         <div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Datos base del negocio y cuenta principal</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Comercio activo</h3><p>Datos principales del negocio y responsable</p></div></div>
             <form class="form-grid compact-form" data-form="commerce-profile">
               <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
               <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
               <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
               <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
             </form>
-            <div class="panel-note"><span>La cuenta principal del comercio queda asociada a este correo.</span><span>Los packs y modulos se administran aparte para no mezclar configuracion con operacion.</span></div>
+            <div class="panel-note"><span>Este correo queda como cuenta principal del negocio.</span><span>Desde aca puedes mantener actualizados los datos comerciales.</span></div>
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Cuenta web</h3><p>Estado del acceso online y de la prueba</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Resumen de la cuenta</h3><p>Estado actual del acceso y modulos activos</p></div></div>
             <div class="info-strip"><strong>Estado</strong><span>${syncLabel}</span></div>
             <div class="timeline-list">
               <div class="timeline-item"><strong>Comercio activo</strong><p>${ui.commerceContext?.commerce_name || 'Comercio configurado'}</p><span>La sesion y los datos quedan ligados a este negocio.</span></div>
-              <div class="timeline-item"><strong>Pack actual</strong><p>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</p><span>Se usan solo los modulos habilitados para esta cuenta.</span></div>
-              <div class="timeline-item"><strong>Acceso comercial</strong><p>${maskEmail(ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail) || 'Sin correo principal'}</p><span>La configuracion tecnica queda fuera de la vista del cliente.</span></div>
+              <div class="timeline-item"><strong>Pack actual</strong><p>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</p><span>Se muestran solo los modulos habilitados.</span></div>
+              <div class="timeline-item"><strong>Correo principal</strong><p>${maskEmail(ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail) || 'Sin correo principal'}</p><span>Usalo para recuperacion y avisos del sistema.</span></div>
             </div>
             <div class="settings-actions"><button type="button" class="primary-action" data-action="sync-cloud" ${cloudSyncBusy ? 'disabled' : ''}>${cloudSyncBusy ? 'Sincronizando...' : 'Sincronizar ahora'}</button></div>
           </article>
         </div>
-        <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
+        <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Usuarios del negocio'}</h3><p>Gestiona quienes pueden entrar y que rol tiene cada uno</p></div></div>
           ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
           <form class="form-grid" data-form="user">
             <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
@@ -1963,20 +2203,15 @@ const basicSettingsView = (ui) => `
       <article class="metric-card compact"><span>Cloud</span><strong>${ui.snapshot.meta.syncStatus === 'online' ? 'Operativa' : (ui.snapshot.meta.syncStatus || 'offline')}</strong><p>Conexion protegida</p></article>
       <article class="metric-card compact"><span>Modulos</span><strong>${ui.snapshot.business.enabledModules.length}</strong><p>Disponibles en tu cuenta</p></article>
     </section>
-    <section class="dashboard-grid reports-layout">
-      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Informacion segura de tu sesion</p></div></div>
+    <section class="content-grid single-focus">
+      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Datos de tu sesion y del negocio actual</p></div></div>
         <div class="priority-list">
           <div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${maskEmail(ui.user.email) || 'Sin email'}</small></p></div>
           <div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}</p></div>
           <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}</p></div>
+          <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || 'Sin sucursal activa'}</p></div>
           <div class="priority-item"><strong>Estado</strong><p>${ui.snapshot.meta.syncStatus === 'online' ? 'Cloud operativa' : (ui.snapshot.meta.syncStatus || 'offline')}</p></div>
-        </div>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Seguridad</h3><p>Acceso simple y controlado para cada cuenta</p></div></div>
-        <div class="timeline-list">
-          <div class="timeline-item"><strong>Acceso seguro</strong><p>Cada usuario entra con su cuenta y ve solo lo necesario para trabajar.</p><span>La informacion del negocio queda ordenada y protegida.</span></div>
-          <div class="timeline-item"><strong>Permisos por usuario</strong><p>El administrador decide que puede usar cada persona dentro del sistema.</p><span>Asi cada cuenta opera solo sobre sus tareas.</span></div>
-          <div class="timeline-item"><strong>Soporte directo</strong><p>Si algo falla o necesitas ayuda, te llevamos al WhatsApp oficial.</p><span>Sin pasar por menus tecnicos.</span></div>
+          <div class="priority-item"><strong>Pack</strong><p>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</p></div>
         </div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Hablar con soporte</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
@@ -2340,6 +2575,8 @@ const handleSubmit = async (event) => {
       persistInstanceKey(sessionPayload?.commerceContext?.instance_key || requestedInstanceKey || authInstanceKey)
       setupStatus = await authManager.getSetupStatus({ instanceKey: authInstanceKey })
       await loadCloudAccess(sessionPayload)
+      activeSection = 'dashboard'
+      saveSection()
       feedbackMessage = 'Sesion iniciada correctamente.'
     } catch (error) {
       loginMessage = mapPublicAuthError(error.message, 'login')
@@ -2391,6 +2628,8 @@ const handleSubmit = async (event) => {
       })
       setupStatus = await authManager.getSetupStatus({ instanceKey })
       await loadCloudAccess(sessionPayload)
+      activeSection = 'dashboard'
+      saveSection()
       feedbackMessage = 'Cuenta creada y lista para operar.'
     } catch (error) {
       signupMessage = mapPublicAuthError(error.message, 'signup')
@@ -2410,6 +2649,7 @@ const handleSubmit = async (event) => {
       : await store.createBranch({ name: formData.get('name'), code: formData.get('code'), address: formData.get('address') })
     feedbackMessage = result.message || ''
     branchEditingId = ''
+    branchFormOpen = false
   }
   if (kind === 'register') {
     const result = formData.get('registerId')
@@ -2417,6 +2657,7 @@ const handleSubmit = async (event) => {
       : await store.createRegister({ branchId: formData.get('branchId'), name: formData.get('name'), code: formData.get('code'), cashierUserId: formData.get('cashierUserId') })
     feedbackMessage = result.message || ''
     registerEditingId = ''
+    registerFormOpen = false
   }
   if (kind === 'user') {
     const result = formData.get('userId')
@@ -2531,10 +2772,12 @@ const handleSubmit = async (event) => {
   if (kind === 'open-cash') {
     const result = await store.openCashSession({ registerId: formData.get('registerId'), openingAmount: formData.get('openingAmount') })
     feedbackMessage = result.message || ''
+    cashFormOpen = false
   }
   if (kind === 'close-cash') {
     const result = await store.closeCashSession({ cashSessionId: getUiState().openCashSession?.id || null, countedAmount: formData.get('countedAmount') })
     feedbackMessage = result.message || ''
+    cashFormOpen = false
   }
   if (kind === 'cash-movement') {
     const result = await store.createCashMovement({ cashSessionId: getUiState().openCashSession?.id || null, kind: formData.get('kind'), amount: formData.get('amount'), note: formData.get('note') })
@@ -2546,6 +2789,7 @@ const handleSubmit = async (event) => {
       : await store.createPurchaseReceipt({ supplierId: formData.get('supplierId'), productId: formData.get('productId'), documentNumber: formData.get('documentNumber'), quantity: formData.get('quantity'), unitCost: formData.get('unitCost'), note: formData.get('note') })
     feedbackMessage = result.message || (result.ok ? 'Recepcion registrada y stock actualizado.' : '')
     purchaseEditingId = ''
+    purchaseFormOpen = false
   }
   if (kind === 'sale') {
     const items = []
@@ -2560,6 +2804,7 @@ const handleSubmit = async (event) => {
     saleEditingId = ''
     saleDraftQuantities = {}
     saleQuickAddCode = ''
+    saleFormOpen = false
   }
 
   form.reset()
@@ -2633,6 +2878,25 @@ const bindEvents = () => {
     customerFormOpen = false
     render()
   })
+  for (const button of document.querySelectorAll('[data-action="open-sale-form"]')) button.addEventListener('click', () => {
+    saleFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-sale-form"]')) button.addEventListener('click', () => {
+    saleFormOpen = false
+    saleEditingId = ''
+    saleDraftQuantities = {}
+    saleQuickAddCode = ''
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-cash-form"]')) button.addEventListener('click', () => {
+    cashFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-cash-form"]')) button.addEventListener('click', () => {
+    cashFormOpen = false
+    render()
+  })
   for (const button of document.querySelectorAll('[data-action="open-product-form"]')) button.addEventListener('click', () => {
     productFormOpen = true
     render()
@@ -2647,6 +2911,15 @@ const bindEvents = () => {
   })
   for (const button of document.querySelectorAll('[data-action="close-supplier-form"]')) button.addEventListener('click', () => {
     supplierFormOpen = false
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-purchase-form"]')) button.addEventListener('click', () => {
+    purchaseFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-purchase-form"]')) button.addEventListener('click', () => {
+    purchaseFormOpen = false
+    purchaseEditingId = ''
     render()
   })
   for (const button of document.querySelectorAll('[data-action="open-invoice-form"]')) button.addEventListener('click', () => {
@@ -2665,6 +2938,24 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="close-ticket-form"]')) button.addEventListener('click', () => {
     ticketFormOpen = false
     ticketEditingId = ''
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-branch-form"]')) button.addEventListener('click', () => {
+    branchFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-branch-form"]')) button.addEventListener('click', () => {
+    branchFormOpen = false
+    branchEditingId = ''
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-register-form"]')) button.addEventListener('click', () => {
+    registerFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-register-form"]')) button.addEventListener('click', () => {
+    registerFormOpen = false
+    registerEditingId = ''
     render()
   })
   for (const button of document.querySelectorAll('[data-delete]')) button.addEventListener('click', () => { store.removeEntity(button.dataset.delete, button.dataset.id); feedbackMessage = 'Registro eliminado y movimientos revertidos cuando correspondia.'; render() })
@@ -2732,6 +3023,7 @@ const bindEvents = () => {
     button.addEventListener('click', async () => {
       if (button.dataset.saleAction === 'edit') {
         saleEditingId = button.dataset.id
+        saleFormOpen = true
         const sale = store.getSnapshot().sales.find((entry) => entry.id === button.dataset.id)
         saleDraftQuantities = Object.fromEntries((sale?.items || []).map((item) => [item.productId, item.quantity]))
         saleQuickAddCode = ''
@@ -2776,6 +3068,7 @@ const bindEvents = () => {
     button.addEventListener('click', () => {
       if (button.dataset.purchaseAction === 'edit') {
         purchaseEditingId = button.dataset.id
+        purchaseFormOpen = true
         feedbackMessage = 'Recepcion cargada para edicion.'
         render()
       }
@@ -2803,6 +3096,7 @@ const bindEvents = () => {
     button.addEventListener('click', () => {
       if (button.dataset.branchAction === 'edit') {
         branchEditingId = button.dataset.id
+        branchFormOpen = true
         feedbackMessage = 'Sucursal cargada para edicion.'
         render()
         return
@@ -2822,6 +3116,7 @@ const bindEvents = () => {
       }
       if (button.dataset.registerAction === 'edit') {
         registerEditingId = button.dataset.id
+        registerFormOpen = true
         feedbackMessage = 'Caja cargada para edicion.'
         render()
       }
@@ -2901,17 +3196,17 @@ const bindEvents = () => {
     })
   }
   const cancelSaleEdit = document.querySelector('[data-action="cancel-sale-edit"]')
-  if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; saleDraftQuantities = {}; saleQuickAddCode = ''; feedbackMessage = 'Edicion de venta cancelada.'; render() })
+  if (cancelSaleEdit) cancelSaleEdit.addEventListener('click', () => { saleEditingId = ''; saleDraftQuantities = {}; saleQuickAddCode = ''; saleFormOpen = false; feedbackMessage = 'Edicion de venta cancelada.'; render() })
   const cancelPurchaseEdit = document.querySelector('[data-action="cancel-purchase-edit"]')
-  if (cancelPurchaseEdit) cancelPurchaseEdit.addEventListener('click', () => { purchaseEditingId = ''; feedbackMessage = 'Edicion de compra cancelada.'; render() })
+  if (cancelPurchaseEdit) cancelPurchaseEdit.addEventListener('click', () => { purchaseEditingId = ''; purchaseFormOpen = false; feedbackMessage = 'Edicion de compra cancelada.'; render() })
   const cancelInvoiceEdit = document.querySelector('[data-action="cancel-invoice-edit"]')
   if (cancelInvoiceEdit) cancelInvoiceEdit.addEventListener('click', () => { invoiceEditingId = ''; feedbackMessage = 'Edicion de factura cancelada.'; render() })
   const cancelTicketEdit = document.querySelector('[data-action="cancel-ticket-edit"]')
   if (cancelTicketEdit) cancelTicketEdit.addEventListener('click', () => { ticketEditingId = ''; feedbackMessage = 'Edicion de ticket cancelada.'; render() })
   const cancelBranchEdit = document.querySelector('[data-action="cancel-branch-edit"]')
-  if (cancelBranchEdit) cancelBranchEdit.addEventListener('click', () => { branchEditingId = ''; feedbackMessage = 'Edicion de sucursal cancelada.'; render() })
+  if (cancelBranchEdit) cancelBranchEdit.addEventListener('click', () => { branchEditingId = ''; branchFormOpen = false; feedbackMessage = 'Edicion de sucursal cancelada.'; render() })
   const cancelRegisterEdit = document.querySelector('[data-action="cancel-register-edit"]')
-  if (cancelRegisterEdit) cancelRegisterEdit.addEventListener('click', () => { registerEditingId = ''; feedbackMessage = 'Edicion de caja cancelada.'; render() })
+  if (cancelRegisterEdit) cancelRegisterEdit.addEventListener('click', () => { registerEditingId = ''; registerFormOpen = false; feedbackMessage = 'Edicion de caja cancelada.'; render() })
   const cancelUserEdit = document.querySelector('[data-action="cancel-user-edit"]')
   if (cancelUserEdit) cancelUserEdit.addEventListener('click', () => { userEditingId = ''; feedbackMessage = 'Edicion de usuario cancelada.'; render() })
 }
