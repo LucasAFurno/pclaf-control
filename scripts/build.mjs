@@ -27,17 +27,40 @@ const html = `<!doctype html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="PCLAF Control es un sistema web para comercios con ventas, caja, stock, clientes, productos y facturacion desde cualquier dispositivo." />
-    <meta name="keywords" content="sistema de ventas, software para comercios, control de stock, caja, facturacion, punto de venta, PCLAF Control" />
-    <meta property="og:title" content="PCLAF Control | Sistema comercial web" />
-    <meta property="og:description" content="Ventas, caja, productos, clientes y comprobantes en una sola herramienta web para comercios." />
+    <meta name="description" content="PCLAF Control es un sistema de ventas, caja, stock, clientes, productos, compras y facturacion para kioscos, tiendas, locales y comercios que quieren trabajar desde la web." />
+    <meta name="keywords" content="sistema de ventas, software para comercios, control de stock, caja, facturacion, punto de venta web, sistema para kioscos, sistema para tiendas, software comercial, PCLAF Control" />
+    <meta name="robots" content="index,follow" />
+    <meta property="og:title" content="PCLAF Control | Sistema de ventas, caja y stock para comercios" />
+    <meta property="og:description" content="Sistema comercial web para vender, cobrar, controlar stock, clientes, compras y comprobantes desde PC o celular." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.pclafcontrol.com.ar/" />
     <meta property="og:image" content="/pclaf-logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PCLAF Control | Sistema comercial web" />
+    <meta name="twitter:description" content="Ventas, caja, stock, clientes, compras y comprobantes desde una sola web para comercios." />
+    <link rel="canonical" href="https://www.pclafcontrol.com.ar/" />
     <link rel="icon" type="image/png" href="/pclaf-logo.png" />
     <link rel="shortcut icon" href="/pclaf-logo.png" />
     <link rel="apple-touch-icon" href="/pclaf-logo.png" />
     <link rel="stylesheet" href="/app.css" />
-    <title>PCLAF Control | Sistema comercial web</title>
+    <title>PCLAF Control | Sistema de ventas, caja y stock para comercios</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "PCLAF Control",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "url": "https://www.pclafcontrol.com.ar/",
+        "image": "https://www.pclafcontrol.com.ar/pclaf-logo.png",
+        "description": "Sistema comercial web para ventas, caja, stock, clientes, compras, tickets y comprobantes para comercios.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "ARS"
+        }
+      }
+    </script>
     <style>
       #boot-status {
         min-height: 100vh;

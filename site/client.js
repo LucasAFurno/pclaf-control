@@ -701,9 +701,9 @@ const loginView = (ui) => {
       </header>
       <section class="public-hero">
         <div class="public-hero-copy">
-          <p class="kicker">Sistema de gestion comercial</p>
+          <p class="kicker">Sistema de ventas, caja y stock</p>
           <h1>${productName}</h1>
-          <p class="login-copy login-copy-hero">Vende, cobra, controla stock y ordena el trabajo diario desde una sola web, tanto en PC como en celular.</p>
+          <p class="login-copy login-copy-hero">Software de gestion comercial para kioscos, tiendas, locales y negocios que necesitan vender, cobrar, controlar stock, clientes, compras y comprobantes desde una sola web.</p>
           ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
           <div class="login-badges">
             <span class="login-badge ${ui.cloudConnection.enabled ? 'is-ok' : 'is-warn'}">${ui.cloudConnection.enabled ? 'Base online activa' : 'Activacion pendiente'}</span>
@@ -711,15 +711,39 @@ const loginView = (ui) => {
             <span class="login-badge">Stock y clientes</span>
             <span class="login-badge">Comprobantes</span>
           </div>
+          <div class="landing-seo-block">
+            <p>PCLAF Control funciona como punto de venta web con control de caja, productos, inventario, clientes, proveedores, tickets y facturacion para comercios que quieren operar desde PC o celular sin instalar programas complejos.</p>
+            <p>Empieza simple para no abrumar al cliente y despues crece con usuarios, permisos, sucursales, varias cajas y reportes segun la necesidad real del negocio.</p>
+          </div>
+          <div class="login-actions landing-primary-actions">
+            <button type="button" class="primary-action hero-action" data-action="show-signup">Probar gratis</button>
+            <button type="button" class="ghost-action hero-action" data-action="show-login">Ya tengo cuenta</button>
+          </div>
+          <div class="landing-proof-grid">
+            <article class="landing-proof-card"><strong>100% web</strong><span>Acceso online desde PC, notebook o celular.</span></article>
+            <article class="landing-proof-card"><strong>Ventas y caja</strong><span>Cobros, apertura, cierre y arqueo en una sola pantalla.</span></article>
+            <article class="landing-proof-card"><strong>Stock real</strong><span>Productos, compras, ajustes y transferencias por sucursal.</span></article>
+            <article class="landing-proof-card"><strong>Listo para crecer</strong><span>Usuarios, permisos, comprobantes y reportes comerciales.</span></article>
+          </div>
+          <div class="landing-sector-strip">
+            <strong>Ideal para</strong>
+            <div class="landing-sector-chips">
+              <span class="landing-sector-chip">Kioscos</span>
+              <span class="landing-sector-chip">Locales de barrio</span>
+              <span class="landing-sector-chip">Tiendas</span>
+              <span class="landing-sector-chip">Servicios tecnicos</span>
+              <span class="landing-sector-chip">Comercios con una o varias cajas</span>
+            </div>
+          </div>
           <div class="public-feature-grid">
-            <article class="landing-feature-card"><strong>Vende y cobra rapido</strong><span>Ticket, caja y cobros diarios en una vista clara.</span></article>
-            <article class="landing-feature-card"><strong>Controla productos y stock</strong><span>Altas, compras, ajustes y orden de inventario.</span></article>
-            <article class="landing-feature-card"><strong>Escala cuando haga falta</strong><span>Usuarios, permisos, sucursales y reportes sobre base cloud.</span></article>
+            <article class="landing-feature-card"><strong>Vende y cobra rapido</strong><span>Ventas multi item, medios de pago, caja y comprobantes desde una operacion clara.</span></article>
+            <article class="landing-feature-card"><strong>Controla mercaderia sin enredos</strong><span>Catalogo, stock por sucursal, compras, proveedores y lector de codigo para trabajar mas rapido.</span></article>
+            <article class="landing-feature-card"><strong>Ordena tu negocio y no solo una caja</strong><span>Clientes, usuarios, permisos, tickets, reportes y base cloud pensada para crecer sin rehacer el sistema.</span></article>
           </div>
           <div class="landing-contact compact-contact">
             <div>
-              <strong>Contacto directo</strong>
-              <span>Consultas y soporte por WhatsApp</span>
+              <strong>Implementacion y soporte directo</strong>
+              <span>Te ayudamos a activar tu comercio, probar la app y empezar a usarla por WhatsApp.</span>
             </div>
             <button type="button" class="ghost-action" data-action="open-support">Hablar con soporte</button>
           </div>
