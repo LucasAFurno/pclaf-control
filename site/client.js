@@ -1529,6 +1529,7 @@ const invoicesView = (ui) => `
 const invoicesViewV2 = (ui) => `
   ${(() => {
     const editingInvoice = ui.snapshot.invoices.find((invoice) => invoice.id === invoiceEditingId)
+    const showInvoiceForm = invoiceFormOpen || Boolean(editingInvoice)
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Facturacion</p><h2>Comprobantes</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
@@ -1602,6 +1603,7 @@ const ticketsView = (ui) => `
 const ticketsViewV2 = (ui) => `
   ${(() => {
     const editingTicket = ui.snapshot.tickets.find((ticket) => ticket.id === ticketEditingId)
+    const showTicketForm = ticketFormOpen || Boolean(editingTicket)
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Tickets</p><h2>Seguimiento operativo</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
