@@ -916,7 +916,32 @@ input, select { outline: none; }
 }
 
 .topbar-right.is-compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
+  align-items: stretch;
+}
+
+.topbar-right.is-compact .account-alerts-wrap,
+.topbar-right.is-compact .status-chip,
+.topbar-right.is-compact .topbar-controls {
+  width: 100%;
+}
+
+.topbar-right.is-compact .account-alerts-wrap {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.topbar-right.is-compact .status-chip {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.topbar-right.is-compact .topbar-controls {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  grid-template-rows: 1fr 1fr;
 }
 
 .topbar-right.is-minimal .topbar-controls,
@@ -930,6 +955,7 @@ input, select { outline: none; }
 
 .topbar-controls {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 8px;
   align-items: stretch;
 }
@@ -938,6 +964,7 @@ input, select { outline: none; }
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  align-items: stretch;
 }
 
 .summary-mini-card {
@@ -1633,6 +1660,14 @@ input, select { outline: none; }
   align-items: start;
 }
 
+.module-board.board-expanded {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.module-board.board-expanded > .module-main {
+  grid-column: 1 / -1;
+}
+
 .module-board > .module-main:only-child,
 .module-board > .panel:only-child {
   grid-column: 1 / -1;
@@ -1653,6 +1688,26 @@ input, select { outline: none; }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.dual-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.dual-actions > *:last-child:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.dual-actions .inline-action,
+.dual-actions .primary-action,
+.dual-actions .danger-action,
+.dual-actions .ghost-action,
+.dual-actions .toggle-chip {
+  width: 100%;
+  justify-content: center;
 }
 
 .inventory-panel {
@@ -2187,6 +2242,17 @@ input, select { outline: none; }
 
   .topbar-right.is-minimal .account-card {
     min-width: 0;
+  }
+
+  .topbar-right.is-compact {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-right.is-compact .account-alerts-wrap,
+  .topbar-right.is-compact .status-chip,
+  .topbar-right.is-compact .topbar-controls {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 
