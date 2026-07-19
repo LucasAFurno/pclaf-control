@@ -87,6 +87,8 @@ let customerFormOpen = false
 let saleFormOpen = false
 let cashFormOpen = false
 let productFormOpen = false
+let stockAdjustmentFormOpen = false
+let stockTransferFormOpen = false
 let supplierFormOpen = false
 let purchaseFormOpen = false
 let invoiceFormOpen = false
@@ -1278,50 +1280,22 @@ const cashViewV2 = (ui) => `
 const productsView = (ui) => `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Productos</p><h2>Catalogo y stock</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact">
-        <span>Productos activos</span>
-        <strong>${ui.scopedProducts.length}</strong>
-        <p>Catalogo disponible en ${ui.currentBranch?.name || 'la sucursal actual'}</p>
-      </article>
-      <article class="metric-card compact">
-        <span>Stock bajo</span>
-        <strong>${ui.lowStock.length}</strong>
-        <p>Articulos para revisar o reponer</p>
-      </article>
-      <article class="metric-card compact">
-        <span>Movimientos</span>
-        <strong>${ui.scopedStockMovements.length}</strong>
-        <p>Ajustes y transferencias del periodo</p>
-      </article>
-    </section>
     <section class="module-board products-board">
       <div class="module-main">
-        <div class="compact-form-grid">
-          <article class="panel">
-            <div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div></div>
-            <form class="form-grid compact-form" data-form="stock-adjustment">
-              <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
-              <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
-              <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
-              <button type="submit">Aplicar ajuste</button>
-            </form>
-          </article>
-          <article class="panel">
-            <div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div></div>
-            <form class="form-grid compact-form" data-form="stock-transfer">
-              <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
-              <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
-              <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
-              <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
-              <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
-              <button type="submit">Registrar transferencia</button>
-            </form>
-          </article>
-        </div>
         <article class="panel inventory-panel">
-          <div class="panel-head inventory-headline"><div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div></div>
-          <div class="settings-actions">${createToggleButton('product', productFormOpen, 'Agregar producto')}</div>
+          <div class="panel-head inventory-headline">
+            <div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div>
+            <div class="panel-inline-stats">
+              <span class="panel-inline-stat"><strong>${ui.scopedProducts.length}</strong><span>Productos</span></span>
+              <span class="panel-inline-stat"><strong>${ui.lowStock.length}</strong><span>Stock bajo</span></span>
+              <span class="panel-inline-stat"><strong>${ui.scopedStockMovements.length}</strong><span>Movimientos</span></span>
+            </div>
+          </div>
+          <div class="settings-actions">
+            ${createToggleButton('product', productFormOpen, 'Agregar producto')}
+            ${createToggleButton('stock-adjustment', stockAdjustmentFormOpen, 'Ajuste de stock')}
+            ${createToggleButton('stock-transfer', stockTransferFormOpen, 'Transferencia')}
+          </div>
           ${inventoryTable(ui.scopedProducts.map((product) => `
             <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
               <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
@@ -1333,6 +1307,24 @@ const productsView = (ui) => `
             </div>
           `))}
         </article>
+        ${stockAdjustmentFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-adjustment-form">Cerrar</button></div></div>
+          <form class="form-grid compact-form" data-form="stock-adjustment">
+            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
+            <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
+            <button type="submit">Aplicar ajuste</button>
+          </form>
+        </article>` : ''}
+        ${stockTransferFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-transfer-form">Cerrar</button></div></div>
+          <form class="form-grid compact-form" data-form="stock-transfer">
+            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
+            <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
+            <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
+            <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
+            <button type="submit">Registrar transferencia</button>
+          </form>
+        </article>` : ''}
         ${productFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo producto</h3><p>Carga simple para empezar rapido</p></div></div>
           <form class="form-grid" data-form="product">
             <label>Nombre<input type="text" name="name" required /></label>
@@ -1482,16 +1474,16 @@ const purchasesViewV2 = (ui) => `
           <article class="panel"><div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div><div class="settings-actions">${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}</div></div>
             ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`))}
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div><div class="settings-actions">${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}</div></div>
+        <article class="panel"><div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div><div class="settings-actions">${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}</div></div>
             ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery}</span><span>${actionButton('supplier', supplier.id)}</span></div>`))}
           </article>
         </div>
         ${supplierFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo proveedor</h3><p>Base comercial de compras</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-supplier-form">Cerrar</button></div></div>
           <form class="form-grid" data-form="supplier">
             <label>Empresa<input type="text" name="name" required /></label>
-            <label>Contacto<input type="text" name="contact" required /></label>
-            <label>Telefono<input type="text" name="phone" required /></label>
-            <label>Saldo pendiente<input type="number" name="balance" min="0" required /></label>
+            <label>Contacto<input type="text" name="contact" /></label>
+            <label>Telefono<input type="text" name="phone" /></label>
+            <label>Saldo pendiente<input type="number" name="balance" min="0" value="0" /></label>
             <label>Ultima entrega<input type="date" name="lastDelivery" value="${today}" required /></label>
             <label>Categoria<input type="text" name="category" required /></label>
             <button type="submit">Guardar proveedor</button>
@@ -2990,6 +2982,22 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="close-purchase-form"]')) button.addEventListener('click', () => {
     purchaseFormOpen = false
     purchaseEditingId = ''
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-stock-adjustment-form"]')) button.addEventListener('click', () => {
+    stockAdjustmentFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-stock-adjustment-form"]')) button.addEventListener('click', () => {
+    stockAdjustmentFormOpen = false
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="open-stock-transfer-form"]')) button.addEventListener('click', () => {
+    stockTransferFormOpen = true
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="close-stock-transfer-form"]')) button.addEventListener('click', () => {
+    stockTransferFormOpen = false
     render()
   })
   for (const button of document.querySelectorAll('[data-action="open-invoice-form"]')) button.addEventListener('click', () => {

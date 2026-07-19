@@ -1333,6 +1333,35 @@ input, select { outline: none; }
 
 .panel-head p { margin: 5px 0 0; }
 
+.panel-inline-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.panel-inline-stat {
+  display: inline-grid;
+  gap: 2px;
+  min-width: 84px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  text-align: left;
+}
+
+.panel-inline-stat strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.panel-inline-stat span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2200,6 +2229,11 @@ input, select { outline: none; }
   .login-overview-card {
     padding: 20px;
     border-radius: 22px;
+  }
+
+  .panel-inline-stats {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .public-hero-copy,
