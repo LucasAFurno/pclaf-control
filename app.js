@@ -961,11 +961,11 @@ const customersViewV2 = (ui) => `
         </article>
         ${customerFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
           <form class="form-grid" data-form="customer">
-            <label>Nombre<input type="text" name="fullName" required /></label>
-            <label>Telefono<input type="text" name="phone" required /></label>
-            <label>Email<input type="email" name="email" /></label>
-            <label>Saldo inicial<input type="number" name="balance" min="0" value="0" required /></label>
-            <label class="full-span">Etiqueta<input type="text" name="tag" placeholder="Mayorista, taller, mostrador..." required /></label>
+          <label>Nombre<input type="text" name="fullName" required /></label>
+          <label>Telefono<input type="text" name="phone" placeholder="Opcional" /></label>
+          <label>Email<input type="email" name="email" placeholder="Opcional" /></label>
+          <label>Saldo inicial<input type="number" name="balance" min="0" value="0" /></label>
+          <label class="full-span">Etiqueta<input type="text" name="tag" placeholder="Opcional: mayorista, taller, mostrador..." /></label>
             <button type="submit">Guardar cliente</button>
           </form>
         </article>` : ''}
