@@ -1,8 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 
 const schemaVersion = 4
+const pinHashVersion = 'scrypt-v1'
 
 const parseJson = (value, fallback) => {
   try {
@@ -14,6 +16,40 @@ const parseJson = (value, fallback) => {
 
 const boolInt = (value) => (value ? 1 : 0)
 const fromBoolInt = (value) => Boolean(value)
+const createPinSalt = () => randomBytes(16).toString('hex')
+const createPinHash = (pin, salt) => scryptSync(String(pin || ''), salt, 64).toString('hex')
+const secureUser = (user) => {
+  if (user?.pinHash && user?.pinSalt) {
+    return {
+      pinHash: String(user.pinHash),
+      pinSalt: String(user.pinSalt),
+      pinHashVersion: String(user.pinHashVersion || pinHashVersion),
+      pin: '',
+    }
+  }
+  if (!user?.pin) {
+    return {
+      pinHash: '',
+      pinSalt: '',
+      pinHashVersion: '',
+      pin: '',
+    }
+  }
+  const salt = createPinSalt()
+  return {
+    pinHash: createPinHash(user.pin, salt),
+    pinSalt: salt,
+    pinHashVersion,
+    pin: '',
+  }
+}
+const verifyPinHash = (pin, hash, salt) => {
+  if (!pin || !hash || !salt) return false
+  const expected = Buffer.from(String(hash), 'hex')
+  const computed = Buffer.from(createPinHash(pin, salt), 'hex')
+  if (expected.length !== computed.length) return false
+  return timingSafeEqual(expected, computed)
+}
 const ensureColumn = (db, tableName, columnName, definition) => {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all()
   if (!columns.some((column) => column.name === columnName)) {
@@ -44,6 +80,9 @@ const createDatabase = (dbPath) => {
   `)
   ensureColumn(db, 'cash_sessions', 'branch_id', 'TEXT')
   ensureColumn(db, 'cash_sessions', 'register_id', 'TEXT')
+  ensureColumn(db, 'users', 'pin_hash', 'TEXT')
+  ensureColumn(db, 'users', 'pin_salt', 'TEXT')
+  ensureColumn(db, 'users', 'pin_hash_version', 'TEXT')
   ensureColumn(db, 'sales', 'branch_id', 'TEXT')
   ensureColumn(db, 'sales', 'register_id', 'TEXT')
   ensureColumn(db, 'invoices', 'branch_id', 'TEXT')
@@ -79,7 +118,7 @@ export const createLocalDatabase = (dbPath) => {
 
   const writeState = (state) => {
     const insertRole = db.prepare('INSERT INTO roles (id, key, name, permissions_json) VALUES (?, ?, ?, ?)')
-    const insertUser = db.prepare('INSERT INTO users (id, full_name, role_id, email, pin, is_active) VALUES (?, ?, ?, ?, ?, ?)')
+    const insertUser = db.prepare('INSERT INTO users (id, full_name, role_id, email, pin, pin_hash, pin_salt, pin_hash_version, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
     const insertCustomer = db.prepare('INSERT INTO customers (id, full_name, phone, email, balance, tag) VALUES (?, ?, ?, ?, ?, ?)')
     const insertProduct = db.prepare('INSERT INTO products (id, name, sku, stock, sale_price, cost_price, min_stock, category, track_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
     const insertSupplier = db.prepare('INSERT INTO suppliers (id, name, contact, phone, balance, last_delivery, category) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -103,7 +142,10 @@ export const createLocalDatabase = (dbPath) => {
       setMeta.run('session_json', JSON.stringify(state.session))
 
       for (const item of state.roles) insertRole.run(item.id, item.key, item.name, JSON.stringify(item.permissions))
-      for (const item of state.users) insertUser.run(item.id, item.fullName, item.roleId, item.email || '', item.pin || '', boolInt(item.isActive))
+      for (const item of state.users) {
+        const secured = secureUser(item)
+        insertUser.run(item.id, item.fullName, item.roleId, item.email || '', secured.pin, secured.pinHash, secured.pinSalt, secured.pinHashVersion, boolInt(item.isActive))
+      }
       for (const item of state.customers) insertCustomer.run(item.id, item.fullName, item.phone || '', item.email || '', item.balance || 0, item.tag || '')
       for (const item of state.products) insertProduct.run(item.id, item.name, item.sku, item.stock || 0, item.salePrice || 0, item.costPrice || 0, item.minStock || 0, item.category || '', boolInt(item.trackStock))
       for (const item of state.suppliers) insertSupplier.run(item.id, item.name, item.contact || '', item.phone || '', item.balance || 0, item.lastDelivery || '', item.category || '')
@@ -128,7 +170,28 @@ export const createLocalDatabase = (dbPath) => {
     registers: parseJson(getMeta.get('registers_json')?.value, []),
     cashMovements: parseJson(getMeta.get('cash_movements_json')?.value, []),
     roles: db.prepare('SELECT * FROM roles').all().map((row) => ({ id: row.id, key: row.key, name: row.name, permissions: parseJson(row.permissions_json, []) })),
-    users: db.prepare('SELECT * FROM users').all().map((row) => ({ id: row.id, fullName: row.full_name, roleId: row.role_id, email: row.email, pin: row.pin, isActive: fromBoolInt(row.is_active) })),
+    users: db.prepare('SELECT * FROM users').all().map((row) => {
+      let pinHash = row.pin_hash || ''
+      let pinSalt = row.pin_salt || ''
+      let pinHashVersionValue = row.pin_hash_version || ''
+      if (!pinHash && row.pin) {
+        const secured = secureUser({ pin: row.pin })
+        pinHash = secured.pinHash
+        pinSalt = secured.pinSalt
+        pinHashVersionValue = secured.pinHashVersion
+      }
+      return {
+        id: row.id,
+        fullName: row.full_name,
+        roleId: row.role_id,
+        email: row.email,
+        pin: row.pin && !pinHash ? row.pin : '',
+        pinHash,
+        pinSalt,
+        pinHashVersion: pinHashVersionValue,
+        isActive: fromBoolInt(row.is_active),
+      }
+    }),
     session: parseJson(getMeta.get('session_json')?.value, { userId: '', authenticated: false }),
     customers: db.prepare('SELECT * FROM customers').all().map((row) => ({ id: row.id, fullName: row.full_name, phone: row.phone, email: row.email, balance: row.balance, tag: row.tag })),
     products: db.prepare('SELECT * FROM products').all().map((row) => ({ id: row.id, name: row.name, sku: row.sku, stock: row.stock, salePrice: row.sale_price, costPrice: row.cost_price, minStock: row.min_stock, category: row.category, trackStock: fromBoolInt(row.track_stock) })),
@@ -155,6 +218,7 @@ export const createLocalDatabase = (dbPath) => {
   return {
     initialize,
     loadState,
+    verifyPin: ({ pin, hash, salt }) => verifyPinHash(pin, hash, salt),
     saveSnapshot: (state) => {
       writeState(state)
       return loadState()

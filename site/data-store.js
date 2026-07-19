@@ -16,9 +16,50 @@ const makeId = () => {
 }
 const todayIso = () => new Date().toISOString()
 const todayDate = () => todayIso().slice(0, 10)
+const pinHashVersion = 'sha256-v1'
 const clone = (value) => {
   if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value)
   return JSON.parse(JSON.stringify(value))
+}
+const encoder = typeof globalThis.TextEncoder === 'function' ? new globalThis.TextEncoder() : null
+const toHex = (buffer) => Array.from(new Uint8Array(buffer)).map((value) => value.toString(16).padStart(2, '0')).join('')
+const createPinSalt = () => {
+  try {
+    const bytes = new Uint8Array(16)
+    globalThis.crypto?.getRandomValues?.(bytes)
+    return Array.from(bytes).map((value) => value.toString(16).padStart(2, '0')).join('')
+  } catch {
+    return fallbackId().replace(/[^a-z0-9]/gi, '').slice(0, 32)
+  }
+}
+const hashPin = async (pin, salt) => {
+  if (!encoder || !globalThis.crypto?.subtle) throw new Error('crypto_not_available')
+  const value = encoder.encode(`${String(pin || '')}:${String(salt || '')}`)
+  return toHex(await globalThis.crypto.subtle.digest('SHA-256', value))
+}
+const verifyHashedPin = async (user, pin) => {
+  if (!user?.pinHash || !user?.pinSalt) return false
+  return user.pinHash === await hashPin(pin, user.pinSalt)
+}
+const migrateUserPinSecurity = async (user) => {
+  if (!user) return false
+  if (user.pinHash && user.pinSalt) return false
+  if (!user.pin) return false
+  const salt = createPinSalt()
+  user.pinHash = await hashPin(user.pin, salt)
+  user.pinSalt = salt
+  user.pinHashVersion = pinHashVersion
+  user.pin = ''
+  return true
+}
+const buildSecuredPinFields = async (pin) => {
+  const salt = createPinSalt()
+  return {
+    pin: '',
+    pinHash: await hashPin(pin, salt),
+    pinSalt: salt,
+    pinHashVersion,
+  }
 }
 const safeStorage = {
   getItem(key) {
@@ -819,6 +860,9 @@ export const createBrowserDataStore = (options = {}) => {
       roleKey,
       roleId: roleIds[roleKey] || roleIds.cashier,
       pin: '',
+      pinHash: '',
+      pinSalt: '',
+      pinHashVersion: '',
       isActive: entry.status ? entry.status === 'active' : entry.isActive !== false,
       status: entry.status || (entry.isActive === false ? 'disabled' : 'active'),
       isOwner: Boolean(entry.is_owner || entry.isOwner),
@@ -853,6 +897,26 @@ export const createBrowserDataStore = (options = {}) => {
     }
   }
   applyCloudMeta()
+
+  let pinSecurityMigration = null
+  const migrateLegacyPinsIfNeeded = async () => {
+    if (pinSecurityMigration) return pinSecurityMigration
+    pinSecurityMigration = (async () => {
+      let changed = false
+      for (const user of state.users) {
+        // Remote users never expose a local PIN and do not need local hashing.
+        if (user?.pin && !user?.pinHash) {
+          changed = await migrateUserPinSecurity(user) || changed
+        }
+      }
+      if (changed) save({ skipCloud: true })
+    })()
+    try {
+      await pinSecurityMigration
+    } finally {
+      pinSecurityMigration = null
+    }
+  }
 
   const persistLocalState = () => {
     safeStorage.setItem(dataStorageKey, JSON.stringify(state))
@@ -953,7 +1017,8 @@ export const createBrowserDataStore = (options = {}) => {
     state.session.authenticated = false
   }
 
-  const authenticateUser = (identifier, pin) => {
+  const authenticateUser = async (identifier, pin) => {
+    await migrateLegacyPinsIfNeeded()
     const normalized = String(identifier || '').trim().toLowerCase()
     const user = state.users.find((entry) => (
       entry.isActive
@@ -965,7 +1030,13 @@ export const createBrowserDataStore = (options = {}) => {
       )
     ))
     if (!user) return { ok: false, message: 'Usuario no encontrado' }
-    if (user.pin !== String(pin)) return { ok: false, message: 'PIN incorrecto' }
+    const pinMatches = user.pinHash
+      ? await verifyHashedPin(user, pin)
+      : user.pin === String(pin)
+    if (!pinMatches) return { ok: false, message: 'PIN incorrecto' }
+    if (!user.pinHash && user.pin) {
+      await migrateUserPinSecurity(user)
+    }
     state.session.userId = user.id
     state.session.authenticated = true
     pushAudit(state, user.id, 'session', user.id, 'sign_in', { userId: user.id })
@@ -1285,10 +1356,12 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const createUser = async (payload) => {
+    await migrateLegacyPinsIfNeeded()
     const normalizedEmail = String(payload.email || '').trim().toLowerCase()
+    const rawPin = String(payload.pin || '')
     if (!payload.fullName) return { ok: false, message: 'El usuario necesita un nombre.' }
     if (!normalizedEmail) return { ok: false, message: 'El usuario necesita un email.' }
-    if (!payload.pin || String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
+    if (!rawPin || rawPin.length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
     if (normalizedEmail && state.users.some((user) => String(user.email || '').trim().toLowerCase() === normalizedEmail)) {
       return { ok: false, message: 'Ya existe un usuario con ese email.' }
     }
@@ -1298,7 +1371,7 @@ export const createBrowserDataStore = (options = {}) => {
       fullName: String(payload.fullName || '').trim(),
       roleId: payload.roleId,
       email: normalizedEmail,
-      pin: String(payload.pin),
+      ...(await buildSecuredPinFields(String(payload.pin))),
       isActive: payload.isActive !== false,
     }
     const roleKey = roleKeysById[userDraft.roleId] || 'cashier'
@@ -1308,7 +1381,7 @@ export const createBrowserDataStore = (options = {}) => {
         fullName: userDraft.fullName,
         roleKey,
         email: userDraft.email,
-        pin: userDraft.pin,
+        pin: rawPin,
         isActive: userDraft.isActive,
       })
       : userDraft
@@ -1326,7 +1399,8 @@ export const createBrowserDataStore = (options = {}) => {
     return { ok: true, message: 'Usuario creado.' }
   }
 
-  const registerPublicUser = (payload) => {
+  const registerPublicUser = async (payload) => {
+    await migrateLegacyPinsIfNeeded()
     const normalizedEmail = String(payload.email || '').trim().toLowerCase()
     const normalizedName = String(payload.fullName || '').trim()
     const normalizedLogin = normalizedEmail || normalizedName.toLowerCase().replace(/\s+/g, '.')
@@ -1345,7 +1419,7 @@ export const createBrowserDataStore = (options = {}) => {
       fullName: normalizedName,
       roleId: cashierRoleId,
       email: normalizedEmail,
-      pin: String(payload.pin),
+      ...(await buildSecuredPinFields(String(payload.pin))),
       isActive: true,
     }
     state.users.unshift(user)
@@ -1355,6 +1429,7 @@ export const createBrowserDataStore = (options = {}) => {
   }
 
   const updateUser = async (userId, payload) => {
+    await migrateLegacyPinsIfNeeded()
     const user = state.users.find((entry) => entry.id === userId)
     if (!user) return { ok: false, message: 'Usuario no encontrado.' }
     const normalizedEmail = String(payload.email || '').trim().toLowerCase()
@@ -1377,7 +1452,7 @@ export const createBrowserDataStore = (options = {}) => {
     user.isActive = payload.isActive !== false
     if (payload.pin) {
       if (String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
-      user.pin = String(payload.pin)
+      Object.assign(user, await buildSecuredPinFields(String(payload.pin)))
     }
     if (cloudCoreAdapter) {
       const remoteUser = await cloudCoreAdapter.upsertUser({
