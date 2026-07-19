@@ -1,5 +1,4 @@
-import { createSupabaseSnapshotAdapter } from './cloud-sync.js?v=20260719a'
-import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260719a'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260719c'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
@@ -188,11 +187,11 @@ const roleKeysById = Object.fromEntries(roles.map((role) => [role.id, role.key])
 const seedData = {
   meta: {
     schemaVersion: 3,
-    edition: 'local-demo',
-    adapter: 'browser-localstorage',
+    edition: 'desktop-local',
+    adapter: 'desktop-local',
     syncStatus: 'offline',
     lastSyncedAt: '',
-    instanceKey: 'local-demo',
+    instanceKey: 'desktop-local',
   },
   business: {
     name: 'Panel comercial',
@@ -870,10 +869,6 @@ export const createBrowserDataStore = (options = {}) => {
   }
   let cloudConfig = readCloudConfig()
   let cloudAccessToken = ''
-  let cloudAdapter = createSupabaseSnapshotAdapter({
-    ...cloudConfig,
-    getAccessToken: () => cloudAccessToken,
-  })
   let cloudCoreAdapter = createSupabaseCoreAdapter({
     ...cloudConfig,
     getAccessToken: () => cloudAccessToken,
@@ -903,7 +898,7 @@ export const createBrowserDataStore = (options = {}) => {
 
   const readState = () => {
     if (isDesktop) return migrateState(desktopBridge.initialize(defaultState))
-    if (requireCloud && !cloudAdapter) return clone(defaultState)
+    if (requireCloud && !cloudCoreAdapter) return clone(defaultState)
     if (!useBrowserBusinessCache) return clone(defaultState)
     const saved = safeStorage.getItem(dataStorageKey)
     if (!saved) return clone(defaultState)
@@ -918,11 +913,11 @@ export const createBrowserDataStore = (options = {}) => {
   const applyCloudMeta = (mode = 'offline', syncedAt = '') => {
     state.meta = {
       ...state.meta,
-      edition: cloudAdapter ? 'cloud-web' : (isDesktop ? 'local-desktop' : (requireCloud ? 'cloud-required' : 'offline-blocked')),
-      adapter: cloudAdapter ? 'supabase-rest' : (isDesktop ? 'desktop-sqlite' : (requireCloud ? 'cloud-required' : 'browser-localstorage')),
-      syncStatus: requireCloud && !cloudAdapter ? 'required' : mode,
+      edition: cloudCoreAdapter ? 'cloud-core' : (isDesktop ? 'local-desktop' : (requireCloud ? 'cloud-required' : 'offline-blocked')),
+      adapter: cloudCoreAdapter ? 'supabase-core' : (isDesktop ? 'desktop-sqlite' : (requireCloud ? 'cloud-required' : 'web-disabled')),
+      syncStatus: requireCloud && !cloudCoreAdapter ? 'required' : mode,
       lastSyncedAt: syncedAt || state.meta?.lastSyncedAt || '',
-      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || (requireCloud ? 'pclaf-dev' : 'local-demo'),
+      instanceKey: cloudConfig?.instanceKey || state.meta?.instanceKey || (requireCloud ? 'pclaf-dev' : 'desktop-local'),
       environment: cloudConfig?.environment || state.meta?.environment || 'production',
       environmentLabel: cloudConfig?.environmentLabel || state.meta?.environmentLabel || '',
     }
@@ -960,41 +955,33 @@ export const createBrowserDataStore = (options = {}) => {
       state = migrateState(desktopBridge.saveSnapshot(state))
       return
     }
-    if (requireCloud && !cloudAdapter) {
+    if (requireCloud && !cloudCoreAdapter) {
       applyCloudMeta('required')
       return
     }
-    applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
+    applyCloudMeta(cloudCoreAdapter ? 'online' : 'offline')
     persistLocalState()
-    if (cloudAdapter && !skipCloud) {
-      queueMicrotask(() => {
-        syncToCloud().catch(() => {})
-      })
-    }
+    void skipCloud
   }
 
   const syncToCloud = async () => {
-    if (!cloudAdapter) return { ok: false, message: 'Sin conexion cloud configurada.' }
-    const payload = clone(state)
-    applyCloudMeta('syncing')
-    const row = await cloudAdapter.save(payload)
-    applyCloudMeta('online', row?.updated_at || todayIso())
+    if (!cloudCoreAdapter) return { ok: false, message: 'Sin conexion cloud configurada.' }
+    applyCloudMeta('online', state.meta?.lastSyncedAt || todayIso())
     persistLocalState()
-    return { ok: true, message: 'Sincronizacion completada.' }
+    return { ok: true, message: 'La web ya opera directo sobre la base real.' }
   }
 
   const syncFromCloud = async () => {
-    if (!cloudAdapter) return { ok: false, message: 'Sin conexion cloud configurada.' }
+    if (!cloudCoreAdapter) return { ok: false, message: 'Sin conexion cloud configurada.' }
     applyCloudMeta('syncing')
-    const row = await cloudAdapter.load()
-    if (row?.state_json) {
-      state = migrateState(row.state_json)
-      applyCloudMeta('online', row.updated_at || todayIso())
+    const payload = await cloudCoreAdapter.loadState()
+    if (payload) {
+      state = migrateState(payload)
+      applyCloudMeta('online', todayIso())
       persistLocalState()
       return { ok: true, message: 'Base remota cargada.' }
     }
-    await syncToCloud()
-    return { ok: true, message: 'Base remota inicializada.' }
+    return { ok: false, message: 'No se pudo leer la base real.' }
   }
 
   const getRole = (roleId) => state.roles.find((role) => role.id === roleId) || state.roles[0]
@@ -1019,15 +1006,11 @@ export const createBrowserDataStore = (options = {}) => {
 
   const setCloudAccessToken = (token = '') => {
     cloudAccessToken = String(token || '').trim()
-    cloudAdapter = createSupabaseSnapshotAdapter({
-      ...cloudConfig,
-      getAccessToken: () => cloudAccessToken,
-    })
     cloudCoreAdapter = createSupabaseCoreAdapter({
       ...cloudConfig,
       getAccessToken: () => cloudAccessToken,
     })
-    applyCloudMeta(cloudAdapter ? 'pending' : 'required')
+    applyCloudMeta(cloudCoreAdapter ? 'pending' : 'required')
   }
 
   const setCloudAuthSession = (profile, users = []) => {
@@ -2394,13 +2377,13 @@ export const createBrowserDataStore = (options = {}) => {
   }
   const resetData = () => {
     state = clone(defaultState)
-    applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
+    applyCloudMeta(cloudCoreAdapter ? 'pending' : 'offline')
     pushAudit(state, currentUser().id, 'system', null, 'reset', { resetAt: todayIso() })
     save()
   }
 
   const getCloudConnection = () => ({
-    enabled: Boolean(cloudAdapter),
+    enabled: Boolean(cloudCoreAdapter),
     url: cloudConfig?.url || defaultCloudUrl,
     anonKey: cloudConfig?.anonKey || '',
     instanceKey: cloudConfig?.instanceKey || 'pclaf-dev',
@@ -2411,23 +2394,18 @@ export const createBrowserDataStore = (options = {}) => {
 
   const setCloudConnection = async (config) => {
     cloudConfig = writeCloudConfig(config)
-    cloudAdapter = createSupabaseSnapshotAdapter({
-      ...cloudConfig,
-      getAccessToken: () => cloudAccessToken,
-    })
     cloudCoreAdapter = createSupabaseCoreAdapter({
       ...cloudConfig,
       getAccessToken: () => cloudAccessToken,
     })
-    applyCloudMeta(cloudAdapter ? 'pending' : 'offline')
+    applyCloudMeta(cloudCoreAdapter ? 'pending' : 'offline')
     save()
-    return { ok: true, message: cloudAdapter ? 'Conexion cloud guardada.' : 'Conexion cloud desactivada.' }
+    return { ok: true, message: cloudCoreAdapter ? 'Conexion cloud guardada.' : 'Conexion cloud desactivada.' }
   }
 
   const clearCloudConnection = async () => {
     writeCloudConfig(null)
     cloudConfig = null
-    cloudAdapter = null
     cloudCoreAdapter = null
     cloudAuthProfile = null
     cloudAccessToken = ''
@@ -2447,7 +2425,7 @@ export const createBrowserDataStore = (options = {}) => {
     canAccessModule,
     isAuthenticated,
     isCloudRequired: () => requireCloud,
-    isCloudReady: () => isDesktop || !requireCloud || Boolean(cloudAdapter),
+    isCloudReady: () => isDesktop || !requireCloud || Boolean(cloudCoreAdapter),
     authenticateUser,
     signOut,
     openCashSession,

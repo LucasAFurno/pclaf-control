@@ -28,7 +28,7 @@ export const createSupabaseSnapshotAdapter = (config) => {
   return {
     instanceKey,
     async load() {
-      const stateJson = await rpc('app_public_export_snapshot', {
+      const stateJson = await rpc('app_public_load_core_state', {
         p_session_token: readSessionToken(),
       })
       return {
@@ -37,16 +37,8 @@ export const createSupabaseSnapshotAdapter = (config) => {
         updated_at: new Date().toISOString(),
       }
     },
-    async save(state) {
-      const result = await rpc('app_public_save_snapshot', {
-        p_session_token: readSessionToken(),
-        p_state_json: state,
-      })
-      return {
-        instance_key: instanceKey,
-        state_json: state,
-        updated_at: result?.saved_at || new Date().toISOString(),
-      }
+    async save() {
+      throw new Error('snapshot_disabled')
     },
   }
 }
