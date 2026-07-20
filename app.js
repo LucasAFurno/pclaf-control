@@ -1252,11 +1252,7 @@ const customersViewV2 = (ui) => `
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-board customers-board">
       <div class="module-main">
-        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
-          <div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div>
-          ${dataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers.map((customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`))}
-        </article>
-        ${customerFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div></div>
+        ${customerFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo cliente</h3><p>Contacto, saldo y etiqueta comercial</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-customer-form">Cerrar</button></div></div>
           <form class="form-grid" data-form="customer">
           <label>Nombre<input type="text" name="fullName" required /></label>
           <label>Telefono<input type="text" name="phone" placeholder="Opcional" /></label>
@@ -1264,8 +1260,13 @@ const customersViewV2 = (ui) => `
           <label>Saldo inicial<input type="number" name="balance" min="0" value="0" /></label>
           <label class="full-span">Etiqueta<input type="text" name="tag" placeholder="Opcional: mayorista, taller, mostrador..." /></label>
             <button type="submit">Guardar cliente</button>
+            <button type="button" class="ghost-action" data-action="close-customer-form">Cancelar</button>
           </form>
         </article>` : ''}
+        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
+          <div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div>
+          ${dataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers.map((customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`))}
+        </article>
       </div>
     </section>
   </section>
