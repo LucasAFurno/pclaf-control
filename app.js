@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720g'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720g'
+import { createBrowserDataStore } from './data-store.js?v=20260720i'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720i'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-g'
+const appVersion = 'v2026.07.20-i'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -238,6 +238,7 @@ const mapPublicAuthError = (message, context = 'login') => {
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
 const markBootComplete = () => {
   window.__pclafBooted = true
+  document.body?.removeAttribute('data-booting')
   bootStatus?.remove()
 }
 const saveSection = () => safeStorage.setItem(sectionStorageKey, activeSection)
@@ -1549,25 +1550,6 @@ const cashViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${ui.enrichedCashMovements.length}</strong><span>Movimientos</span></span>
     </div></div>
     <section class="stacked-section">
-      ${showCashForm ? `<div class="compact-form-grid">
-          <article class="panel">
-            <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informa el efectivo contado' : 'Define el fondo inicial'}</p></div></div>
-            <form class="form-grid compact-form" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
-              ${ui.openCashSession ? '' : `<label>Caja<select name="registerId" required>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${ui.currentRegister?.id === register.id ? 'selected' : ''}>${register.name} (${register.code})</option>`).join('')}</select></label>`}
-              <label>${ui.openCashSession ? 'Efectivo contado' : 'Monto inicial'}<input type="number" min="0" name="${ui.openCashSession ? 'countedAmount' : 'openingAmount'}" value="${ui.openCashSession ? ui.expectedCash : 0}" required /></label>
-              <button type="submit">${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</button>
-              <button type="button" class="ghost-action" data-action="close-cash-form">Cancelar</button>
-            </form>
-          </article>
-          <article class="panel"><div class="panel-head"><div><h3>Movimiento manual</h3><p>Ingresos, gastos y retiros</p></div></div>
-            ${ui.openCashSession ? `<form class="form-grid compact-form" data-form="cash-movement">
-              <label>Tipo<select name="kind"><option value="income">Ingreso</option><option value="deposit">Deposito</option><option value="expense">Gasto</option><option value="withdrawal">Retiro</option></select></label>
-              <label>Importe<input type="number" min="1" name="amount" required /></label>
-              <label class="full-span">Detalle<input type="text" name="note" placeholder="Motivo del movimiento" required /></label>
-              <button type="submit">Registrar movimiento</button>
-            </form>` : '<p class="empty-state">Abri una caja para registrar movimientos manuales.</p>'}
-          </article>
-        </div>` : ''}
       <article class="panel">
         <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado y operas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
         <div class="summary-mini-row">
@@ -1578,6 +1560,25 @@ const cashViewV2 = (ui) => `
           <div class="summary-mini-card"><strong>Ajustes manuales</strong><span>${money(ui.sessionCashMovementTotal)}</span></div>
           <div class="summary-mini-card"><strong>Ultima diferencia</strong><span>${money(lastClosedSession?.differenceAmount || 0)}</span></div>
         </div>
+        ${showCashForm ? `<div class="compact-form-grid">
+            <article class="panel section-panel-nested">
+              <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informa el efectivo contado' : 'Define el fondo inicial'}</p></div></div>
+              <form class="form-grid compact-form" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
+                ${ui.openCashSession ? '' : `<label>Caja<select name="registerId" required>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${ui.currentRegister?.id === register.id ? 'selected' : ''}>${register.name} (${register.code})</option>`).join('')}</select></label>`}
+                <label>${ui.openCashSession ? 'Efectivo contado' : 'Monto inicial'}<input type="number" min="0" name="${ui.openCashSession ? 'countedAmount' : 'openingAmount'}" value="${ui.openCashSession ? ui.expectedCash : 0}" required /></label>
+                <button type="submit">${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</button>
+                <button type="button" class="ghost-action" data-action="close-cash-form">Cancelar</button>
+              </form>
+            </article>
+            <article class="panel section-panel-nested"><div class="panel-head"><div><h3>Movimiento manual</h3><p>Ingresos, gastos y retiros</p></div></div>
+              ${ui.openCashSession ? `<form class="form-grid compact-form" data-form="cash-movement">
+                <label>Tipo<select name="kind"><option value="income">Ingreso</option><option value="deposit">Deposito</option><option value="expense">Gasto</option><option value="withdrawal">Retiro</option></select></label>
+                <label>Importe<input type="number" min="1" name="amount" required /></label>
+                <label class="full-span">Detalle<input type="text" name="note" placeholder="Motivo del movimiento" required /></label>
+                <button type="submit">Registrar movimiento</button>
+              </form>` : '<p class="empty-state">Abri una caja para registrar movimientos manuales.</p>'}
+            </article>
+          </div>` : ''}
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
           ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavia no hay cierres para este filtro.</p>'}
@@ -3330,7 +3331,6 @@ const bindEvents = () => {
   })
   for (const button of document.querySelectorAll('[data-action="open-cash-form"]')) button.addEventListener('click', () => {
     cashFormOpen = true
-    queueScrollToSelector(ui.openCashSession ? 'form[data-form="cash-movement"]' : 'form[data-form="open-cash"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-cash-form"]')) button.addEventListener('click', () => {
@@ -3764,4 +3764,5 @@ const bindEvents = () => {
 
 applyTheme()
 bootstrap()
+
 

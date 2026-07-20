@@ -9,7 +9,7 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260720h'
+const assetVersion = '20260720i'
 
 const clientJs = await readFile(path.join(root, 'site', 'client.js'), 'utf8')
 const dataStoreJs = await readFile(path.join(root, 'site', 'data-store.js'), 'utf8')
@@ -65,7 +65,20 @@ const html = `<!doctype html>
       }
     </script>
     <style>
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: linear-gradient(180deg, #050505 0%, #0b0b0b 100%);
+      }
+      body[data-booting='true'] {
+        overflow: hidden;
+      }
+      #app {
+        min-height: 100vh;
+      }
       #boot-status {
+        position: fixed;
+        inset: 0;
         min-height: 100vh;
         display: grid;
         place-items: center;
@@ -73,6 +86,7 @@ const html = `<!doctype html>
         background: linear-gradient(180deg, #050505 0%, #0b0b0b 100%);
         color: #f3f4f6;
         font-family: Arial, sans-serif;
+        z-index: 9999;
       }
       .boot-card {
         width: min(560px, 100%);
@@ -100,7 +114,7 @@ const html = `<!doctype html>
       }
     </style>
   </head>
-  <body>
+  <body data-booting="true">
     <div id="app"></div>
     <div id="boot-status">
       <div class="boot-card">
@@ -111,12 +125,23 @@ const html = `<!doctype html>
     <script>
       window.__pclafBooted = false;
       window.__pclafBootError = null;
+      try {
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      } catch (error) {}
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
       window.addEventListener('error', function (event) {
         window.__pclafBootError = event && event.message ? event.message : 'Error inesperado al iniciar la aplicacion.';
       });
       window.addEventListener('unhandledrejection', function (event) {
         var reason = event && event.reason;
         window.__pclafBootError = reason && reason.message ? reason.message : 'Fallo una promesa al iniciar la aplicacion.';
+      });
+      window.addEventListener('pageshow', function () {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
       });
       window.setTimeout(function () {
         if (window.__pclafBooted) return;

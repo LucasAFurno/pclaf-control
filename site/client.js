@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720h'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720h'
+import { createBrowserDataStore } from './data-store.js?v=20260720i'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720i'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-h'
+const appVersion = 'v2026.07.20-i'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -238,6 +238,7 @@ const mapPublicAuthError = (message, context = 'login') => {
 const applyTheme = () => { document.documentElement.dataset.theme = theme }
 const markBootComplete = () => {
   window.__pclafBooted = true
+  document.body?.removeAttribute('data-booting')
   bootStatus?.remove()
 }
 const saveSection = () => safeStorage.setItem(sectionStorageKey, activeSection)
