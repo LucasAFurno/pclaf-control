@@ -1,5 +1,5 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720a'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720a'
+import { createBrowserDataStore } from './data-store.js?v=20260720b'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720b'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
@@ -119,6 +119,7 @@ let productImportBusy = false
 let productImportError = ''
 let productImportFileName = ''
 let xlsxModulePromise = null
+let pendingScrollSelector = ''
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -140,6 +141,24 @@ const flushScrollTop = () => {
     document.documentElement.scrollTop = 0
     document.body.scrollTop = 0
     document.querySelector('.page')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' })
+  })
+}
+
+const queueScrollToSelector = (selector) => {
+  pendingScrollSelector = selector || ''
+}
+
+const flushPendingScrollTarget = () => {
+  if (!pendingScrollSelector) return
+  const selector = pendingScrollSelector
+  pendingScrollSelector = ''
+  requestAnimationFrame(() => {
+    const element = document.querySelector(selector)
+    const target = element?.closest?.('.panel') || element
+    if (!target) return
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const focusable = target.querySelector('input, select, textarea, button')
+    focusable?.focus?.({ preventScroll: true })
   })
 }
 
@@ -257,6 +276,54 @@ const inventoryTable = (rows) => `
     ${rows.length ? rows.join('') : '<div class="data-empty">No hay productos cargados todavia.</div>'}
   </div>
 `
+
+const normalizeUserPermissionSet = (snapshot, entry = {}) => {
+  const rolePermissions = snapshot.roles.find((role) => role.id === entry.roleId)?.permissions || []
+  const blocked = new Set(Array.isArray(entry.blockedPermissions) ? entry.blockedPermissions : [])
+  return rolePermissions.filter((permission) => !blocked.has(permission))
+}
+
+const normalizeUserModuleScope = (snapshot, entry = {}) => {
+  const businessModules = Array.isArray(snapshot.business?.enabledModules) ? snapshot.business.enabledModules : []
+  const overrides = Array.isArray(entry.allowedModules) ? entry.allowedModules.filter(Boolean) : []
+  if (!overrides.length) return businessModules
+  return businessModules.filter((moduleKey) => overrides.includes(moduleKey))
+}
+
+const permissionLabelMap = {
+  'customers:write': 'Editar clientes',
+  'sales:write': 'Registrar ventas',
+  'cash:operate': 'Operar caja',
+  'branches:manage': 'Gestionar sucursales',
+  'registers:manage': 'Gestionar cajas',
+  'products:write': 'Editar productos',
+  'products:adjust': 'Ajustar stock',
+  'products:transfer': 'Transferir stock',
+  'purchases:write': 'Registrar compras',
+  'invoices:write': 'Emitir comprobantes',
+  'tickets:write': 'Gestionar tickets',
+  'reports:export': 'Exportar reportes',
+  'settings:manage': 'Administrar usuarios y modulos',
+}
+
+const renderUserScopeSelector = (ui, editingUser, canManageUsers) => {
+  const selectedModules = new Set(normalizeUserModuleScope(ui.snapshot, editingUser))
+  const blockedPermissions = new Set(Array.isArray(editingUser?.blockedPermissions) ? editingUser.blockedPermissions : [])
+  return `
+    <div class="full-span">
+      <div class="panel-note"><span>Modulos visibles para esta cuenta</span><span>Si no marcas nada extra, usa lo habilitado en el comercio.</span></div>
+      <div class="chip-grid">
+        ${Object.values(ui.moduleCatalog).map((module) => `<label class="module-chip ${selectedModules.has(module.key) ? 'is-active' : ''}"><input type="checkbox" name="allowedModules" value="${module.key}" ${selectedModules.has(module.key) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span>${module.name}</span></label>`).join('')}
+      </div>
+    </div>
+    <div class="full-span">
+      <div class="panel-note"><span>Acciones bloqueadas</span><span>El rol da una base y desde aca recortas lo que no quieres que toque.</span></div>
+      <div class="chip-grid">
+        ${Object.entries(permissionLabelMap).map(([permission, label]) => `<label class="module-chip ${blockedPermissions.has(permission) ? '' : 'is-active'}"><input type="checkbox" name="blockedPermissions" value="${permission}" ${blockedPermissions.has(permission) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span>${label}</span></label>`).join('')}
+      </div>
+    </div>
+  `
+}
 
 const actionButton = (entity, id) => `<button type="button" class="inline-action" data-delete="${entity}" data-id="${id}">Eliminar</button>`
 const createToggleButton = (key, isOpen, label = 'Agregar') => `<button type="button" class="${isOpen ? 'ghost-action' : 'primary-action'}" data-action="${isOpen ? `close-${key}-form` : `open-${key}-form`}">${isOpen ? 'Cerrar' : label}</button>`
@@ -720,6 +787,17 @@ const getUiState = () => {
   const reportScopedReceipts = enrichedScopedReceipts.filter((receipt) => isWithinDateRange(receipt.receivedAt, reportDateFrom, reportDateTo))
   const reportScopedCashMovements = scopedCashMovements.filter((movement) => isWithinDateRange(movement.createdAt, reportDateFrom, reportDateTo))
   const reportScopedStockMovements = scopedStockMovements.filter((movement) => isWithinDateRange(movement.createdAt, reportDateFrom, reportDateTo))
+  const enrichedUsers = snapshot.users.map((entry) => {
+    const effectiveModules = normalizeUserModuleScope(snapshot, entry)
+    return {
+      ...entry,
+      roleName: snapshot.roles.find((roleEntry) => roleEntry.id === entry.roleId)?.name || 'Sin rol',
+      moduleScopeCount: effectiveModules.length,
+      blockedPermissionsCount: Array.isArray(entry.blockedPermissions) ? entry.blockedPermissions.length : 0,
+      effectiveModules,
+      effectivePermissions: normalizeUserPermissionSet(snapshot, entry),
+    }
+  })
 
   return {
     snapshot,
@@ -751,10 +829,7 @@ const getUiState = () => {
     enrichedInvoices,
     enrichedTickets,
     enrichedAudit: byRecentDate(snapshot.auditLogs, 'createdAt').slice(0, 8).map((log) => ({ ...log, actorName: userMap.get(log.actorUserId)?.fullName || 'Sistema' })),
-    enrichedUsers: snapshot.users.map((entry) => ({
-      ...entry,
-      roleName: snapshot.roles.find((roleEntry) => roleEntry.id === entry.roleId)?.name || 'Sin rol',
-    })),
+    enrichedUsers,
     enrichedReceipts: byRecentDate(snapshot.purchaseReceipts, 'receivedAt').map((receipt) => ({
       ...receipt,
       supplierName: supplierMap.get(receipt.supplierId)?.name || 'Proveedor',
@@ -2110,62 +2185,7 @@ const reportsViewLegacy = (ui) => `
   </section>
 `
 
-const ownerAdminView = (ui) => {
-  const currentPlanKey = ui.snapshot.business.activePlan || 'custom'
-  const currentPlanName = planLabels[currentPlanKey] || currentPlanKey
-  const activeModules = Object.values(ui.moduleCatalog).filter((module) => ui.snapshot.business.enabledModules.includes(module.key))
-  const activeUsers = ui.snapshot.users.filter((user) => user.isActive).length
-  return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
-    ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="metrics-grid">
-      <article class="metric-card"><span>Comercio actual</span><strong>${ui.commerceContext?.commerce_name || ui.snapshot.business.name || 'Sin nombre'}</strong><p>${ui.currentBranch?.name || 'Sucursal'} activa</p></article>
-      <article class="metric-card"><span>Pack aplicado</span><strong>${currentPlanName}</strong><p>${activeModules.length} modulos visibles</p></article>
-      <article class="metric-card"><span>Usuarios activos</span><strong>${activeUsers}</strong><p>${ui.snapshot.users.length} cuentas cargadas</p></article>
-      <article class="metric-card"><span>Estructura</span><strong>${ui.snapshot.branches.length} / ${ui.snapshot.registers.length}</strong><p>Sucursales y cajas configuradas</p></article>
-    </section>
-    <section class="dashboard-grid">
-      <article class="panel"><div class="panel-head"><div><h3>Flujo del cliente</h3><p>Como conviene entregarlo para no abrumar</p></div></div>
-        <div class="timeline-list">
-          <div class="timeline-item"><strong>1. Vos armas la base</strong><p>Creas comercio, sucursal inicial, caja y primer usuario administrador.</p><span>El cliente no deberia tocar configuracion tecnica al inicio.</span></div>
-          <div class="timeline-item"><strong>2. Elegis el pack</strong><p>Mostras solo los modulos que ese negocio necesita hoy.</p><span>Si despues crece, le habilitas mas sin rehacer el sistema.</span></div>
-          <div class="timeline-item"><strong>3. Alta de equipo</strong><p>Vos o el admin del comercio crean usuarios, roles y permisos.</p><span>No hace falta que cualquiera se autocree cuenta.</span></div>
-          <div class="timeline-item"><strong>4. Operacion diaria</strong><p>El cliente entra y ve un menu corto, claro y util para su rubro.</p><span>Menos botones, menos errores, mejor adopcion.</span></div>
-        </div>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Vista actual del cliente</h3><p>Esto es lo que hoy le queda habilitado</p></div></div>
-        <div class="chip-grid">${activeModules.map((module) => `<span class="module-chip is-active">${module.name}</span>`).join('') || '<p class="empty-state">No hay modulos activos.</p>'}</div>
-        <div class="panel-note"><span>Si el negocio tiene una sola caja, evita mostrar Sucursales, Cajas multiples y Tickets.</span><span>Si no usa proveedores, tambien conviene ocultar Compras hasta que lo necesite.</span></div>
-      </article>
-    </section>
-    <section class="content-grid single-focus">
-      <article class="panel"><div class="panel-head"><div><h3>Packs por necesidad</h3><p>No por precio: cada comercio ve solo lo justo</p></div></div>
-        <div class="preset-grid">
-          ${Object.entries(planCatalog).map(([key, plan]) => {
-            const isCurrent = currentPlanKey === key
-            const modules = plan.modules.map((moduleKey) => ui.moduleCatalog[moduleKey]?.name || moduleKey).filter(Boolean)
-            return `<div class="preset-card ${isCurrent ? 'is-active' : ''}">
-              <div class="preset-card-head"><strong>${plan.name}</strong><span>${isCurrent ? 'Actual' : 'Disponible'}</span></div>
-              <p>${plan.description}</p>
-              <small>${plan.idealFor}</small>
-              <div class="chip-grid">${modules.map((module) => `<span class="module-chip">${module}</span>`).join('')}</div>
-              <div class="settings-actions"><button type="button" class="${isCurrent ? 'inline-action' : 'primary-action'}" data-plan-apply="${key}">${isCurrent ? 'Ya activo' : 'Aplicar pack'}</button></div>
-            </div>`
-          }).join('')}
-        </div>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Que revisar despues</h3><p>Proximos pasos para venderlo mejor</p></div></div>
-        <div class="timeline-list">
-          <div class="timeline-item"><strong>Onboarding por rubro</strong><p>Crear asistentes iniciales para kiosco, servicio tecnico, ferreteria o local general.</p><span>Cada uno deberia arrancar con un pack distinto.</span></div>
-          <div class="timeline-item"><strong>Limites por plan</strong><p>No por precio bruto, sino por complejidad: 1 caja, varias cajas, varias sucursales, tickets, reportes avanzados.</p><span>Eso hace mas facil venderlo y explicarlo.</span></div>
-          <div class="timeline-item"><strong>Invitaciones y aprobacion</strong><p>Agregar alta guiada de usuarios con invitacion o PIN temporal.</p><span>Asi el cliente suma gente sin tocar configuraciones delicadas.</span></div>
-          <div class="timeline-item"><strong>Panel central tuyo</strong><p>Mas adelante conviene un superadmin global para ver todos tus clientes, planes activos y modulos habilitados.</p><span>Eso ya seria tu consola de revendedor.</span></div>
-        </div>
-      </article>
-    </section>
-  </section>
-`
-}
+const ownerAdminView = (ui) => ownerAdminViewV2(ui)
 
 const ownerAdminViewV2 = (ui) => {
   const platform = ui.platformAdmin
@@ -2325,77 +2345,7 @@ const ownerAdminViewV2 = (ui) => {
 `
 }
 
-const settingsView = (ui) => `
-  ${(() => {
-    const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
-    const canManageUsers = Boolean(ui.user?.isOwner || ui.role?.key === 'admin')
-    const syncLabel = ui.snapshot.meta.syncStatus === 'online'
-      ? 'Base operativa'
-      : ui.snapshot.meta.syncStatus === 'syncing'
-        ? 'Actualizando'
-        : ui.snapshot.meta.syncStatus === 'pending'
-          ? 'Pendiente'
-          : ui.snapshot.meta.syncStatus || 'Sin conexion'
-    return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Cuenta y negocio</h2></div></div>
-    <section class="dashboard-grid reports-layout">
-      <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y alcance de trabajo</p></div></div><div class="priority-list"><div class="priority-item"><strong>Usuario</strong><p>${ui.user.fullName}<br /><small>${ui.user.email || 'Sin email'}</small></p></div><div class="priority-item"><strong>Perfil</strong><p>${ui.role.name}${ui.user.isOwner ? '<br /><small>Propietario de la instancia</small>' : `<br /><small>Plan ${ui.commerceContext?.active_plan ? (planLabels[ui.commerceContext.active_plan] || ui.commerceContext.active_plan) : (planLabels[ui.snapshot.business.activePlan] || 'Full')}</small>`}</p></div><div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}<br /><small>${ui.commerceContext?.owner_email || ui.cloudConnection.instanceKey}</small></p></div><div class="priority-item"><strong>Estado</strong><p>${syncLabel}${ui.snapshot.meta.lastSyncedAt ? `<br /><small>${ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ')}</small>` : ''}</p></div></div><div class="settings-actions"><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Configura el negocio, el correo principal y el pack operativo</p></div></div>
-        <form class="form-grid" data-form="commerce-profile">
-          <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
-          <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
-          <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
-          <label>Pack<select name="activePlan" ${canManageUsers ? '' : 'disabled'}><option value="basic" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${(!(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) || (ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'full') ? 'selected' : ''}>Operacion</option><option value="multi" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'multi' ? 'selected' : ''}>Multi sucursal</option><option value="custom" ${(ui.commerceContext?.active_plan || ui.snapshot.business.activePlan) === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
-          <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
-        </form>
-        <div class="panel-note"><span>El correo principal queda para recuperacion y avisos importantes.</span><span>Elegi un pack para que el cliente solo vea lo necesario.</span></div>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Cuentas y permisos'}</h3><p>Las cuentas nuevas se registran desde acceso y vos decidis que puede usar cada una</p></div></div>
-        ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
-        <form class="form-grid" data-form="user">
-          <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
-          <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
-          <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" disabled /></label>
-          <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
-            <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
-          <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Selecciona una cuenta para editar'}</button>
-          ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
-        </form>
-        <div class="panel-note"><span>Las cuentas las crea el dueno o el administrador desde este panel.</span><span>Despues definis rol, caja y nivel de acceso para cada persona.</span></div>
-        ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>/ Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
-        <form class="form-grid" data-form="module-preset">
-          <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
-          <button type="submit">Aplicar preset</button>
-        </form>
-        <div class="timeline-list">
-          ${Object.values(ui.moduleCatalog).map((module) => `
-            <div class="timeline-item">
-              <strong>${module.name}</strong>
-              <p>${module.description}</p>
-              <span>${ui.snapshot.business.enabledModules.includes(module.key) ? 'Habilitado' : 'Oculto para este cliente'}</span>
-              <div class="settings-actions"><button type="button" class="inline-action" data-module-toggle="${module.key}" data-enabled="${ui.snapshot.business.enabledModules.includes(module.key) ? 'true' : 'false'}">${ui.snapshot.business.enabledModules.includes(module.key) ? 'Deshabilitar' : 'Habilitar'}</button></div>
-            </div>
-          `).join('')}
-        </div>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Conexion del sistema</h3><p>Base operativa y acceso del comercio</p></div></div>
-        <div class="info-strip"><strong>Proyecto activo</strong><span>${ui.cloudConnection.instanceKey} / ${syncLabel}</span></div>
-        <form class="form-grid" data-form="cloud-connection">
-          <label>URL Supabase<input type="url" name="url" value="${ui.cloudConnection.url || defaultSupabaseUrl}" placeholder="https://xxxx.supabase.co" required /></label>
-          <label>Clave publica<input type="text" name="anonKey" value="${ui.cloudConnection.anonKey || ''}" placeholder="sb_publishable_xxx o anon key" required /></label>
-          <label>Instancia<input type="text" name="instanceKey" value="${ui.cloudConnection.instanceKey || 'pclaf-dev'}" placeholder="pclaf-dev" required /></label>
-          <button type="submit">${ui.cloudConnection.enabled ? 'Guardar conexion' : 'Conectar Supabase'}</button>
-        </form>
-        <div class="panel-note"><span>La app ya no trabaja en demo local cuando esta en web.</span><span>Todo lo que se use aca debe terminar guardado en Supabase.</span></div>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Backup operativo</h3><p>Exporta e importa respaldo manual de esta instancia</p></div></div><div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label></div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimos eventos</p></div></div><div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div></article>
-    </section>
-  </section>
-`})()}
-`
+const settingsView = (ui) => settingsViewV2(ui)
 
 const settingsViewV2 = (ui) => `
   ${(() => {
@@ -2455,10 +2405,11 @@ const settingsViewV2 = (ui) => `
             <label>Clave${editingUser ? ' nueva' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Solo si queres cambiarla' : 'Minimo 6 caracteres'}" ${editingUser ? (canManageUsers ? '' : 'disabled') : (canManageUsers ? 'required' : 'disabled')} /></label>
             <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
             <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
+            ${renderUserScopeSelector(ui, editingUser, canManageUsers)}
             <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Crear usuario'}</button>
             ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
           </form>
-          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>/ Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
+          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>/ Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : `${entry.moduleScopeCount} modulos / ${entry.blockedPermissionsCount} bloqueos`}</span><span>${userActionButtons(entry)}</span></div>`))}
         </article>
         <div class="compact-form-grid">
           <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
@@ -2477,8 +2428,7 @@ const settingsViewV2 = (ui) => `
               `).join('')}
             </div>
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Backup y auditoria</h3><p>Respaldo manual y eventos recientes</p></div></div>
-            <div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label></div>
+          <article class="panel"><div class="panel-head"><div><h3>Auditoria reciente</h3><p>Movimientos y cambios importantes del negocio</p></div></div>
             <div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
           </article>
         </div>
@@ -2635,6 +2585,7 @@ const render = () => {
   bindEvents()
   clearFeedbackSoon()
   flushScrollTop()
+  flushPendingScrollTarget()
 }
 
 const readSiteCloudConfig = async () => {
@@ -2851,6 +2802,11 @@ const exportThermalReceipt = async (saleId, paperWidth = '80') => {
 }
 
 const exportData = () => {
+  if (!window.pclafDesktop) {
+    feedbackMessage = 'La web publica ya no exporta ni restaura snapshots locales.'
+    render()
+    return
+  }
   const blob = new Blob([JSON.stringify(store.exportData(), null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -2882,7 +2838,8 @@ const importData = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
   try {
-    store.importData(JSON.parse(await file.text()))
+    const result = store.importData(JSON.parse(await file.text()))
+    feedbackMessage = result?.message || ''
     render()
   } catch {
     alert('No se pudo importar el archivo.')
@@ -3005,6 +2962,8 @@ const handleSubmit = async (event) => {
         email: String(formData.get('email') || '').trim(),
         pin: String(formData.get('pin') || ''),
         isActive: formData.get('isActive') === 'on',
+        allowedModules: formData.getAll('allowedModules'),
+        blockedPermissions: formData.getAll('blockedPermissions'),
       })
       : await store.createUser({
         fullName: String(formData.get('fullName') || '').trim(),
@@ -3012,6 +2971,8 @@ const handleSubmit = async (event) => {
         email: String(formData.get('email') || '').trim(),
         pin: String(formData.get('pin') || ''),
         isActive: formData.get('isActive') === 'on',
+        allowedModules: formData.getAll('allowedModules'),
+        blockedPermissions: formData.getAll('blockedPermissions'),
       })
     feedbackMessage = result.message || ''
     userEditingId = ''
@@ -3318,6 +3279,7 @@ const bindEvents = () => {
   })
   for (const button of document.querySelectorAll('[data-action="open-customer-form"]')) button.addEventListener('click', () => {
     customerFormOpen = true
+    queueScrollToSelector('form[data-form="customer"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-customer-form"]')) button.addEventListener('click', () => {
@@ -3326,6 +3288,7 @@ const bindEvents = () => {
   })
   for (const button of document.querySelectorAll('[data-action="open-sale-form"]')) button.addEventListener('click', () => {
     saleFormOpen = true
+    queueScrollToSelector('form[data-form="sale"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-sale-form"]')) button.addEventListener('click', () => {
@@ -3337,6 +3300,7 @@ const bindEvents = () => {
   })
   for (const button of document.querySelectorAll('[data-action="open-cash-form"]')) button.addEventListener('click', () => {
     cashFormOpen = true
+    queueScrollToSelector(ui.openCashSession ? 'form[data-form="cash-movement"]' : 'form[data-form="open-cash"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-cash-form"]')) button.addEventListener('click', () => {
@@ -3346,6 +3310,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-product-form"]')) button.addEventListener('click', () => {
     closeProductUtilityForms()
     productFormOpen = true
+    queueScrollToSelector('form[data-form="product"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-product-form"]')) button.addEventListener('click', () => {
@@ -3355,6 +3320,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-supplier-form"]')) button.addEventListener('click', () => {
     closePurchaseUtilityForms()
     supplierFormOpen = true
+    queueScrollToSelector('form[data-form="supplier"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-supplier-form"]')) button.addEventListener('click', () => {
@@ -3364,6 +3330,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-purchase-form"]')) button.addEventListener('click', () => {
     closePurchaseUtilityForms()
     purchaseFormOpen = true
+    queueScrollToSelector('form[data-form="purchase-receipt"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-purchase-form"]')) button.addEventListener('click', () => {
@@ -3373,6 +3340,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-stock-adjustment-form"]')) button.addEventListener('click', () => {
     closeProductUtilityForms()
     stockAdjustmentFormOpen = true
+    queueScrollToSelector('form[data-form="stock-adjustment"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-stock-adjustment-form"]')) button.addEventListener('click', () => {
@@ -3382,6 +3350,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-stock-transfer-form"]')) button.addEventListener('click', () => {
     closeProductUtilityForms()
     stockTransferFormOpen = true
+    queueScrollToSelector('form[data-form="stock-transfer"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-stock-transfer-form"]')) button.addEventListener('click', () => {
@@ -3391,6 +3360,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-invoice-form"]')) button.addEventListener('click', () => {
     closeDocumentUtilityForms()
     invoiceFormOpen = true
+    queueScrollToSelector('form[data-form="invoice"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-invoice-form"]')) button.addEventListener('click', () => {
@@ -3400,6 +3370,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-ticket-form"]')) button.addEventListener('click', () => {
     closeDocumentUtilityForms()
     ticketFormOpen = true
+    queueScrollToSelector('form[data-form="ticket"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-ticket-form"]')) button.addEventListener('click', () => {
@@ -3409,6 +3380,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-branch-form"]')) button.addEventListener('click', () => {
     closeStructureUtilityForms()
     branchFormOpen = true
+    queueScrollToSelector('form[data-form="branch"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-branch-form"]')) button.addEventListener('click', () => {
@@ -3418,6 +3390,7 @@ const bindEvents = () => {
   for (const button of document.querySelectorAll('[data-action="open-register-form"]')) button.addEventListener('click', () => {
     closeStructureUtilityForms()
     registerFormOpen = true
+    queueScrollToSelector('form[data-form="register"]')
     render()
   })
   for (const button of document.querySelectorAll('[data-action="close-register-form"]')) button.addEventListener('click', () => {
@@ -3678,7 +3651,7 @@ const bindEvents = () => {
   const importInput = document.querySelector('[data-action="import-data"]')
   if (importInput) importInput.addEventListener('change', importData)
   const resetButton = document.querySelector('[data-action="reset-data"]')
-  if (resetButton) resetButton.addEventListener('click', () => { store.resetData(); feedbackMessage = 'Demo restaurada.'; render() })
+  if (resetButton) resetButton.addEventListener('click', () => { const result = store.resetData(); feedbackMessage = result?.message || ''; render() })
   const signOutButton = document.querySelector('[data-action="sign-out"]')
   if (signOutButton) signOutButton.addEventListener('click', async () => {
     if (authManager) await authManager.signOut()
