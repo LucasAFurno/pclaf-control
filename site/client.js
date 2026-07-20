@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720c'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720c'
+import { createBrowserDataStore } from './data-store.js?v=20260720d'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720d'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-c'
+const appVersion = 'v2026.07.20-d'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
