@@ -1,4 +1,4 @@
-import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720b'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720e'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
@@ -1728,17 +1728,23 @@ export const createBrowserDataStore = (options = {}) => {
   const openCashSession = async ({ openingAmount, registerId }) => {
     const denied = ensurePermission(actionPermissions.cashOperate)
     if (denied) return denied
+    const branch = getCurrentBranch(state)
+    const targetRegisterId = registerId
+      || state.business.currentRegisterId
+      || state.registers.find((entry) => entry.branchId === branch?.id)?.id
+      || state.registers[0]?.id
+      || ''
+    if (!targetRegisterId) return { ok: false, message: 'No hay una caja disponible para abrir.' }
+    state.business.currentRegisterId = targetRegisterId
     if (cloudCoreAdapter) {
       await cloudCoreAdapter.openCashSession({
-        registerId: registerId || state.business.currentRegisterId || '',
+        registerId: targetRegisterId,
         openingAmount,
       })
       await syncFromCloud()
       return { ok: true, message: 'Caja abierta correctamente.' }
     }
     if (getOpenCashSession(state)) return { ok: false, message: 'Ya hay una caja abierta.' }
-    const branch = getCurrentBranch(state)
-    const targetRegisterId = registerId || state.business.currentRegisterId
     const register = getScopedRegister(state, targetRegisterId, branch?.id)
     if (!register) return { ok: false, message: 'Elegi una caja activa para abrir la caja.' }
     const session = {

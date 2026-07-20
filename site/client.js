@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720d'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720d'
+import { createBrowserDataStore } from './data-store.js?v=20260720e'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720e'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-d'
+const appVersion = 'v2026.07.20-e'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -1393,8 +1393,8 @@ const salesViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${money(ui.unpaidSales)}</strong><span>Por cobrar</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-board sales-board ${showSaleForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showSaleForm ? '' : 'style="display:none"'}>
+    <section class="stacked-section">
+      ${showSaleForm ? `<article class="panel">
         <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Nueva venta'}</h3><p>${editingSale ? 'Actualiza stock, cobro y comprobantes' : 'Carga rapida para mostrador o venta asistida'}</p></div></div>
         <form class="form-grid sales-form" data-form="sale">
           <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
@@ -1417,10 +1417,10 @@ const salesViewV2 = (ui) => `
             </div>
           </details>
           <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Detalle interno, referencia o condicion comercial" /></label>
-          <div class="priority-list compact-list full-span sales-status-strip">
-            <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
-            <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</p></div>
-            <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Caja lista para vender' : 'Solo cobros sin efectivo'}</p></div>
+          <div class="summary-mini-row full-span">
+            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+            <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</span></div>
+            <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Caja lista para vender' : 'Solo cobros sin efectivo'}</span></div>
           </div>
           <div class="full-span sales-scanner-box">
             <div class="panel-head"><div><h3>Lector rapido</h3><p>Compatible con lector USB tipo teclado o ingreso manual</p></div></div>
@@ -1443,20 +1443,18 @@ const salesViewV2 = (ui) => `
           ${!editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cancelar</button>' : ''}
           ${editingSale ? '<button type="button" class="danger-action" data-action="cancel-sale-edit">Cancelar edicion</button>' : ''}
         </form>
+      </article>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Operacion rapida</h3><p>Resumen de la sesion actual</p></div><div class="settings-actions">${editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cerrar</button>' : createToggleButton('sale', showSaleForm, 'Agregar venta')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession ? 'Abierta y ligada a ventas' : 'Cerrada para efectivo'}</span></div>
+          <div class="summary-mini-card"><strong>Canal sugerido</strong><span>${editingSale?.channel || 'Mostrador'}</span></div>
+          <div class="summary-mini-card"><strong>Cliente</strong><span>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</span></div>
+        </div>
       </article>
-      <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Operacion rapida</h3><p>Resumen de la sesion actual</p></div></div>
-          <div class="summary-mini-row">
-            <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession ? 'Abierta y ligada a ventas' : 'Cerrada para efectivo'}</span></div>
-            <div class="summary-mini-card"><strong>Canal sugerido</strong><span>${editingSale?.channel || 'Mostrador'}</span></div>
-            <div class="summary-mini-card"><strong>Cliente</strong><span>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</span></div>
-          </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div><div class="settings-actions">${editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cerrar</button>' : createToggleButton('sale', showSaleForm, 'Agregar venta')}</div></div>
-          <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} / ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
-        </article>
-      </div>
+      <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
+        <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} / ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
+      </article>
     </section>
   </section>
 `})()}
@@ -1520,28 +1518,19 @@ const cashViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${money(ui.expectedCash)}</strong><span>Efectivo esperado</span></span>
       <span class="panel-inline-stat"><strong>${ui.enrichedCashMovements.length}</strong><span>Movimientos</span></span>
     </div></div>
-    <section class="module-board cash-board ${showCashForm ? '' : 'board-expanded'}">
-      <article class="panel module-side" ${showCashForm ? '' : 'style="display:none"'}>
-        <div class="panel-head"><div><h3>Estado actual</h3><p>Control diario de efectivo</p></div></div>
-        <div class="priority-list">
-          <div class="priority-item"><strong>Estado</strong><p>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</p></div>
-          <div class="priority-item"><strong>Sucursal</strong><p>${ui.currentBranch?.name || '-'}</p></div>
-          <div class="priority-item"><strong>Caja</strong><p>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegi una caja')}</p></div>
-          <div class="priority-item"><strong>Fondo inicial</strong><p>${money(ui.openCashSession?.openingAmount || 0)}</p></div>
-          <div class="priority-item"><strong>Ajustes manuales</strong><p>${money(ui.sessionCashMovementTotal)}</p></div>
-          <div class="priority-item"><strong>Efectivo esperado</strong><p>${money(ui.expectedCash)}</p></div>
+    <section class="stacked-section">
+      <article class="panel">
+        <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado y operas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</span></div>
+          <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+          <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegi una caja')}</span></div>
+          <div class="summary-mini-card"><strong>Efectivo esperado</strong><span>${money(ui.expectedCash)}</span></div>
+          <div class="summary-mini-card"><strong>Ajustes manuales</strong><span>${money(ui.sessionCashMovementTotal)}</span></div>
+          <div class="summary-mini-card"><strong>Ultima diferencia</strong><span>${money(lastClosedSession?.differenceAmount || 0)}</span></div>
         </div>
       </article>
-      <div class="module-main">
-        <article class="panel">
-          <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado, despues operas si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
-          <div class="panel-inline-stats">
-            <span class="panel-inline-stat"><strong>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</strong><span>Estado</span></span>
-            <span class="panel-inline-stat"><strong>${ui.currentRegister?.name || 'Sin caja'}</strong><span>Caja actual</span></span>
-            <span class="panel-inline-stat"><strong>${money(lastClosedSession?.differenceAmount || 0)}</strong><span>Ultima diferencia</span></span>
-          </div>
-        </article>
-        <div class="compact-form-grid" ${showCashForm ? '' : 'style="display:none"'}>
+      ${showCashForm ? `<div class="compact-form-grid">
           <article class="panel">
             <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informa el efectivo contado' : 'Define el fondo inicial'}</p></div></div>
             <form class="form-grid compact-form" data-form="${ui.openCashSession ? 'close-cash' : 'open-cash'}">
@@ -1559,14 +1548,13 @@ const cashViewV2 = (ui) => `
               <button type="submit">Registrar movimiento</button>
             </form>` : '<p class="empty-state">Abri una caja para registrar movimientos manuales.</p>'}
           </article>
-        </div>
-        <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
+        </div>` : ''}
+      <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
           ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavia no hay cierres para este filtro.</p>'}
         </div></article>
-        <article class="panel"><div class="panel-head"><div><h3>Bitacora de caja</h3><p>Impacta en el arqueo esperado</p></div></div><div class="timeline-list">
+      <article class="panel"><div class="panel-head"><div><h3>Bitacora de caja</h3><p>Impacta en el arqueo esperado</p></div></div><div class="timeline-list">
           ${ui.enrichedCashMovements.slice(0, 6).map((movement) => `<div class="timeline-item"><strong>${movement.kind}</strong><p>${movement.note}</p><span>${movement.registerName} / ${money(movement.signedAmount)} / ${movement.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay movimientos manuales.</p>'}
         </div></article>
-      </div>
     </section>
   </section>
 `})()}
@@ -2945,6 +2933,7 @@ const handleSubmit = async (event) => {
     return
   }
 
+  try {
   if (kind === 'customer') {
     const result = await store.createCustomer({ fullName: formData.get('fullName'), phone: formData.get('phone'), email: formData.get('email'), balance: formData.get('balance'), tag: formData.get('tag') })
     feedbackMessage = result.message || ''
@@ -3135,6 +3124,9 @@ const handleSubmit = async (event) => {
   }
 
   form.reset()
+  } catch (error) {
+    feedbackMessage = mapPublicAuthError(error?.message || 'No se pudo completar la accion.', kind === 'instance-setup' ? 'signup' : 'login')
+  }
   render()
 }
 
