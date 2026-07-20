@@ -2187,6 +2187,13 @@ const ownerAdminViewV2 = (ui) => {
   const selectedBranches = Array.isArray(selectedCommerce?.branches) ? selectedCommerce.branches : []
   const selectedRegisters = Array.isArray(selectedCommerce?.registers) ? selectedCommerce.registers : []
   const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : 'Sin dato'
+  const supportStatusLabel = (value) => {
+    if (value === 'activo') return 'Activo'
+    if (value === 'seguimiento') return 'Seguimiento'
+    if (value === 'esperando') return 'Esperando cliente'
+    if (value === 'resuelto') return 'Resuelto'
+    return 'Pendiente'
+  }
   const billingLabel = (value) => {
     if (value === 'trial') return 'Prueba'
     if (value === 'active') return 'Activo'
@@ -2224,7 +2231,7 @@ const ownerAdminViewV2 = (ui) => {
           ${dataTable(['Comercio', 'Pack', 'Cobro', 'Prueba', 'Ultimo acceso', 'Gestion'], commerces.map((entry) => `<div class="data-row ${entry.id === platformCommerceSelectedId ? 'is-selected' : ''}"><span><strong>${entry.name}</strong><br /><small>${entry.instanceKey}</small></span><span>${planLabels[entry.activePlan] || entry.activePlan}</span><span>${billingLabel(entry.billingStatus)}</span><span>${entry.trialEndsAt ? entry.trialEndsAt.slice(0, 10) : 'Sin fecha'}</span><span>${entry.lastAccessAt ? formatDate(entry.lastAccessAt) : 'Nunca'}</span><span><button type="button" class="inline-action" data-platform-select="${entry.id}">Ver detalle</button></span></div>`))}
         </article>
         ${selectedCommerce ? `<div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Detalle del comercio</h3><p>Pack, estado y acceso publico</p></div></div>
+          <article class="panel"><div class="panel-head"><div><h3>Detalle del comercio</h3><p>Pack, estado, soporte y acceso publico</p></div></div>
             <form class="form-grid compact-form" data-form="platform-commerce">
               <input type="hidden" name="commerceId" value="${selectedCommerce.id}" />
               <label>Comercio<input type="text" value="${selectedCommerce.name}" disabled /></label>
@@ -2233,6 +2240,11 @@ const ownerAdminViewV2 = (ui) => {
               <label>Estado<select name="status"><option value="active" ${selectedCommerce.status === 'active' ? 'selected' : ''}>Activo</option><option value="paused" ${selectedCommerce.status === 'paused' ? 'selected' : ''}>Pausado</option><option value="blocked" ${selectedCommerce.status === 'blocked' ? 'selected' : ''}>Bloqueado</option></select></label>
               <label>Cobro<select name="billingStatus"><option value="trial" ${selectedCommerce.billingStatus === 'trial' ? 'selected' : ''}>Prueba</option><option value="active" ${selectedCommerce.billingStatus === 'active' ? 'selected' : ''}>Activo</option><option value="past_due" ${selectedCommerce.billingStatus === 'past_due' ? 'selected' : ''}>Vencido</option><option value="paused" ${selectedCommerce.billingStatus === 'paused' ? 'selected' : ''}>Pausado</option><option value="cancelled" ${selectedCommerce.billingStatus === 'cancelled' ? 'selected' : ''}>Cancelado</option></select></label>
               <label>Alta publica<select name="allowPublicSignup"><option value="true" ${selectedCommerce.allowPublicSignup ? 'selected' : ''}>Permitida</option><option value="false" ${!selectedCommerce.allowPublicSignup ? 'selected' : ''}>Cerrada</option></select></label>
+              <label>Responsable PCLAF<input type="text" name="supportOwner" value="${selectedCommerce.supportOwner || ''}" placeholder="Quien sigue esta cuenta" /></label>
+              <label>Seguimiento<select name="supportStatus"><option value="pendiente" ${selectedCommerce.supportStatus === 'pendiente' ? 'selected' : ''}>Pendiente</option><option value="activo" ${selectedCommerce.supportStatus === 'activo' ? 'selected' : ''}>Activo</option><option value="seguimiento" ${selectedCommerce.supportStatus === 'seguimiento' ? 'selected' : ''}>Seguimiento</option><option value="esperando" ${selectedCommerce.supportStatus === 'esperando' ? 'selected' : ''}>Esperando cliente</option><option value="resuelto" ${selectedCommerce.supportStatus === 'resuelto' ? 'selected' : ''}>Resuelto</option></select></label>
+              <label>Etiqueta interna<input type="text" name="internalTag" value="${selectedCommerce.internalTag || ''}" placeholder="Kiosco, taller, demo, referido" /></label>
+              <label class="full-span">Nota comercial<textarea name="commercialNote" rows="3" placeholder="Seguimiento, interes, propuesta o proximo paso">${selectedCommerce.commercialNote || ''}</textarea></label>
+              <label class="full-span">Nota de cobro<textarea name="billingNote" rows="3" placeholder="Situacion de facturacion o cobro">${selectedCommerce.billingNote || ''}</textarea></label>
               <button type="submit">Guardar cambios</button>
             </form>
             <div class="panel-note"><span>Alta: ${formatDate(selectedCommerce.createdAt)}</span><span>Prueba hasta: ${selectedCommerce.trialEndsAt ? selectedCommerce.trialEndsAt.slice(0, 10) : 'Sin fecha'}</span></div>
@@ -2243,8 +2255,14 @@ const ownerAdminViewV2 = (ui) => {
               <div class="priority-item"><strong>Estado</strong><p>${commerceLabel(selectedCommerce.status)}<br /><small>${billingLabel(selectedCommerce.billingStatus)}</small></p></div>
               <div class="priority-item"><strong>Ultimo acceso</strong><p>${selectedCommerce.lastAccessAt ? formatDate(selectedCommerce.lastAccessAt) : 'Nunca'}</p></div>
               <div class="priority-item"><strong>Estructura</strong><p>${selectedCommerce.branchesCount} sucursales<br /><small>${selectedCommerce.registersCount} cajas / ${selectedCommerce.usersCount} usuarios</small></p></div>
+              <div class="priority-item"><strong>Soporte</strong><p>${supportStatusLabel(selectedCommerce.supportStatus)}<br /><small>${selectedCommerce.supportOwner || 'Sin asignar'}</small></p></div>
+              <div class="priority-item"><strong>Etiqueta</strong><p>${selectedCommerce.internalTag || 'Sin etiqueta'}</p></div>
             </div>
             <div class="chip-grid">${(selectedCommerce.enabledModules || []).map((moduleKey) => `<span class="module-chip is-active">${ui.moduleCatalog[moduleKey]?.name || moduleKey}</span>`).join('') || '<span class="module-chip">Sin modulos</span>'}</div>
+            <div class="timeline-list compact-timeline">
+              <div class="timeline-item"><strong>Nota comercial</strong><p>${selectedCommerce.commercialNote || 'Sin seguimiento comercial cargado.'}</p></div>
+              <div class="timeline-item"><strong>Facturacion</strong><p>${selectedCommerce.billingNote || 'Sin nota de cobro cargada.'}</p></div>
+            </div>
           </article>
         </div>` : ''}
         ${selectedCommerce ? `<div class="compact-form-grid">
@@ -3058,6 +3076,11 @@ const handleSubmit = async (event) => {
       status: formData.get('status'),
       billingStatus: formData.get('billingStatus'),
       allowPublicSignup: String(formData.get('allowPublicSignup')) === 'true',
+      supportOwner: formData.get('supportOwner'),
+      supportStatus: formData.get('supportStatus'),
+      internalTag: formData.get('internalTag'),
+      commercialNote: formData.get('commercialNote'),
+      billingNote: formData.get('billingNote'),
     })
     feedbackMessage = result.message || ''
   }

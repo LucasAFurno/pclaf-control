@@ -133,6 +133,11 @@ export const createSupabaseCoreAdapter = (config) => {
         p_status: payload?.status || null,
         p_billing_status: payload?.billingStatus || null,
         p_allow_public_signup: typeof payload?.allowPublicSignup === 'boolean' ? payload.allowPublicSignup : null,
+        p_support_owner: payload?.supportOwner || null,
+        p_support_status: payload?.supportStatus || null,
+        p_internal_tag: payload?.internalTag || null,
+        p_commercial_note: payload?.commercialNote || null,
+        p_billing_note: payload?.billingNote || null,
       })
     },
     async toggleUserActive(payload) {
