@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720k'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720k'
+import { createBrowserDataStore } from './data-store.js?v=20260720l'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-k'
+const appVersion = 'v2026.07.20-l'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -234,6 +234,9 @@ const mapPublicAuthError = (message, context = 'login') => {
     sell_item_required: 'Agrega al menos un producto antes de registrar la venta.',
     'sale item required': 'Agrega al menos un producto antes de registrar la venta.',
     sale_item_required: 'Agrega al menos un producto antes de registrar la venta.',
+    sale_items_required: 'Agrega al menos un producto antes de registrar la venta.',
+    'duplicate key value violates unique constraint "products_commerce_id_sku_key"': 'Ya existe un producto con ese SKU en este comercio.',
+    'duplicate key value violates unique constraint "documents_commerce_id_document_number_key"': 'Ese numero de comprobante ya existe. Usa otro o dejalo vacio para autogenerarlo.',
     'column "status" of relation "branches" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
     'column "status" of relation "registers" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
   }
