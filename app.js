@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720i'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720i'
+import { createBrowserDataStore } from './data-store.js?v=20260720j'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720j'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-i'
+const appVersion = 'v2026.07.20-j'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -1793,23 +1793,6 @@ const purchasesViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Base de compras</h3><p>Ves proveedores y recepciones, y agregas solo cuando hace falta</p></div></div>
-        <div class="dual-actions">
-          ${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}
-          ${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}
-        </div>
-        <div class="compact-form-grid">
-          <article class="panel">
-            <div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div></div>
-            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`), 'is-stable purchases-receipts-table')}
-          </article>
-          <article class="panel">
-            <div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div></div>
-            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category || 'General'}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery || '-'}</span><span>${actionButton('supplier', supplier.id)}</span></div>`), 'is-stable suppliers-table')}
-          </article>
-        </div>
-      </article>
       ${showPurchaseForm ? `<article class="panel">
         <div class="panel-head"><div><h3>${editingReceipt ? 'Editar compra' : 'Nueva compra'}</h3><p>Ingresa stock y costo del proveedor</p></div><div class="settings-actions">${editingReceipt ? '' : '<button type="button" class="ghost-action" data-action="close-purchase-form">Cerrar</button>'}</div></div>
         <form class="form-grid compact-form" data-form="purchase-receipt">
@@ -1835,6 +1818,23 @@ const purchasesViewV2 = (ui) => `
           <button type="submit">Guardar proveedor</button>
         </form>
       </article>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Base de compras</h3><p>Ves proveedores y recepciones, y agregas solo cuando hace falta</p></div></div>
+        <div class="dual-actions">
+          ${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}
+          ${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}
+        </div>
+        <div class="compact-form-grid">
+          <article class="panel">
+            <div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div></div>
+            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`), 'is-stable purchases-receipts-table')}
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div></div>
+            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category || 'General'}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery || '-'}</span><span>${actionButton('supplier', supplier.id)}</span></div>`), 'is-stable suppliers-table')}
+          </article>
+        </div>
+      </article>
     </section>
   </section>
 `})()}
@@ -1882,10 +1882,6 @@ const invoicesViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${editingInvoice ? '' : createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
-        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
-      </article>
       ${showInvoiceForm ? `<article class="panel"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="invoice">
           <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
@@ -1902,6 +1898,10 @@ const invoicesViewV2 = (ui) => `
           ${editingInvoice ? '<button type="button" class="danger-action" data-action="cancel-invoice-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${editingInvoice ? '' : createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
+        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+      </article>
     </section>
   </section>
 `})()}
@@ -1946,10 +1946,6 @@ const ticketsViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Tickets activos</h3><p>Vista rapida del flujo operativo</p></div><div class="settings-actions">${editingTicket ? '' : createToggleButton('ticket', showTicketForm, 'Agregar ticket')}</div></div>
-        ${dataTable(['Ticket', 'Cliente', 'Sucursal', 'Actualizado', 'Accion'], ui.enrichedTickets.map((ticket) => `<div class="data-row"><span>${ticket.number}<br /><small>${ticket.device || 'Equipo sin detalle'}</small></span><span>${ticket.customerName}<br /><small>${ticket.status}</small></span><span>${ticket.branchName}</span><span>${ticket.updatedAt}</span><span>${ticketActionButtons(ticket)}</span></div>`), 'is-stable tickets-table')}
-      </article>
       ${showTicketForm ? `<article class="panel"><div class="panel-head"><div><h3>${editingTicket ? 'Editar ticket' : 'Nuevo ticket'}</h3><p>Numeracion y seguimiento por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-ticket-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="ticket">
           <input type="hidden" name="ticketId" value="${editingTicket?.id || ''}" />
@@ -1963,6 +1959,10 @@ const ticketsViewV2 = (ui) => `
           ${editingTicket ? '<button type="button" class="danger-action" data-action="cancel-ticket-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Tickets activos</h3><p>Vista rapida del flujo operativo</p></div><div class="settings-actions">${editingTicket ? '' : createToggleButton('ticket', showTicketForm, 'Agregar ticket')}</div></div>
+        ${dataTable(['Ticket', 'Cliente', 'Sucursal', 'Actualizado', 'Accion'], ui.enrichedTickets.map((ticket) => `<div class="data-row"><span>${ticket.number}<br /><small>${ticket.device || 'Equipo sin detalle'}</small></span><span>${ticket.customerName}<br /><small>${ticket.status}</small></span><span>${ticket.branchName}</span><span>${ticket.updatedAt}</span><span>${ticketActionButtons(ticket)}</span></div>`), 'is-stable tickets-table')}
+      </article>
     </section>
   </section>
 `})()}
@@ -2407,23 +2407,20 @@ const settingsViewV2 = (ui) => `
         </div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Soporte por WhatsApp</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
-      <div class="compact-form-grid settings-overview-grid">
-        <article class="panel"><div class="panel-head"><div><h3>Comercio activo</h3><p>Datos principales del negocio y responsable</p></div></div>
-          <form class="form-grid compact-form" data-form="commerce-profile">
-            <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
-            <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
-            <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
-            <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
-          </form>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Resumen rapido</h3><p>Lo importante de la cuenta actual</p></div></div>
-          <div class="summary-mini-row">
-            <div class="summary-mini-card"><strong>Estado</strong><span>${syncLabel}</span></div>
-            <div class="summary-mini-card"><strong>Pack</strong><span>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</span></div>
-            <div class="summary-mini-card"><strong>Correo principal</strong><span>${maskEmail(ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail) || 'Sin correo principal'}</span></div>
-          </div>
-        </article>
-      </div>
+      <article class="panel">
+        <div class="panel-head"><div><h3>Comercio activo</h3><p>Datos principales del negocio y acceso general</p></div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Estado</strong><span>${syncLabel}</span></div>
+          <div class="summary-mini-card"><strong>Pack</strong><span>${planLabels[ui.commerceContext?.active_plan || ui.snapshot.business.activePlan] || 'Operacion'}</span></div>
+          <div class="summary-mini-card"><strong>Correo principal</strong><span>${maskEmail(ui.commerceContext?.owner_email || ui.snapshot.business.ownerEmail) || 'Sin correo principal'}</span></div>
+        </div>
+        <form class="form-grid compact-form settings-wide-form" data-form="commerce-profile">
+          <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+          <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
+          <label class="full-span">Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
+          <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
+        </form>
+      </article>
       <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Usuarios del negocio'}</h3><p>Gestiona quienes pueden entrar y que rol tiene cada uno</p></div></div>
           ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
           <form class="form-grid" data-form="user">
@@ -2439,12 +2436,12 @@ const settingsViewV2 = (ui) => `
           </form>
           ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>/ Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : `${entry.moduleScopeCount} modulos / ${entry.blockedPermissionsCount} bloqueos`}</span><span>${userActionButtons(entry)}</span></div>`), 'is-stable settings-users-table')}
       </article>
-      <div class="compact-form-grid settings-overview-grid">
-        <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
-          <form class="form-grid compact-form" data-form="module-preset">
-            <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
-            <button type="submit">Aplicar preset</button>
-          </form>
+      <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
+        <form class="form-grid compact-form" data-form="module-preset">
+          <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
+          <button type="submit">Aplicar preset</button>
+        </form>
+        <div class="compact-form-grid settings-overview-grid">
           <div class="timeline-list compact-timeline">
             ${Object.values(ui.moduleCatalog).map((module) => `
               <div class="timeline-item">
@@ -2455,11 +2452,9 @@ const settingsViewV2 = (ui) => `
               </div>
             `).join('')}
           </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Auditoria reciente</h3><p>Movimientos y cambios importantes del negocio</p></div></div>
           <div class="timeline-list compact-timeline">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
-        </article>
-      </div>
+        </div>
+      </article>
     </section>
   </section>
 `})()}
