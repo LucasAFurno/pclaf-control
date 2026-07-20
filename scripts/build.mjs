@@ -9,7 +9,7 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260720g'
+const assetVersion = '20260720h'
 
 const clientJs = await readFile(path.join(root, 'site', 'client.js'), 'utf8')
 const dataStoreJs = await readFile(path.join(root, 'site', 'data-store.js'), 'utf8')
@@ -209,4 +209,5 @@ if (!isDevBuild) {
   await copyFile(path.join(root, 'public', 'pclaf-logo.png'), path.join(root, 'pclaf-logo.png'))
   await writeFile(path.join(root, 'CNAME'), cnameFile)
 }
+
 

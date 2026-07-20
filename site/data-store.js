@@ -1,4 +1,4 @@
-import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720g'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720h'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
@@ -2605,4 +2605,5 @@ export const createBrowserDataStore = (options = {}) => {
     resetData,
   }
 }
+
 
