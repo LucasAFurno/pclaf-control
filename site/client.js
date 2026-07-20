@@ -2343,7 +2343,7 @@ const settingsView = (ui) => `
 const settingsViewV2 = (ui) => `
   ${(() => {
     const editingUser = ui.snapshot.users.find((entry) => entry.id === userEditingId)
-    const canManageUsers = Boolean(ui.user?.isOwner || ui.role?.key === 'admin')
+    const canManageUsers = Boolean(ui.user?.isPlatformAdmin || ui.user?.isOwner || ui.role?.key === 'admin')
     const syncLabel = ui.snapshot.meta.syncStatus === 'online'
       ? 'Base operativa'
       : ui.snapshot.meta.syncStatus === 'syncing'
@@ -2456,6 +2456,7 @@ const basicSettingsView = (ui) => `
 `
 
 const renderCurrentView = (ui) => {
+  const canManageCommerceSettings = Boolean(ui.user?.isPlatformAdmin || ui.user?.isOwner || ui.role?.key === 'admin')
   switch (activeSection) {
     case 'clientes': return customersViewV2(ui)
     case 'ventas': return salesViewV2(ui)
@@ -2468,7 +2469,7 @@ const renderCurrentView = (ui) => {
     case 'tickets': return ticketsViewV2(ui)
     case 'reportes': return reportsView(ui)
     case 'mi-admin': return ui.user?.isPlatformAdmin ? ownerAdminViewV2(ui) : settingsViewV2(ui)
-    case 'ajustes': return basicSettingsView(ui)
+    case 'ajustes': return canManageCommerceSettings ? settingsViewV2(ui) : basicSettingsView(ui)
     default: return dashboardView(ui)
   }
 }
