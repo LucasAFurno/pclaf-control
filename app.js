@@ -111,6 +111,9 @@ let feedbackTimer = null
 let pendingScrollTop = false
 let accountAlertsOpen = false
 let platformCommerceSelectedId = ''
+let platformCommerceFilter = 'all'
+let platformSupportFilter = 'all'
+let platformSearchQuery = ''
 let productImportPreview = null
 let productImportBusy = false
 let productImportError = ''
@@ -2178,11 +2181,29 @@ const ownerAdminViewV2 = (ui) => {
     `
   }
   const summary = platform.summary || {}
-  const commerces = Array.isArray(platform.commerces) ? platform.commerces : []
+  const allCommerces = Array.isArray(platform.commerces) ? platform.commerces : []
+  const normalizedSearch = String(platformSearchQuery || '').trim().toLowerCase()
+  const commerces = allCommerces.filter((entry) => {
+    const matchesStatus = platformCommerceFilter === 'all'
+      || (platformCommerceFilter === 'trial' ? entry.billingStatus === 'trial' : entry.status === platformCommerceFilter || entry.billingStatus === platformCommerceFilter)
+    const matchesSupport = platformSupportFilter === 'all'
+      || (platformSupportFilter === 'attention'
+        ? ['pendiente', 'esperando'].includes(entry.supportStatus)
+        : entry.supportStatus === platformSupportFilter)
+    const matchesSearch = !normalizedSearch
+      || entry.name.toLowerCase().includes(normalizedSearch)
+      || entry.instanceKey.toLowerCase().includes(normalizedSearch)
+      || entry.ownerEmail.toLowerCase().includes(normalizedSearch)
+      || (entry.internalTag || '').toLowerCase().includes(normalizedSearch)
+    return matchesStatus && matchesSupport && matchesSearch
+  })
+  const pendingSupport = allCommerces.filter((entry) => ['pendiente', 'esperando'].includes(entry.supportStatus)).length
+  const blockedCommerces = allCommerces.filter((entry) => entry.status === 'blocked').length
+  const publicOpenCommerces = allCommerces.filter((entry) => entry.allowPublicSignup).length
   if (!platformCommerceSelectedId || !commerces.some((entry) => entry.id === platformCommerceSelectedId)) {
-    platformCommerceSelectedId = commerces[0]?.id || ''
+    platformCommerceSelectedId = commerces[0]?.id || allCommerces[0]?.id || ''
   }
-  const selectedCommerce = commerces.find((entry) => entry.id === platformCommerceSelectedId) || commerces[0] || null
+  const selectedCommerce = commerces.find((entry) => entry.id === platformCommerceSelectedId) || allCommerces.find((entry) => entry.id === platformCommerceSelectedId) || commerces[0] || allCommerces[0] || null
   const selectedUsers = Array.isArray(selectedCommerce?.users) ? selectedCommerce.users : []
   const selectedBranches = Array.isArray(selectedCommerce?.branches) ? selectedCommerce.branches : []
   const selectedRegisters = Array.isArray(selectedCommerce?.registers) ? selectedCommerce.registers : []
@@ -2208,6 +2229,10 @@ const ownerAdminViewV2 = (ui) => {
     if (value === 'blocked') return 'Bloqueado'
     return value || 'Sin dato'
   }
+  const trialLabel = (entry) => {
+    if (!entry?.trialEndsAt) return 'Sin fecha'
+    return String(entry.trialEndsAt).slice(0, 10)
+  }
   return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
@@ -2215,6 +2240,7 @@ const ownerAdminViewV2 = (ui) => {
       <article class="metric-card compact"><span>Comercios</span><strong>${summary.totalCommerces || 0}</strong><p>${summary.activeCommerces || 0} activos</p></article>
       <article class="metric-card compact"><span>Pruebas</span><strong>${summary.trialCommerces || 0}</strong><p>${summary.expiredCommerces || 0} vencidos</p></article>
       <article class="metric-card compact"><span>Estructura</span><strong>${summary.totalBranches || 0}</strong><p>${summary.totalRegisters || 0} cajas / ${summary.totalUsers || 0} usuarios</p></article>
+      <article class="metric-card compact"><span>Soporte</span><strong>${pendingSupport}</strong><p>${blockedCommerces} bloqueados / ${publicOpenCommerces} altas abiertas</p></article>
     </section>
     <section class="module-board admin-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>Estado general</h3><p>Resumen corto de la cuenta actual</p></div></div>
@@ -2227,8 +2253,21 @@ const ownerAdminViewV2 = (ui) => {
         <div class="settings-actions"><button type="button" class="primary-action" data-action="refresh-platform-admin">Actualizar</button><button type="button" class="ghost-action" data-action="open-support">Soporte</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
       <div class="module-main">
+        <article class="panel"><div class="panel-head"><div><h3>Seguimiento rapido</h3><p>Busca y filtra cuentas para operar mas rapido</p></div></div>
+          <div class="form-grid compact-form">
+            <label>Buscar comercio<input type="search" value="${platformSearchQuery}" data-platform-search placeholder="Nombre, codigo, email o etiqueta" /></label>
+            <label>Estado<select data-platform-filter="status"><option value="all" ${platformCommerceFilter === 'all' ? 'selected' : ''}>Todos</option><option value="active" ${platformCommerceFilter === 'active' ? 'selected' : ''}>Activos</option><option value="trial" ${platformCommerceFilter === 'trial' ? 'selected' : ''}>Prueba</option><option value="paused" ${platformCommerceFilter === 'paused' ? 'selected' : ''}>Pausados</option><option value="blocked" ${platformCommerceFilter === 'blocked' ? 'selected' : ''}>Bloqueados</option><option value="past_due" ${platformCommerceFilter === 'past_due' ? 'selected' : ''}>Vencidos</option></select></label>
+            <label>Soporte<select data-platform-filter="support"><option value="all" ${platformSupportFilter === 'all' ? 'selected' : ''}>Todos</option><option value="attention" ${platformSupportFilter === 'attention' ? 'selected' : ''}>Requiere atencion</option><option value="activo" ${platformSupportFilter === 'activo' ? 'selected' : ''}>Activo</option><option value="seguimiento" ${platformSupportFilter === 'seguimiento' ? 'selected' : ''}>Seguimiento</option><option value="esperando" ${platformSupportFilter === 'esperando' ? 'selected' : ''}>Esperando cliente</option><option value="resuelto" ${platformSupportFilter === 'resuelto' ? 'selected' : ''}>Resuelto</option></select></label>
+          </div>
+          <div class="chip-grid">
+            <span class="module-chip ${platformCommerceFilter === 'all' ? 'is-active' : ''}" data-platform-chip="all">Todas ${allCommerces.length}</span>
+            <span class="module-chip ${platformCommerceFilter === 'trial' ? 'is-active' : ''}" data-platform-chip="trial">Prueba ${summary.trialCommerces || 0}</span>
+            <span class="module-chip ${platformCommerceFilter === 'blocked' ? 'is-active' : ''}" data-platform-chip="blocked">Bloqueadas ${blockedCommerces}</span>
+            <span class="module-chip ${platformSupportFilter === 'attention' ? 'is-active' : ''}" data-platform-support-chip="attention">Pendientes ${pendingSupport}</span>
+          </div>
+        </article>
         <article class="panel"><div class="panel-head"><div><h3>Comercios creados</h3><p>Estado comercial y operativo sin entrar al negocio</p></div></div>
-          ${dataTable(['Comercio', 'Pack', 'Cobro', 'Prueba', 'Ultimo acceso', 'Gestion'], commerces.map((entry) => `<div class="data-row ${entry.id === platformCommerceSelectedId ? 'is-selected' : ''}"><span><strong>${entry.name}</strong><br /><small>${entry.instanceKey}</small></span><span>${planLabels[entry.activePlan] || entry.activePlan}</span><span>${billingLabel(entry.billingStatus)}</span><span>${entry.trialEndsAt ? entry.trialEndsAt.slice(0, 10) : 'Sin fecha'}</span><span>${entry.lastAccessAt ? formatDate(entry.lastAccessAt) : 'Nunca'}</span><span><button type="button" class="inline-action" data-platform-select="${entry.id}">Ver detalle</button></span></div>`))}
+          ${dataTable(['Comercio', 'Pack', 'Soporte', 'Cobro', 'Prueba', 'Ultimo acceso', 'Gestion'], commerces.length ? commerces.map((entry) => `<div class="data-row ${entry.id === platformCommerceSelectedId ? 'is-selected' : ''}"><span><strong>${entry.name}</strong><br /><small>${entry.instanceKey}</small></span><span>${planLabels[entry.activePlan] || entry.activePlan}</span><span>${supportStatusLabel(entry.supportStatus)}<br /><small>${entry.supportOwner || 'Sin asignar'}</small></span><span>${billingLabel(entry.billingStatus)}</span><span>${trialLabel(entry)}</span><span>${entry.lastAccessAt ? formatDate(entry.lastAccessAt) : 'Nunca'}</span><span><button type="button" class="inline-action" data-platform-select="${entry.id}">Ver detalle</button></span></div>`) : [`<div class="data-row"><span>No hay comercios para este filtro.</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span></div>`])}
         </article>
         ${selectedCommerce ? `<div class="compact-form-grid">
           <article class="panel"><div class="panel-head"><div><h3>Detalle del comercio</h3><p>Pack, estado, soporte y acceso publico</p></div></div>
@@ -3258,6 +3297,23 @@ const bindEvents = () => {
     } catch (error) {
       feedbackMessage = humanizeError(error)
     }
+    render()
+  })
+  for (const input of document.querySelectorAll('[data-platform-search]')) input.addEventListener('input', () => {
+    platformSearchQuery = input.value || ''
+    render()
+  })
+  for (const select of document.querySelectorAll('[data-platform-filter]')) select.addEventListener('change', () => {
+    if (select.dataset.platformFilter === 'status') platformCommerceFilter = select.value || 'all'
+    if (select.dataset.platformFilter === 'support') platformSupportFilter = select.value || 'all'
+    render()
+  })
+  for (const chip of document.querySelectorAll('[data-platform-chip]')) chip.addEventListener('click', () => {
+    platformCommerceFilter = chip.dataset.platformChip || 'all'
+    render()
+  })
+  for (const chip of document.querySelectorAll('[data-platform-support-chip]')) chip.addEventListener('click', () => {
+    platformSupportFilter = chip.dataset.platformSupportChip || 'all'
     render()
   })
   for (const button of document.querySelectorAll('[data-action="open-customer-form"]')) button.addEventListener('click', () => {
