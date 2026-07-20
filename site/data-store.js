@@ -1,4 +1,4 @@
-import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260719c'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720a'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
@@ -168,10 +168,12 @@ const roles = [
     name: 'Deposito',
     permissions: [
       permissionCatalog.dashboard,
+      permissionCatalog.customers,
       permissionCatalog.products,
       permissionCatalog.purchases,
       permissionCatalog.tickets,
       permissionCatalog.reports,
+      actionPermissions.customersWrite,
       actionPermissions.productsWrite,
       actionPermissions.productsAdjust,
       actionPermissions.productsTransfer,
@@ -869,6 +871,7 @@ export const createBrowserDataStore = (options = {}) => {
   }
   let cloudConfig = readCloudConfig()
   let cloudAccessToken = ''
+  let platformAdminData = null
   let cloudCoreAdapter = createSupabaseCoreAdapter({
     ...cloudConfig,
     getAccessToken: () => cloudAccessToken,
@@ -891,8 +894,49 @@ export const createBrowserDataStore = (options = {}) => {
       isActive: entry.status ? entry.status === 'active' : entry.isActive !== false,
       status: entry.status || (entry.isActive === false ? 'disabled' : 'active'),
       isOwner: Boolean(entry.is_owner || entry.isOwner),
+      isPlatformAdmin: Boolean(entry.is_platform_admin || entry.isPlatformAdmin),
       createdAt: entry.created_at || entry.createdAt || todayIso(),
       updatedAt: entry.updated_at || entry.updatedAt || todayIso(),
+    }
+  }
+
+  const normalizePlatformAdminData = (payload) => {
+    if (!payload || typeof payload !== 'object') return null
+    const summary = payload.summary && typeof payload.summary === 'object' ? payload.summary : {}
+    return {
+      summary: {
+        totalCommerces: Number(summary.total_commerces || summary.totalCommerces || 0),
+        trialCommerces: Number(summary.trial_commerces || summary.trialCommerces || 0),
+        activeCommerces: Number(summary.active_commerces || summary.activeCommerces || 0),
+        pausedCommerces: Number(summary.paused_commerces || summary.pausedCommerces || 0),
+        expiredCommerces: Number(summary.expired_commerces || summary.expiredCommerces || 0),
+        totalUsers: Number(summary.total_users || summary.totalUsers || 0),
+        totalBranches: Number(summary.total_branches || summary.totalBranches || 0),
+        totalRegisters: Number(summary.total_registers || summary.totalRegisters || 0),
+      },
+      commerces: Array.isArray(payload.commerces) ? payload.commerces.map((entry) => ({
+        id: entry.id,
+        name: entry.name || 'Comercio',
+        instanceKey: entry.instance_key || entry.instanceKey || '',
+        ownerEmail: String(entry.owner_email || entry.ownerEmail || '').trim().toLowerCase(),
+        activePlan: entry.active_plan || entry.activePlan || 'full',
+        status: entry.status || 'active',
+        billingStatus: entry.billing_status || entry.billingStatus || 'trial',
+        onboardingStatus: entry.onboarding_status || entry.onboardingStatus || 'ready',
+        allowPublicSignup: Boolean(entry.allow_public_signup ?? entry.allowPublicSignup),
+        trialStartedAt: entry.trial_started_at || entry.trialStartedAt || '',
+        trialEndsAt: entry.trial_ends_at || entry.trialEndsAt || '',
+        createdAt: entry.created_at || entry.createdAt || '',
+        updatedAt: entry.updated_at || entry.updatedAt || '',
+        lastAccessAt: entry.last_access_at || entry.lastAccessAt || '',
+        branchesCount: Number(entry.branches_count || entry.branchesCount || 0),
+        registersCount: Number(entry.registers_count || entry.registersCount || 0),
+        usersCount: Number(entry.users_count || entry.usersCount || 0),
+        enabledModules: Array.isArray(entry.enabled_modules) ? entry.enabled_modules : (Array.isArray(entry.enabledModules) ? entry.enabledModules : []),
+        branches: Array.isArray(entry.branches) ? entry.branches : [],
+        registers: Array.isArray(entry.registers) ? entry.registers : [],
+        users: Array.isArray(entry.users) ? entry.users : [],
+      })) : [],
     }
   }
 
@@ -977,6 +1021,15 @@ export const createBrowserDataStore = (options = {}) => {
     const payload = await cloudCoreAdapter.loadState()
     if (payload) {
       state = migrateState(payload)
+      platformAdminData = null
+      const platformUser = cloudAuthProfile || currentUserFromState(state)
+      if (platformUser?.isPlatformAdmin && cloudCoreAdapter?.loadPlatformOverview) {
+        try {
+          platformAdminData = normalizePlatformAdminData(await cloudCoreAdapter.loadPlatformOverview())
+        } catch {
+          platformAdminData = null
+        }
+      }
       applyCloudMeta('online', todayIso())
       persistLocalState()
       return { ok: true, message: 'Base remota cargada.' }
@@ -1017,6 +1070,7 @@ export const createBrowserDataStore = (options = {}) => {
     const normalizedProfile = normalizeCloudUser(profile)
     cloudAuthProfile = normalizedProfile
     if (!normalizedProfile) {
+      platformAdminData = null
       state.session.userId = ''
       state.session.authenticated = false
       return null
@@ -1032,8 +1086,20 @@ export const createBrowserDataStore = (options = {}) => {
 
   const clearCloudAuthSession = () => {
     cloudAuthProfile = null
+    platformAdminData = null
     state.session.userId = ''
     state.session.authenticated = false
+  }
+
+  const getPlatformAdminData = () => platformAdminData
+
+  const refreshPlatformAdminData = async () => {
+    if (!cloudCoreAdapter?.loadPlatformOverview || !currentUser()?.isPlatformAdmin) {
+      platformAdminData = null
+      return null
+    }
+    platformAdminData = normalizePlatformAdminData(await cloudCoreAdapter.loadPlatformOverview())
+    return platformAdminData
   }
 
   const authenticateUser = async (identifier, pin) => {
@@ -2409,9 +2475,17 @@ export const createBrowserDataStore = (options = {}) => {
     cloudCoreAdapter = null
     cloudAuthProfile = null
     cloudAccessToken = ''
+    platformAdminData = null
     applyCloudMeta('offline', '')
     save()
     return { ok: true, message: 'Conexion cloud desactivada.' }
+  }
+
+  const updatePlatformCommerce = async (payload = {}) => {
+    if (!cloudCoreAdapter?.updatePlatformCommerce) return { ok: false, message: 'La consola PCLAF no esta disponible.' }
+    const result = await cloudCoreAdapter.updatePlatformCommerce(payload)
+    await refreshPlatformAdminData()
+    return { ok: true, message: result?.message || 'Comercio actualizado.' }
   }
 
   return {
@@ -2456,6 +2530,9 @@ export const createBrowserDataStore = (options = {}) => {
     setCloudAuthSession,
     clearCloudAuthSession,
     replaceCloudUsers,
+    getPlatformAdminData,
+    refreshPlatformAdminData,
+    updatePlatformCommerce,
     syncFromCloud,
     syncToCloud,
     createStockAdjustment,

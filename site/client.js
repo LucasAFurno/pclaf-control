@@ -1,5 +1,5 @@
-import { createBrowserDataStore } from './data-store.js?v=20260719c'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260719c'
+import { createBrowserDataStore } from './data-store.js?v=20260720a'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720a'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
@@ -62,7 +62,7 @@ const navItems = [
   { id: 'facturacion', moduleKey: 'invoices', label: 'Facturas', permission: 'invoices:view', icon: icon('<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6"/><path d="M10 16h6"/>') },
   { id: 'tickets', moduleKey: 'tickets', label: 'Tickets', permission: 'tickets:view', icon: icon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/><path d="M10 15v4"/><path d="M14 15v4"/>') },
   { id: 'reportes', moduleKey: 'reports', label: 'Reportes', permission: 'reports:view', icon: icon('<path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/><path d="M3 19h18"/>') },
-  { id: 'mi-admin', moduleKey: 'settings', label: 'Mi admin', permission: 'settings:view', ownerOnly: true, icon: icon('<path d="M4 19.5v-9l8-5 8 5v9"/><path d="M9 19.5v-4h6v4"/><path d="M8 9h8"/><path d="M12 3v3"/>') },
+  { id: 'mi-admin', moduleKey: 'settings', label: 'Mi admin', permission: 'settings:view', platformOnly: true, icon: icon('<path d="M4 19.5v-9l8-5 8 5v9"/><path d="M9 19.5v-4h6v4"/><path d="M8 9h8"/><path d="M12 3v3"/>') },
   { id: 'ajustes', moduleKey: 'settings', label: 'Ajustes', permission: 'settings:view', icon: icon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1 .33H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.51 1.34Z"/>') },
 ]
 
@@ -110,6 +110,7 @@ let hardwareScanListenerBound = false
 let feedbackTimer = null
 let pendingScrollTop = false
 let accountAlertsOpen = false
+let platformCommerceSelectedId = ''
 let productImportPreview = null
 let productImportBusy = false
 let productImportError = ''
@@ -650,6 +651,7 @@ const clearFeedbackSoon = () => {
 const getAllowedNav = (ui) => navItems.filter((item) => (
   store.canAccessModule(item.moduleKey, item.permission)
   && (!item.ownerOnly || ui.user?.isOwner)
+  && (!item.platformOnly || ui.user?.isPlatformAdmin)
 ))
 
 const getUiState = () => {
@@ -723,6 +725,7 @@ const getUiState = () => {
     user,
     role,
     commerceContext,
+    platformAdmin: store.getPlatformAdminData?.() || null,
     cloudConnection: store.getCloudConnection(),
     isAuthenticated: store.isAuthenticated(),
     openCashSession,
@@ -2162,78 +2165,102 @@ const ownerAdminView = (ui) => {
 }
 
 const ownerAdminViewV2 = (ui) => {
-  const currentPlanKey = ui.snapshot.business.activePlan || 'custom'
-  const currentPlanName = planLabels[currentPlanKey] || currentPlanKey
-  const activeModules = Object.values(ui.moduleCatalog).filter((module) => ui.snapshot.business.enabledModules.includes(module.key))
-  const activeUsers = ui.snapshot.users.filter((user) => user.isActive).length
-  const syncLabel = ui.snapshot.meta.syncStatus === 'online'
-    ? 'Base operativa'
-    : ui.snapshot.meta.syncStatus === 'syncing'
-      ? 'Actualizando'
-      : ui.snapshot.meta.syncStatus === 'pending'
-        ? 'Pendiente'
-        : ui.snapshot.meta.syncStatus || 'Sin conexion'
+  const platform = ui.platformAdmin
+  if (!platform) {
+    return `
+    <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
+      <article class="panel empty-panel">
+        <h3>Consola global no disponible</h3>
+        <p>No pude cargar el resumen de comercios todavia. Reintenta y vuelvo a consultar la base real.</p>
+        <div class="settings-actions"><button type="button" class="primary-action" data-action="refresh-platform-admin">Actualizar</button></div>
+      </article>
+    </section>
+    `
+  }
+  const summary = platform.summary || {}
+  const commerces = Array.isArray(platform.commerces) ? platform.commerces : []
+  if (!platformCommerceSelectedId || !commerces.some((entry) => entry.id === platformCommerceSelectedId)) {
+    platformCommerceSelectedId = commerces[0]?.id || ''
+  }
+  const selectedCommerce = commerces.find((entry) => entry.id === platformCommerceSelectedId) || commerces[0] || null
+  const selectedUsers = Array.isArray(selectedCommerce?.users) ? selectedCommerce.users : []
+  const selectedBranches = Array.isArray(selectedCommerce?.branches) ? selectedCommerce.branches : []
+  const selectedRegisters = Array.isArray(selectedCommerce?.registers) ? selectedCommerce.registers : []
+  const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : 'Sin dato'
+  const billingLabel = (value) => {
+    if (value === 'trial') return 'Prueba'
+    if (value === 'active') return 'Activo'
+    if (value === 'past_due') return 'Vencido'
+    if (value === 'paused') return 'Pausado'
+    if (value === 'cancelled') return 'Cancelado'
+    return value || 'Sin dato'
+  }
+  const commerceLabel = (value) => {
+    if (value === 'active') return 'Activo'
+    if (value === 'paused') return 'Pausado'
+    if (value === 'blocked') return 'Bloqueado'
+    return value || 'Sin dato'
+  }
   return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Mi admin</p><h2>Panel PCLAF</h2></div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Comercio actual</span><strong>${ui.commerceContext?.commerce_name || ui.snapshot.business.name || 'Sin nombre'}</strong><p>${ui.currentBranch?.name || 'Sucursal'} activa</p></article>
-      <article class="metric-card compact"><span>Pack aplicado</span><strong>${currentPlanName}</strong><p>${activeModules.length} modulos visibles</p></article>
-      <article class="metric-card compact"><span>Usuarios activos</span><strong>${activeUsers}</strong><p>Acceso del equipo listo</p></article>
+      <article class="metric-card compact"><span>Comercios</span><strong>${summary.totalCommerces || 0}</strong><p>${summary.activeCommerces || 0} activos</p></article>
+      <article class="metric-card compact"><span>Pruebas</span><strong>${summary.trialCommerces || 0}</strong><p>${summary.expiredCommerces || 0} vencidos</p></article>
+      <article class="metric-card compact"><span>Estructura</span><strong>${summary.totalBranches || 0}</strong><p>${summary.totalRegisters || 0} cajas / ${summary.totalUsers || 0} usuarios</p></article>
     </section>
     <section class="module-board admin-board">
       <article class="panel module-side"><div class="panel-head"><div><h3>Estado general</h3><p>Resumen corto de la cuenta actual</p></div></div>
         <div class="priority-list">
-          <div class="priority-item"><strong>Propietario</strong><p>${ui.user.fullName}<br /><small>${maskEmail(ui.user.email) || 'Sin email'}</small></p></div>
-          <div class="priority-item"><strong>Comercio</strong><p>${ui.commerceContext?.commerce_name || 'Sin comercio activo'}<br /><small>${ui.snapshot.business.organization || 'Sin razon social'}</small></p></div>
-          <div class="priority-item"><strong>Acceso</strong><p>${currentPlanName}<br /><small>${activeModules.length} modulos activos</small></p></div>
-          <div class="priority-item"><strong>Respaldo</strong><p>${syncLabel}<br /><small>${ui.snapshot.meta.lastSyncedAt ? ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ') : 'Sin sincronizacion previa'}</small></p></div>
+          <div class="priority-item"><strong>Cuenta PCLAF</strong><p>${ui.user.fullName}<br /><small>${maskEmail(ui.user.email) || 'Sin email'}</small></p></div>
+          <div class="priority-item"><strong>Activos</strong><p>${summary.activeCommerces || 0}<br /><small>${summary.pausedCommerces || 0} pausados</small></p></div>
+          <div class="priority-item"><strong>Pruebas</strong><p>${summary.trialCommerces || 0}<br /><small>${summary.expiredCommerces || 0} para revisar</small></p></div>
+          <div class="priority-item"><strong>Vista</strong><p>Global PCLAF<br /><small>Sin mezclar operacion diaria</small></p></div>
         </div>
-        <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Soporte por WhatsApp</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
+        <div class="settings-actions"><button type="button" class="primary-action" data-action="refresh-platform-admin">Actualizar</button><button type="button" class="ghost-action" data-action="open-support">Soporte</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
       <div class="module-main">
-        <div class="compact-form-grid">
-          <article class="panel"><div class="panel-head"><div><h3>Comercio y propietario</h3><p>Datos base del negocio</p></div></div>
-            <form class="form-grid compact-form" data-form="commerce-profile">
-              <label>Nombre comercial<input type="text" name="name" value="${ui.commerceContext?.commerce_name || ''}" required /></label>
-              <label>Email propietario<input type="email" name="ownerEmail" value="${ui.commerceContext?.owner_email || ''}" required /></label>
-              <label>Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" /></label>
-              <button type="submit">Guardar comercio</button>
+        <article class="panel"><div class="panel-head"><div><h3>Comercios creados</h3><p>Estado comercial y operativo sin entrar al negocio</p></div></div>
+          ${dataTable(['Comercio', 'Pack', 'Cobro', 'Prueba', 'Ultimo acceso', 'Gestion'], commerces.map((entry) => `<div class="data-row ${entry.id === platformCommerceSelectedId ? 'is-selected' : ''}"><span><strong>${entry.name}</strong><br /><small>${entry.instanceKey}</small></span><span>${planLabels[entry.activePlan] || entry.activePlan}</span><span>${billingLabel(entry.billingStatus)}</span><span>${entry.trialEndsAt ? entry.trialEndsAt.slice(0, 10) : 'Sin fecha'}</span><span>${entry.lastAccessAt ? formatDate(entry.lastAccessAt) : 'Nunca'}</span><span><button type="button" class="inline-action" data-platform-select="${entry.id}">Ver detalle</button></span></div>`))}
+        </article>
+        ${selectedCommerce ? `<div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Detalle del comercio</h3><p>Pack, estado y acceso publico</p></div></div>
+            <form class="form-grid compact-form" data-form="platform-commerce">
+              <input type="hidden" name="commerceId" value="${selectedCommerce.id}" />
+              <label>Comercio<input type="text" value="${selectedCommerce.name}" disabled /></label>
+              <label>Dueño<input type="email" value="${selectedCommerce.ownerEmail}" disabled /></label>
+              <label>Pack<select name="activePlan"><option value="basic" ${selectedCommerce.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${selectedCommerce.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${selectedCommerce.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${selectedCommerce.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option><option value="custom" ${selectedCommerce.activePlan === 'custom' ? 'selected' : ''}>Personalizado</option></select></label>
+              <label>Estado<select name="status"><option value="active" ${selectedCommerce.status === 'active' ? 'selected' : ''}>Activo</option><option value="paused" ${selectedCommerce.status === 'paused' ? 'selected' : ''}>Pausado</option><option value="blocked" ${selectedCommerce.status === 'blocked' ? 'selected' : ''}>Bloqueado</option></select></label>
+              <label>Cobro<select name="billingStatus"><option value="trial" ${selectedCommerce.billingStatus === 'trial' ? 'selected' : ''}>Prueba</option><option value="active" ${selectedCommerce.billingStatus === 'active' ? 'selected' : ''}>Activo</option><option value="past_due" ${selectedCommerce.billingStatus === 'past_due' ? 'selected' : ''}>Vencido</option><option value="paused" ${selectedCommerce.billingStatus === 'paused' ? 'selected' : ''}>Pausado</option><option value="cancelled" ${selectedCommerce.billingStatus === 'cancelled' ? 'selected' : ''}>Cancelado</option></select></label>
+              <label>Alta publica<select name="allowPublicSignup"><option value="true" ${selectedCommerce.allowPublicSignup ? 'selected' : ''}>Permitida</option><option value="false" ${!selectedCommerce.allowPublicSignup ? 'selected' : ''}>Cerrada</option></select></label>
+              <button type="submit">Guardar cambios</button>
             </form>
-            <div class="panel-note"><span>Este correo queda como acceso principal del comercio.</span><span>La configuracion tecnica se mantiene fuera de esta vista.</span></div>
+            <div class="panel-note"><span>Alta: ${formatDate(selectedCommerce.createdAt)}</span><span>Prueba hasta: ${selectedCommerce.trialEndsAt ? selectedCommerce.trialEndsAt.slice(0, 10) : 'Sin fecha'}</span></div>
           </article>
-          <article class="panel"><div class="panel-head"><div><h3>Cuenta y respaldo</h3><p>Control rapido del estado general</p></div></div>
-            <div class="timeline-list">
-              <div class="timeline-item"><strong>Estado del servicio</strong><p>${syncLabel}</p><span>La informacion del negocio queda respaldada en la nube.</span></div>
-              <div class="timeline-item"><strong>Ultima actualizacion</strong><p>${ui.snapshot.meta.lastSyncedAt ? ui.snapshot.meta.lastSyncedAt.slice(0, 16).replace('T', ' ') : 'Pendiente'}</p><span>La cuenta trabaja directo sobre la base real.</span></div>
+          <article class="panel"><div class="panel-head"><div><h3>Lectura ejecutiva</h3><p>Seguimiento comercial y tecnico</p></div></div>
+            <div class="priority-list">
+              <div class="priority-item"><strong>Instancia</strong><p>${selectedCommerce.instanceKey}</p></div>
+              <div class="priority-item"><strong>Estado</strong><p>${commerceLabel(selectedCommerce.status)}<br /><small>${billingLabel(selectedCommerce.billingStatus)}</small></p></div>
+              <div class="priority-item"><strong>Ultimo acceso</strong><p>${selectedCommerce.lastAccessAt ? formatDate(selectedCommerce.lastAccessAt) : 'Nunca'}</p></div>
+              <div class="priority-item"><strong>Estructura</strong><p>${selectedCommerce.branchesCount} sucursales<br /><small>${selectedCommerce.registersCount} cajas / ${selectedCommerce.usersCount} usuarios</small></p></div>
             </div>
-            <div class="settings-actions"><button type="button" class="primary-action" data-action="export-data">Exportar JSON</button><label class="file-action">Importar JSON<input type="file" accept="application/json" data-action="import-data" /></label></div>
+            <div class="chip-grid">${(selectedCommerce.enabledModules || []).map((moduleKey) => `<span class="module-chip is-active">${ui.moduleCatalog[moduleKey]?.name || moduleKey}</span>`).join('') || '<span class="module-chip">Sin modulos</span>'}</div>
           </article>
-        </div>
-        <article class="panel"><div class="panel-head"><div><h3>Modulos activos</h3><p>Esto es lo que hoy ve el cliente</p></div></div>
-          <div class="chip-grid">${activeModules.map((module) => `<span class="module-chip is-active">${module.name}</span>`).join('') || '<p class="empty-state">No hay modulos activos.</p>'}</div>
-          <div class="panel-note"><span>Mientras mas simple sea el panel, mas facil es que el cliente lo adopte.</span><span>Si no necesita una funcion, conviene esconderla.</span></div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Packs por necesidad</h3><p>Cada comercio ve solo lo justo</p></div></div>
-          <div class="preset-grid">
-            ${Object.entries(planCatalog).map(([key, plan]) => {
-              const isCurrent = currentPlanKey === key
-              const modules = plan.modules.map((moduleKey) => ui.moduleCatalog[moduleKey]?.name || moduleKey).filter(Boolean)
-              return `<div class="preset-card ${isCurrent ? 'is-active' : ''}">
-                <div class="preset-card-head"><strong>${plan.name}</strong><span>${isCurrent ? 'Actual' : 'Disponible'}</span></div>
-                <p>${plan.description}</p>
-                <small>${plan.idealFor}</small>
-                <div class="chip-grid">${modules.map((module) => `<span class="module-chip">${module}</span>`).join('')}</div>
-                <div class="settings-actions"><button type="button" class="${isCurrent ? 'inline-action' : 'primary-action'}" data-plan-apply="${key}">${isCurrent ? 'Ya activo' : 'Aplicar pack'}</button></div>
-              </div>`
-            }).join('')}
+        </div>` : ''}
+        ${selectedCommerce ? `<div class="compact-form-grid">
+          <article class="panel"><div class="panel-head"><div><h3>Usuarios del cliente</h3><p>Accesos y ultimo uso</p></div></div>
+            ${dataTable(['Usuario', 'Perfil', 'Estado', 'Ultimo acceso'], selectedUsers.map((entry) => `<div class="data-row"><span>${entry.full_name || entry.fullName || 'Usuario'}<br /><small>${maskEmail(entry.email) || 'Sin email'}</small></span><span>${entry.is_owner ? 'Propietario' : (entry.role_key || entry.roleKey || 'Usuario')}</span><span>${entry.status === 'active' ? 'Activo' : 'Inactivo'}</span><span>${entry.last_login_at ? formatDate(entry.last_login_at) : 'Nunca'}</span></div>`))}
+          </article>
+          <article class="panel"><div class="panel-head"><div><h3>Sucursales y cajas</h3><p>Estructura ligada al comercio</p></div></div>
+            ${dataTable(['Sucursal', 'Codigo', 'Cajas'], selectedBranches.map((entry) => `<div class="data-row"><span>${entry.name || 'Sucursal'}</span><span>${entry.code || '-'}</span><span>${selectedRegisters.filter((register) => register.branch_id === entry.id || register.branchId === entry.id).length}</span></div>`))}
+          </article>
+        </div>` : ''}
+        <article class="panel"><div class="panel-head"><div><h3>Que controlas desde aca</h3><p>Tu consola de plataforma, no la operacion diaria del cliente</p></div></div>
+          <div class="timeline-list">
+            <div class="timeline-item"><strong>Prueba, activo o bloqueado</strong><p>Ves el estado comercial real de cada cuenta.</p><span>Puedes pausar altas publicas o cambiar pack sin entrar al negocio.</span></div>
+            <div class="timeline-item"><strong>Detalle por cliente</strong><p>Dueño, fecha de alta, ultimo acceso, sucursales, cajas y usuarios.</p><span>Esto te sirve para soporte y seguimiento comercial.</span></div>
+            <div class="timeline-item"><strong>Separado del admin del cliente</strong><p>La operacion diaria sigue dentro del comercio.</p><span>Mi admin queda reservado para el control general de PCLAF Control.</span></div>
           </div>
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Cuentas y permisos</h3><p>Quien entra y que puede usar</p></div></div>
-          ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>/ Propietario</small>' : ''}<br /><small>${maskEmail(entry.email) || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : 'Limitado por rol'}</span><span>${userActionButtons(entry)}</span></div>`))}
-        </article>
-        <article class="panel"><div class="panel-head"><div><h3>Actividad reciente</h3><p>Movimientos y cambios del sistema</p></div></div>
-          <div class="timeline-list">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
         </article>
       </div>
     </section>
@@ -2440,7 +2467,7 @@ const renderCurrentView = (ui) => {
     case 'facturacion': return invoicesViewV2(ui)
     case 'tickets': return ticketsViewV2(ui)
     case 'reportes': return reportsView(ui)
-    case 'mi-admin': return ui.user?.isOwner ? ownerAdminViewV2(ui) : settingsViewV2(ui)
+    case 'mi-admin': return ui.user?.isPlatformAdmin ? ownerAdminViewV2(ui) : settingsViewV2(ui)
     case 'ajustes': return basicSettingsView(ui)
     default: return dashboardView(ui)
   }
@@ -3023,6 +3050,16 @@ const handleSubmit = async (event) => {
     ticketEditingId = ''
     ticketFormOpen = false
   }
+  if (kind === 'platform-commerce') {
+    const result = await store.updatePlatformCommerce({
+      commerceId: formData.get('commerceId'),
+      activePlan: formData.get('activePlan'),
+      status: formData.get('status'),
+      billingStatus: formData.get('billingStatus'),
+      allowPublicSignup: String(formData.get('allowPublicSignup')) === 'true',
+    })
+    feedbackMessage = result.message || ''
+  }
   if (kind === 'open-cash') {
     const result = await store.openCashSession({ registerId: formData.get('registerId'), openingAmount: formData.get('openingAmount') })
     feedbackMessage = result.message || ''
@@ -3146,7 +3183,7 @@ const bindEvents = () => {
     openAccountPanelButton.addEventListener('click', (event) => {
       event.stopPropagation()
       accountAlertsOpen = false
-      activeSection = getUiState().user?.isOwner ? 'mi-admin' : 'ajustes'
+      activeSection = getUiState().user?.isPlatformAdmin ? 'mi-admin' : 'ajustes'
       saveSection()
       requestScrollTop()
       render()
@@ -3183,6 +3220,20 @@ const bindEvents = () => {
     loginMessage = ''
     signupMessage = ''
     requestScrollTop()
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-platform-select]')) button.addEventListener('click', () => {
+    platformCommerceSelectedId = button.dataset.platformSelect || ''
+    requestScrollTop()
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-action="refresh-platform-admin"]')) button.addEventListener('click', async () => {
+    try {
+      await store.refreshPlatformAdminData()
+      feedbackMessage = 'Panel PCLAF actualizado.'
+    } catch (error) {
+      feedbackMessage = humanizeError(error)
+    }
     render()
   })
   for (const button of document.querySelectorAll('[data-action="open-customer-form"]')) button.addEventListener('click', () => {

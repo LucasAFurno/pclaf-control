@@ -120,6 +120,21 @@ export const createSupabaseCoreAdapter = (config) => {
         p_is_active: payload?.isActive !== false,
       })
     },
+    async loadPlatformOverview() {
+      return rpc('app_public_platform_overview', {
+        p_session_token: getSessionToken(),
+      })
+    },
+    async updatePlatformCommerce(payload) {
+      return rpc('app_public_platform_update_commerce', {
+        p_session_token: getSessionToken(),
+        p_commerce_id: payload?.commerceId || null,
+        p_active_plan: payload?.activePlan || null,
+        p_status: payload?.status || null,
+        p_billing_status: payload?.billingStatus || null,
+        p_allow_public_signup: typeof payload?.allowPublicSignup === 'boolean' ? payload.allowPublicSignup : null,
+      })
+    },
     async toggleUserActive(payload) {
       return rpc('app_public_toggle_user_active', {
         p_session_token: getSessionToken(),
