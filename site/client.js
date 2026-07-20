@@ -1,10 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720f'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720f'
+import { createBrowserDataStore } from './data-store.js?v=20260720g'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720g'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-f'
+const appVersion = 'v2026.07.20-g'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -1549,17 +1549,6 @@ const cashViewV2 = (ui) => `
       <span class="panel-inline-stat"><strong>${ui.enrichedCashMovements.length}</strong><span>Movimientos</span></span>
     </div></div>
     <section class="stacked-section">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado y operas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
-        <div class="summary-mini-row">
-          <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</span></div>
-          <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
-          <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegi una caja')}</span></div>
-          <div class="summary-mini-card"><strong>Efectivo esperado</strong><span>${money(ui.expectedCash)}</span></div>
-          <div class="summary-mini-card"><strong>Ajustes manuales</strong><span>${money(ui.sessionCashMovementTotal)}</span></div>
-          <div class="summary-mini-card"><strong>Ultima diferencia</strong><span>${money(lastClosedSession?.differenceAmount || 0)}</span></div>
-        </div>
-      </article>
       ${showCashForm ? `<div class="compact-form-grid">
           <article class="panel">
             <div class="panel-head"><div><h3>${ui.openCashSession ? 'Cerrar caja' : 'Abrir caja'}</h3><p>${ui.openCashSession ? 'Informa el efectivo contado' : 'Define el fondo inicial'}</p></div></div>
@@ -1579,6 +1568,17 @@ const cashViewV2 = (ui) => `
             </form>` : '<p class="empty-state">Abri una caja para registrar movimientos manuales.</p>'}
           </article>
         </div>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado y operas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
+        <div class="summary-mini-row">
+          <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</span></div>
+          <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
+          <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja') : (ui.currentRegister?.name || 'Elegi una caja')}</span></div>
+          <div class="summary-mini-card"><strong>Efectivo esperado</strong><span>${money(ui.expectedCash)}</span></div>
+          <div class="summary-mini-card"><strong>Ajustes manuales</strong><span>${money(ui.sessionCashMovementTotal)}</span></div>
+          <div class="summary-mini-card"><strong>Ultima diferencia</strong><span>${money(lastClosedSession?.differenceAmount || 0)}</span></div>
+        </div>
+      </article>
       <article class="panel"><div class="panel-head"><div><h3>Ultimos cierres</h3><p>Diferencias y arqueo</p></div></div><div class="timeline-list">
           ${byRecentDate(ui.scopedCashSessions.filter((session) => session.status === 'closed'), 'closedAt').slice(0, 5).map((session) => `<div class="timeline-item"><strong>Cierre ${session.closedAt?.slice(0, 10) || '-'}</strong><p>Contado ${money(session.countedAmount || 0)} / diferencia ${money(session.differenceAmount || 0)}</p><span>${ui.enrichedRegisters.find((register) => register.id === session.registerId)?.name || 'Caja'} / fondo ${money(session.openingAmount || 0)}</span></div>`).join('') || '<p class="empty-state">Todavia no hay cierres para este filtro.</p>'}
         </div></article>
@@ -1599,6 +1599,42 @@ const productsView = (ui) => `
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="module-board products-board">
       <div class="module-main">
+        ${productFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo producto</h3><p>Carga simple para empezar rapido</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-product-form">Cerrar</button></div></div>
+          <form class="form-grid" data-form="product">
+            <label>Nombre<input type="text" name="name" required /></label>
+            <label>SKU<input type="text" name="sku" required /></label>
+            <label>Codigo de barras<input type="text" class="scanner-input" name="barcode" placeholder="Escanea o escribe codigo" /></label>
+            <label>Stock<input type="number" name="stock" min="0" required /></label>
+            <label>Precio venta<input type="number" name="salePrice" min="0" required /></label>
+            <label>Costo<input type="number" name="costPrice" min="0" required /></label>
+            <label>Minimo<input type="number" name="minStock" min="0" required /></label>
+            <label>Categoria<input type="text" name="category" required /></label>
+            <label class="field-check full-span"><input type="checkbox" name="trackStock" checked /><span class="field-check-box" aria-hidden="true"></span><span>Controlar stock de este articulo</span></label>
+            <div class="full-span inline-action-group scanner-row">
+              <button type="button" class="inline-action" data-action="focus-product-barcode">Usar lector</button>
+              <span class="scanner-inline-copy">Captura el codigo desde un lector USB o escribilo manualmente.</span>
+            </div>
+            <button type="submit">Guardar producto</button>
+          </form>
+        </article>` : ''}
+        ${stockAdjustmentFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-adjustment-form">Cerrar</button></div></div>
+          <form class="form-grid compact-form" data-form="stock-adjustment">
+            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
+            <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
+            <button type="submit">Aplicar ajuste</button>
+          </form>
+        </article>` : ''}
+        ${stockTransferFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-transfer-form">Cerrar</button></div></div>
+          <form class="form-grid compact-form" data-form="stock-transfer">
+            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
+            <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
+            <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
+            <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
+            <button type="submit">Registrar transferencia</button>
+          </form>
+        </article>` : ''}
         <article class="panel inventory-panel">
           <div class="panel-head inventory-headline">
             <div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div>
@@ -1646,42 +1682,6 @@ const productsView = (ui) => `
             </div>
           `))}
         </article>
-        ${stockAdjustmentFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-adjustment-form">Cerrar</button></div></div>
-          <form class="form-grid compact-form" data-form="stock-adjustment">
-            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
-            <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
-            <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
-            <button type="submit">Aplicar ajuste</button>
-          </form>
-        </article>` : ''}
-        ${stockTransferFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-transfer-form">Cerrar</button></div></div>
-          <form class="form-grid compact-form" data-form="stock-transfer">
-            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
-            <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
-            <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
-            <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
-            <label class="full-span">Detalle<input type="text" name="note" placeholder="Reposicion entre locales" /></label>
-            <button type="submit">Registrar transferencia</button>
-          </form>
-        </article>` : ''}
-        ${productFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Nuevo producto</h3><p>Carga simple para empezar rapido</p></div></div>
-          <form class="form-grid" data-form="product">
-            <label>Nombre<input type="text" name="name" required /></label>
-            <label>SKU<input type="text" name="sku" required /></label>
-            <label>Codigo de barras<input type="text" class="scanner-input" name="barcode" placeholder="Escanea o escribe codigo" /></label>
-            <label>Stock<input type="number" name="stock" min="0" required /></label>
-            <label>Precio venta<input type="number" name="salePrice" min="0" required /></label>
-            <label>Costo<input type="number" name="costPrice" min="0" required /></label>
-            <label>Minimo<input type="number" name="minStock" min="0" required /></label>
-            <label>Categoria<input type="text" name="category" required /></label>
-            <label class="field-check full-span"><input type="checkbox" name="trackStock" checked /><span class="field-check-box" aria-hidden="true"></span><span>Controlar stock de este articulo</span></label>
-            <div class="full-span inline-action-group scanner-row">
-              <button type="button" class="inline-action" data-action="focus-product-barcode">Usar lector</button>
-              <span class="scanner-inline-copy">Captura el codigo desde un lector USB o escribilo manualmente.</span>
-            </div>
-            <button type="submit">Guardar producto</button>
-          </form>
-        </article>` : ''}
       </div>
     </section>
   </section>
@@ -2043,10 +2043,6 @@ const branchesViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Sucursales</h3><p>Contexto actual del comercio</p></div><div class="settings-actions">${editingBranch ? '' : createToggleButton('branch', showBranchForm, 'Agregar sucursal')}</div></div>
-        ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
-      </article>
       ${showBranchForm ? `<article class="panel">
         <div class="panel-head"><div><h3>${editingBranch ? 'Editar sucursal' : 'Nueva sucursal'}</h3><p>La sucursal actual define la numeracion</p></div></div>
         <form class="form-grid" data-form="branch">
@@ -2058,6 +2054,10 @@ const branchesViewV2 = (ui) => `
           ${editingBranch ? '<button type="button" class="danger-action" data-action="cancel-branch-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-branch-form">Cancelar</button>'}
         </form>
       </article>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Sucursales</h3><p>Contexto actual del comercio</p></div><div class="settings-actions">${editingBranch ? '' : createToggleButton('branch', showBranchForm, 'Agregar sucursal')}</div></div>
+        ${dataTable(['Nombre', 'Codigo', 'Direccion', 'Actual', 'Accion'], ui.snapshot.branches.map((branch) => `<div class="data-row"><span>${branch.name}</span><span>${branch.code}</span><span>${branch.address}</span><span>${ui.currentBranch?.id === branch.id ? 'Si' : 'No'}</span><span>${branchActionButtons(branch)}</span></div>`))}
+      </article>
     </section>
   </section>
 `})()}
@@ -2141,10 +2141,6 @@ const registersViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      <article class="panel">
-        <div class="panel-head"><div><h3>Cajas</h3><p>Control de puestos de cobro</p></div><div class="settings-actions">${editingRegister ? '' : createToggleButton('register', showRegisterForm, 'Agregar caja')}</div></div>
-        ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
-      </article>
       ${showRegisterForm ? `<article class="panel">
         <div class="panel-head"><div><h3>${editingRegister ? 'Editar caja' : 'Nueva caja'}</h3><p>Asignacion por sucursal y cajero</p></div></div>
         <form class="form-grid" data-form="register">
@@ -2157,6 +2153,10 @@ const registersViewV2 = (ui) => `
           ${editingRegister ? '<button type="button" class="danger-action" data-action="cancel-register-edit">Cancelar edicion</button>' : '<button type="button" class="ghost-action" data-action="close-register-form">Cancelar</button>'}
         </form>
       </article>` : ''}
+      <article class="panel">
+        <div class="panel-head"><div><h3>Cajas</h3><p>Control de puestos de cobro</p></div><div class="settings-actions">${editingRegister ? '' : createToggleButton('register', showRegisterForm, 'Agregar caja')}</div></div>
+        ${dataTable(['Caja', 'Codigo', 'Sucursal', 'Cajero', 'Accion'], ui.enrichedRegisters.map((register) => `<div class="data-row"><span>${register.name}</span><span>${register.code}</span><span>${register.branchName}</span><span>${register.cashierName}</span><span class="inline-action-group"><button type="button" class="inline-action" data-register-action="select" data-id="${register.id}">Usar</button>${registerActionButtons(register)}</span></div>`))}
+      </article>
     </section>
   </section>
 `})()}
@@ -3764,3 +3764,4 @@ const bindEvents = () => {
 
 applyTheme()
 bootstrap()
+
