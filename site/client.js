@@ -3522,6 +3522,7 @@ const bindEvents = () => {
       if (button.dataset.saleAction === 'edit') {
         saleEditingId = button.dataset.id
         saleFormOpen = true
+        queueScrollToSelector('form[data-form="sale"]')
         const sale = store.getSnapshot().sales.find((entry) => entry.id === button.dataset.id)
         saleDraftQuantities = Object.fromEntries((sale?.items || []).map((item) => [item.productId, item.quantity]))
         saleQuickAddCode = ''
@@ -3568,6 +3569,7 @@ const bindEvents = () => {
         purchaseEditingId = button.dataset.id
         supplierFormOpen = false
         purchaseFormOpen = true
+        queueScrollToSelector('form[data-form="purchase-receipt"]')
         feedbackMessage = 'Recepcion cargada para edicion.'
         render()
       }
@@ -3579,6 +3581,7 @@ const bindEvents = () => {
         closeDocumentUtilityForms()
         invoiceEditingId = button.dataset.id
         invoiceFormOpen = true
+        queueScrollToSelector('form[data-form="invoice"]')
         feedbackMessage = 'Factura cargada para edicion.'
         render()
       }
@@ -3590,6 +3593,7 @@ const bindEvents = () => {
         closeDocumentUtilityForms()
         ticketEditingId = button.dataset.id
         ticketFormOpen = true
+        queueScrollToSelector('form[data-form="ticket"]')
         feedbackMessage = 'Ticket cargado para edicion.'
         render()
       }
@@ -3601,6 +3605,7 @@ const bindEvents = () => {
         closeStructureUtilityForms()
         branchEditingId = button.dataset.id
         branchFormOpen = true
+        queueScrollToSelector('form[data-form="branch"]')
         feedbackMessage = 'Sucursal cargada para edicion.'
         render()
         return
@@ -3622,6 +3627,7 @@ const bindEvents = () => {
         closeStructureUtilityForms()
         registerEditingId = button.dataset.id
         registerFormOpen = true
+        queueScrollToSelector('form[data-form="register"]')
         feedbackMessage = 'Caja cargada para edicion.'
         render()
       }
@@ -3631,6 +3637,7 @@ const bindEvents = () => {
     button.addEventListener('click', async () => {
       if (button.dataset.userAction === 'edit') {
         userEditingId = button.dataset.id
+        queueScrollToSelector('form[data-form="user"]')
         feedbackMessage = 'Usuario cargado para edicion.'
         render()
         return
