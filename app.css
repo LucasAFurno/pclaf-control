@@ -1776,6 +1776,11 @@ input, select { outline: none; }
   gap: 18px;
 }
 
+.settings-stack,
+.settings-overview-grid {
+  align-items: start;
+}
+
 .stacked-section {
   display: grid;
   gap: 18px;
@@ -1822,6 +1827,16 @@ input, select { outline: none; }
 .dual-actions .toggle-chip {
   width: 100%;
   justify-content: center;
+}
+
+.reports-layout .panel {
+  min-width: 0;
+}
+
+.reports-layout .timeline-item strong,
+.reports-layout .timeline-item p,
+.reports-layout .timeline-item span {
+  overflow-wrap: break-word;
 }
 
 .inventory-panel {
@@ -1965,6 +1980,31 @@ input, select { outline: none; }
 .data-head span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.data-table.is-stable .data-row span,
+.data-table.is-stable .data-head span {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.purchases-receipts-table .data-head,
+.purchases-receipts-table .data-row {
+  grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.5fr) 90px 110px 126px;
+}
+
+.suppliers-table .data-head,
+.suppliers-table .data-row {
+  grid-template-columns: minmax(180px, 1.5fr) minmax(130px, 1fr) 110px 110px 126px;
+}
+
+.invoices-table .data-head,
+.invoices-table .data-row,
+.tickets-table .data-head,
+.tickets-table .data-row,
+.settings-users-table .data-head,
+.settings-users-table .data-row {
+  grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1.4fr) minmax(120px, 1fr) minmax(110px, 0.9fr) 126px;
 }
 
 .data-row span:last-child {
@@ -2339,6 +2379,14 @@ input, select { outline: none; }
   .inventory-row {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .purchases-receipts-table .data-row,
+  .suppliers-table .data-row,
+  .invoices-table .data-row,
+  .tickets-table .data-row,
+  .settings-users-table .data-row {
+    grid-template-columns: 1fr;
   }
 
   .inventory-head {
