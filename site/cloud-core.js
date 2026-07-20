@@ -118,6 +118,8 @@ export const createSupabaseCoreAdapter = (config) => {
         p_email: payload?.email || '',
         p_pin: payload?.pin || null,
         p_is_active: payload?.isActive !== false,
+        p_allowed_modules: Array.isArray(payload?.allowedModules) ? payload.allowedModules : null,
+        p_blocked_permissions: Array.isArray(payload?.blockedPermissions) ? payload.blockedPermissions : null,
       })
     },
     async loadPlatformOverview() {

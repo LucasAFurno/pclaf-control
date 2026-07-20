@@ -1,9 +1,10 @@
-import { createBrowserDataStore } from './data-store.js?v=20260720b'
-import { createCloudAuthManager } from './cloud-auth.js?v=20260720b'
+import { createBrowserDataStore } from './data-store.js?v=20260720c'
+import { createCloudAuthManager } from './cloud-auth.js?v=20260720c'
 
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
+const appVersion = 'v2026.07.20-c'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -156,9 +157,19 @@ const flushPendingScrollTarget = () => {
     const element = document.querySelector(selector)
     const target = element?.closest?.('.panel') || element
     if (!target) return
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const page = document.querySelector('.page')
+    if (page) {
+      const pageRect = page.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      const nextTop = page.scrollTop + (targetRect.top - pageRect.top) - 18
+      page.scrollTo({ top: Math.max(nextTop, 0), left: 0, behavior: 'smooth' })
+    } else {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
     const focusable = target.querySelector('input, select, textarea, button')
-    focusable?.focus?.({ preventScroll: true })
+    window.setTimeout(() => {
+      focusable?.focus?.({ preventScroll: true })
+    }, 140)
   })
 }
 
@@ -2529,7 +2540,7 @@ const renderApp = (ui) => {
       </aside>
       <div class="workspace">
         <header class="topbar">
-          <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${ui.commerceContext?.commerce_name || productName}</h1><span>${branchName}</span></div>
+          <div class="topbar-left"><p class="kicker">Panel de control</p><h1>${ui.commerceContext?.commerce_name || productName}</h1><span>${branchName} · ${appVersion}</span></div>
           <div class="topbar-center">
             <form class="quick-search" data-form="topbar-jump">
               <span class="quick-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>

@@ -1473,6 +1473,7 @@ input, select { outline: none; }
 .module-chip {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
@@ -1481,6 +1482,13 @@ input, select { outline: none; }
   color: var(--text);
   font-size: 0.76rem;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.module-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .module-chip.is-active {

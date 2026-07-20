@@ -1,4 +1,4 @@
-import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720a'
+import { createSupabaseCoreAdapter } from './cloud-core.js?v=20260720b'
 
 const dataStorageKey = 'pclaf-control-data'
 const cloudConfigStorageKey = 'pclaf-control-cloud-config'
@@ -185,6 +185,26 @@ const roles = [
 
 const roleIds = Object.fromEntries(roles.map((role) => [role.key, role.id]))
 const roleKeysById = Object.fromEntries(roles.map((role) => [role.id, role.key]))
+const validModuleKeys = new Set(Object.keys(moduleCatalog))
+const validPermissionKeys = new Set([...Object.values(permissionCatalog), ...Object.values(actionPermissions)])
+const normalizeStringList = (value, allowedSet) => {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => entry && (!allowedSet || allowedSet.has(entry))))]
+}
+const inferRolePermissions = (roleId) => roles.find((role) => role.id === roleId)?.permissions || []
+const inferUserPermissionSet = (entry) => {
+  const basePermissions = inferRolePermissions(entry?.roleId)
+  const blocked = new Set(normalizeStringList(entry?.blockedPermissions, validPermissionKeys))
+  return basePermissions.filter((permission) => !blocked.has(permission))
+}
+const inferUserModules = (entry, enabledModules = []) => {
+  const availableModules = Array.isArray(enabledModules) ? enabledModules.filter((moduleKey) => validModuleKeys.has(moduleKey)) : []
+  const overrides = normalizeStringList(entry?.allowedModules, validModuleKeys)
+  if (!overrides.length) return availableModules
+  return availableModules.filter((moduleKey) => overrides.includes(moduleKey))
+}
 
 const seedData = {
   meta: {
@@ -222,9 +242,9 @@ const seedData = {
   registers: [],
   roles,
   users: [
-    { id: makeId(), fullName: 'Administrador demo', roleId: roleIds.admin, email: 'admin@demo.local', pin: 'demo1234', isActive: true },
-    { id: makeId(), fullName: 'Caja demo', roleId: roleIds.cashier, email: 'caja@demo.local', pin: 'demo1111', isActive: true },
-    { id: makeId(), fullName: 'Deposito demo', roleId: roleIds.warehouse, email: 'deposito@demo.local', pin: 'demo2222', isActive: true },
+    { id: makeId(), fullName: 'Administrador demo', roleId: roleIds.admin, email: 'admin@demo.local', pin: 'demo1234', isActive: true, allowedModules: [], blockedPermissions: [] },
+    { id: makeId(), fullName: 'Caja demo', roleId: roleIds.cashier, email: 'caja@demo.local', pin: 'demo1111', isActive: true, allowedModules: [], blockedPermissions: [] },
+    { id: makeId(), fullName: 'Deposito demo', roleId: roleIds.warehouse, email: 'deposito@demo.local', pin: 'demo2222', isActive: true, allowedModules: [], blockedPermissions: [] },
   ],
   session: {
     userId: '',
@@ -895,6 +915,8 @@ export const createBrowserDataStore = (options = {}) => {
       status: entry.status || (entry.isActive === false ? 'disabled' : 'active'),
       isOwner: Boolean(entry.is_owner || entry.isOwner),
       isPlatformAdmin: Boolean(entry.is_platform_admin || entry.isPlatformAdmin),
+      allowedModules: normalizeStringList(entry.allowed_modules || entry.allowedModules, validModuleKeys),
+      blockedPermissions: normalizeStringList(entry.blocked_permissions || entry.blockedPermissions, validPermissionKeys),
       createdAt: entry.created_at || entry.createdAt || todayIso(),
       updatedAt: entry.updated_at || entry.updatedAt || todayIso(),
     }
@@ -1048,8 +1070,10 @@ export const createBrowserDataStore = (options = {}) => {
   const currentRole = () => cloudAuthProfile
     ? (state.roles.find((role) => role.key === cloudAuthProfile.roleKey) || state.roles[0])
     : getRole(currentUser().roleId)
-  const hasPermission = (permission) => currentRole().permissions.includes(permission)
-  const canAccessModule = (moduleKey, permission) => isModuleEnabled(state, moduleKey) && hasPermission(permission)
+  const currentPermissionSet = () => inferUserPermissionSet(currentUser())
+  const currentEnabledModules = () => inferUserModules(currentUser(), state.business.enabledModules || modulePresets.full)
+  const hasPermission = (permission) => currentPermissionSet().includes(permission)
+  const canAccessModule = (moduleKey, permission) => currentEnabledModules().includes(moduleKey) && hasPermission(permission)
   const isAuthenticated = () => Boolean(state.session.authenticated && state.session.userId)
   const ensurePermission = (permission, message = 'No tienes permiso para hacer esta accion.') => {
     if (!hasPermission(permission)) return { ok: false, message }
@@ -1564,6 +1588,8 @@ export const createBrowserDataStore = (options = {}) => {
       fullName: String(payload.fullName || '').trim(),
       roleId: payload.roleId,
       email: normalizedEmail,
+      allowedModules: normalizeStringList(payload.allowedModules, validModuleKeys),
+      blockedPermissions: normalizeStringList(payload.blockedPermissions, validPermissionKeys),
       ...(await buildSecuredPinFields(String(payload.pin))),
       isActive: payload.isActive !== false,
     }
@@ -1576,6 +1602,8 @@ export const createBrowserDataStore = (options = {}) => {
         email: userDraft.email,
         pin: rawPin,
         isActive: userDraft.isActive,
+        allowedModules: userDraft.allowedModules,
+        blockedPermissions: userDraft.blockedPermissions,
       })
       : userDraft
     state.users.unshift(normalizeCloudUser({
@@ -1586,6 +1614,8 @@ export const createBrowserDataStore = (options = {}) => {
       role_key: remoteUser.role_key || roleKey,
       status: remoteUser.status || (userDraft.isActive ? 'active' : 'disabled'),
       is_owner: remoteUser.is_owner || false,
+      allowed_modules: remoteUser.allowed_modules || userDraft.allowedModules,
+      blocked_permissions: remoteUser.blocked_permissions || userDraft.blockedPermissions,
     }))
     pushAudit(state, currentUser().id, 'user', remoteUser.id || userDraft.id, 'created', { ...userDraft, pin: '****' })
     save({ skipCloud: Boolean(cloudCoreAdapter) })
@@ -1645,6 +1675,8 @@ export const createBrowserDataStore = (options = {}) => {
     user.roleId = payload.roleId
     user.email = normalizedEmail
     user.isActive = payload.isActive !== false
+    user.allowedModules = normalizeStringList(payload.allowedModules, validModuleKeys)
+    user.blockedPermissions = normalizeStringList(payload.blockedPermissions, validPermissionKeys)
     if (payload.pin) {
       if (String(payload.pin).length < 4) return { ok: false, message: 'El PIN debe tener al menos 4 digitos.' }
       Object.assign(user, await buildSecuredPinFields(String(payload.pin)))
@@ -1657,6 +1689,8 @@ export const createBrowserDataStore = (options = {}) => {
         email: user.email,
         pin: payload.pin ? String(payload.pin) : null,
         isActive: user.isActive,
+        allowedModules: user.allowedModules,
+        blockedPermissions: user.blockedPermissions,
       })
       const normalizedRemote = normalizeCloudUser(remoteUser)
       if (normalizedRemote) {
@@ -2442,15 +2476,19 @@ export const createBrowserDataStore = (options = {}) => {
 
   const exportData = () => clone(state)
   const importData = (payload) => {
+    if (!isDesktop) return { ok: false, message: 'La web publica no admite importar datos locales.' }
     state = migrateState(payload)
     pushAudit(state, currentUser().id, 'system', null, 'imported', { importedAt: todayIso() })
     save()
+    return { ok: true, message: 'Backup importado.' }
   }
   const resetData = () => {
+    if (!isDesktop) return { ok: false, message: 'La web publica no admite restaurar demos locales.' }
     state = clone(defaultState)
     applyCloudMeta(cloudCoreAdapter ? 'pending' : 'offline')
     pushAudit(state, currentUser().id, 'system', null, 'reset', { resetAt: todayIso() })
     save()
+    return { ok: true, message: 'Demo restaurada.' }
   }
 
   const getCloudConnection = () => ({
@@ -2500,6 +2538,7 @@ export const createBrowserDataStore = (options = {}) => {
     getSnapshot: () => clone(state),
     currentUser,
     currentRole,
+    currentPermissionSet,
     hasPermission,
     canAccessModule,
     isAuthenticated,
