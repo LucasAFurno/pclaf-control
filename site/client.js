@@ -333,6 +333,21 @@ const normalizeUserPermissionSet = (snapshot, entry = {}) => {
   return rolePermissions.filter((permission) => !blocked.has(permission))
 }
 
+const modulePermissionMap = {
+  dashboard: 'dashboard:view',
+  customers: 'customers:view',
+  sales: 'sales:view',
+  cash: 'cash:view',
+  branches: 'branches:view',
+  registers: 'registers:view',
+  products: 'products:view',
+  purchases: 'purchases:view',
+  invoices: 'invoices:view',
+  tickets: 'tickets:view',
+  reports: 'reports:view',
+  settings: 'settings:view',
+}
+
 const normalizeUserModuleScope = (snapshot, entry = {}, fallbackRoleId = '') => {
   const businessModules = Array.isArray(snapshot.business?.enabledModules) ? snapshot.business.enabledModules : []
   const overrides = Array.isArray(entry.allowedModules) ? entry.allowedModules.filter(Boolean) : []
@@ -343,7 +358,7 @@ const normalizeUserModuleScope = (snapshot, entry = {}, fallbackRoleId = '') => 
   const roleId = entry.roleId || fallbackRoleId
   if (!roleId) return businessModules
   const rolePermissions = snapshot.roles.find((role) => role.id === roleId)?.permissions || []
-  const roleModules = businessModules.filter((moduleKey) => rolePermissions.includes(permissionCatalog[moduleKey]))
+  const roleModules = businessModules.filter((moduleKey) => rolePermissions.includes(modulePermissionMap[moduleKey]))
   return roleModules.length ? roleModules : businessModules
 }
 
