@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.20-l'
+const appVersion = 'v2026.07.21-a'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -121,6 +121,7 @@ let productImportError = ''
 let productImportFileName = ''
 let xlsxModulePromise = null
 let pendingScrollSelector = ''
+let userDraftRoleId = 'role-cashier'
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -332,11 +333,18 @@ const normalizeUserPermissionSet = (snapshot, entry = {}) => {
   return rolePermissions.filter((permission) => !blocked.has(permission))
 }
 
-const normalizeUserModuleScope = (snapshot, entry = {}) => {
+const normalizeUserModuleScope = (snapshot, entry = {}, fallbackRoleId = '') => {
   const businessModules = Array.isArray(snapshot.business?.enabledModules) ? snapshot.business.enabledModules : []
   const overrides = Array.isArray(entry.allowedModules) ? entry.allowedModules.filter(Boolean) : []
-  if (!overrides.length) return businessModules
-  return businessModules.filter((moduleKey) => overrides.includes(moduleKey))
+  if (overrides.length) {
+    const scopedModules = businessModules.filter((moduleKey) => overrides.includes(moduleKey))
+    if (scopedModules.length) return scopedModules
+  }
+  const roleId = entry.roleId || fallbackRoleId
+  if (!roleId) return businessModules
+  const rolePermissions = snapshot.roles.find((role) => role.id === roleId)?.permissions || []
+  const roleModules = businessModules.filter((moduleKey) => rolePermissions.includes(permissionCatalog[moduleKey]))
+  return roleModules.length ? roleModules : businessModules
 }
 
 const permissionLabelMap = {
@@ -356,7 +364,8 @@ const permissionLabelMap = {
 }
 
 const renderUserScopeSelector = (ui, editingUser, canManageUsers) => {
-  const selectedModules = new Set(normalizeUserModuleScope(ui.snapshot, editingUser))
+  const fallbackRoleId = editingUser?.roleId || userDraftRoleId || 'role-cashier'
+  const selectedModules = new Set(normalizeUserModuleScope(ui.snapshot, editingUser, fallbackRoleId))
   const blockedPermissions = new Set(Array.isArray(editingUser?.blockedPermissions) ? editingUser.blockedPermissions : [])
   return `
     <div class="full-span">
@@ -837,7 +846,7 @@ const getUiState = () => {
   const reportScopedCashMovements = scopedCashMovements.filter((movement) => isWithinDateRange(movement.createdAt, reportDateFrom, reportDateTo))
   const reportScopedStockMovements = scopedStockMovements.filter((movement) => isWithinDateRange(movement.createdAt, reportDateFrom, reportDateTo))
   const enrichedUsers = snapshot.users.map((entry) => {
-    const effectiveModules = normalizeUserModuleScope(snapshot, entry)
+    const effectiveModules = normalizeUserModuleScope(snapshot, entry, entry.roleId)
     return {
       ...entry,
       roleName: snapshot.roles.find((roleEntry) => roleEntry.id === entry.roleId)?.name || 'Sin rol',
@@ -2435,7 +2444,7 @@ const settingsViewV2 = (ui) => `
             <label>Nombre completo<input type="text" name="fullName" value="${editingUser?.fullName || ''}" ${canManageUsers ? 'required' : 'disabled'} /></label>
             <label>Email<input type="email" name="email" value="${editingUser?.email || ''}" placeholder="usuario@negocio.com" ${canManageUsers ? 'required' : 'disabled'} /></label>
             <label>Clave${editingUser ? ' nueva' : ''}<input type="password" name="pin" placeholder="${editingUser ? 'Solo si queres cambiarla' : 'Minimo 6 caracteres'}" ${editingUser ? (canManageUsers ? '' : 'disabled') : (canManageUsers ? 'required' : 'disabled')} /></label>
-            <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${editingUser?.roleId === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
+            <label>Rol<select name="roleId" ${canManageUsers ? 'required' : 'disabled'}>${ui.snapshot.roles.map((role) => `<option value="${role.id}" ${(editingUser ? editingUser.roleId : (userDraftRoleId || 'role-cashier')) === role.id ? 'selected' : ''}>${role.name}</option>`).join('')}</select></label>
             <label class="field-check full-span"><input type="checkbox" name="isActive" ${editingUser ? (editingUser.isActive ? 'checked' : '') : 'checked'} ${canManageUsers ? '' : 'disabled'} /><span class="field-check-box" aria-hidden="true"></span><span>Cuenta habilitada</span></label>
             ${renderUserScopeSelector(ui, editingUser, canManageUsers)}
             <button type="submit" ${canManageUsers ? '' : 'disabled'}>${editingUser ? 'Guardar permisos' : 'Crear usuario'}</button>
@@ -3006,6 +3015,7 @@ const handleSubmit = async (event) => {
       })
     feedbackMessage = result.message || ''
     userEditingId = ''
+    userDraftRoleId = 'role-cashier'
   }
   if (kind === 'report-filter') {
     reportRegisterFilter = formData.get('registerFilter') || 'all'
@@ -3669,6 +3679,7 @@ const bindEvents = () => {
     button.addEventListener('click', async () => {
       if (button.dataset.userAction === 'edit') {
         userEditingId = button.dataset.id
+        userDraftRoleId = getUiState().snapshot.users.find((entry) => entry.id === button.dataset.id)?.roleId || 'role-cashier'
         queueScrollToSelector('form[data-form="user"]')
         feedbackMessage = 'Usuario cargado para edicion.'
         render()
@@ -3677,6 +3688,13 @@ const bindEvents = () => {
       const nextActive = button.dataset.active !== 'true'
       const result = await store.toggleUserActive(button.dataset.id, nextActive)
       feedbackMessage = result.message || ''
+      render()
+    })
+  }
+  const userRoleSelect = document.querySelector('form[data-form="user"] select[name="roleId"]')
+  if (userRoleSelect) {
+    userRoleSelect.addEventListener('change', () => {
+      userDraftRoleId = String(userRoleSelect.value || 'role-cashier')
       render()
     })
   }
@@ -3761,7 +3779,7 @@ const bindEvents = () => {
   const cancelRegisterEdit = document.querySelector('[data-action="cancel-register-edit"]')
   if (cancelRegisterEdit) cancelRegisterEdit.addEventListener('click', () => { closeStructureUtilityForms(); feedbackMessage = 'Edicion de caja cancelada.'; render() })
   const cancelUserEdit = document.querySelector('[data-action="cancel-user-edit"]')
-  if (cancelUserEdit) cancelUserEdit.addEventListener('click', () => { userEditingId = ''; feedbackMessage = 'Edicion de usuario cancelada.'; render() })
+  if (cancelUserEdit) cancelUserEdit.addEventListener('click', () => { userEditingId = ''; userDraftRoleId = 'role-cashier'; feedbackMessage = 'Edicion de usuario cancelada.'; render() })
 }
 
 applyTheme()
