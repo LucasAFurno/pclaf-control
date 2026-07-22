@@ -1,56 +1,3 @@
-create schema if not exists private;
-revoke all on schema private from public, anon, authenticated;
-
-alter table if exists public.platform_event_outbox set schema private;
-
-create or replace function public.app_enqueue_platform_milestone()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, private, pg_temp
-as $$
-declare
-  v_commerce_id uuid;
-  v_event_type text;
-  v_payload jsonb;
-begin
-  if tg_table_name = 'commerce_accounts' then
-    v_commerce_id := new.id;
-    v_event_type := 'commerce_created';
-    v_payload := jsonb_build_object(
-      'commerce_name', new.name,
-      'owner_email', new.owner_email,
-      'plan', new.active_plan
-    );
-  elsif tg_table_name = 'products' then
-    v_commerce_id := new.commerce_id;
-    v_event_type := 'first_product';
-    v_payload := jsonb_build_object('product_name', new.name);
-  elsif tg_table_name = 'cash_sessions' then
-    v_commerce_id := new.commerce_id;
-    v_event_type := 'first_cash_open';
-    v_payload := jsonb_build_object('opened_at', new.opened_at);
-  elsif tg_table_name = 'sales' then
-    v_commerce_id := new.commerce_id;
-    v_event_type := 'first_sale';
-    v_payload := jsonb_build_object(
-      'total_amount', new.total_amount,
-      'sold_at', new.sold_at
-    );
-  else
-    return new;
-  end if;
-
-  insert into private.platform_event_outbox (commerce_id, event_type, payload)
-  values (v_commerce_id, v_event_type, v_payload)
-  on conflict (commerce_id, event_type) do nothing;
-
-  return new;
-end;
-$$;
-
-revoke all on function public.app_enqueue_platform_milestone() from public, anon, authenticated;
-
 create or replace function public.app_dispatch_platform_event_telegram()
 returns trigger
 language plpgsql
@@ -128,6 +75,3 @@ end;
 $$;
 
 revoke all on function public.app_dispatch_platform_event_telegram() from public, anon, authenticated;
-
-comment on table private.platform_event_outbox is
-  'Internal milestone queue for owner notifications. Never exposed through the Data API.';

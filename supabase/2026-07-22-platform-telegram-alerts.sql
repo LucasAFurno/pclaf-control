@@ -143,7 +143,7 @@ begin
     url := 'https://api.telegram.org/bot' || v_bot_token || '/sendMessage',
     headers := jsonb_build_object('Content-Type', 'application/json'),
     body := jsonb_build_object('chat_id', v_chat_id, 'text', v_message),
-    timeout_milliseconds := 5000
+    timeout_milliseconds := 15000
   ) into v_request_id;
 
   update public.platform_event_outbox
