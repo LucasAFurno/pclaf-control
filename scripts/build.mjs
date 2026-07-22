@@ -9,7 +9,7 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260722h'
+const assetVersion = '20260722i'
 const siteOrigin = 'https://www.pclafcontrol.com.ar'
 const appPath = '/app/'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20quiero%20informacion%20de%20PCLAF%20Control.'
@@ -1739,7 +1739,7 @@ const appHtml = `<!doctype html>
     <link rel="canonical" href="${siteOrigin}${appPath}" />
     <link rel="icon" type="image/png" href="/pclaf-logo.png" />
     <link rel="apple-touch-icon" href="/pclaf-logo.png" />
-    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/app.css?v=${assetVersion}" />
     <title>Acceso al sistema | PCLAF Control</title>
     <style>
       html, body {
