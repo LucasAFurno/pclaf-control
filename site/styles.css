@@ -2961,9 +2961,9 @@ input, select { outline: none; }
   padding: 8px 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
   border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
-  color: var(--accent);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 12%, transparent);
+  background: color-mix(in srgb, var(--panel) 88%, var(--shell));
+  color: #ffffff;
+  box-shadow: none;
   font-size: 0.84rem;
   font-weight: 700;
   line-height: 1;
@@ -2971,6 +2971,7 @@ input, select { outline: none; }
 }
 
 .add-action-icon {
+  color: var(--accent);
   font-size: 1.2rem;
   font-weight: 400;
   line-height: 0.8;
@@ -2979,12 +2980,12 @@ input, select { outline: none; }
 .add-action:hover {
   transform: translateY(-1px);
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, var(--panel) 76%, var(--shell));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--shell) 24%, transparent);
 }
 
 .add-action.is-open {
-  color: var(--text);
+  color: #ffffff;
 }
 
 .inventory-action-bar {

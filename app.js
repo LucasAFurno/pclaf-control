@@ -1323,8 +1323,7 @@ const customersViewV2 = (ui) => `
             <button type="button" class="ghost-action" data-action="close-customer-form">Cancelar</button>
           </form>
         </article>` : ''}
-        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
-          <div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div>
+        <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div></div>
           ${paginatedDataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers, 'clientes', (customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`)}
         </article>
       </div>
