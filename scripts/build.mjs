@@ -9,7 +9,7 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260721c'
+const assetVersion = '20260722a'
 const siteOrigin = 'https://www.pclafcontrol.com.ar'
 const appPath = '/app/'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20quiero%20informacion%20de%20PCLAF%20Control.'
@@ -24,6 +24,7 @@ const stylesCss = await readFile(path.join(root, 'site', 'styles.css'), 'utf8')
 const cloudConfigJson = await readFile(path.join(root, 'site', selectedCloudConfigFile), 'utf8')
 const faviconSvg = await readFile(path.join(root, 'public', 'favicon.svg'), 'utf8')
 const cnameFile = await readFile(path.join(root, 'public', 'CNAME'), 'utf8')
+const excelReaderJs = await readFile(path.join(root, 'node_modules', 'read-excel-file', 'bundle', 'read-excel-file.min.js'), 'utf8')
 
 const escapeHtml = (value) => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -1836,6 +1837,7 @@ const appHtml = `<!doctype html>
         shell.innerHTML = '<div class="boot-card is-error"><strong>No se pudo iniciar</strong><p>' + message + '</p><p>Si sigue igual, avisame y reviso el error puntual.</p></div>';
       }, 4000);
     </script>
+    <script src="/read-excel-file.min.js?v=${assetVersion}"></script>
     <script type="module" src="/app.js?v=${assetVersion}"></script>
   </body>
 </html>
@@ -1881,6 +1883,7 @@ const dataStore = ${JSON.stringify(dataStoreJs)};
 const cloudSync = ${JSON.stringify(cloudSyncJs)};
 const cloudAuth = ${JSON.stringify(cloudAuthJs)};
 const cloudCore = ${JSON.stringify(cloudCoreJs)};
+const excelReader = ${JSON.stringify(excelReaderJs)};
 const cloudConfig = ${JSON.stringify(cloudConfigJson)};
 const favicon = ${JSON.stringify(faviconSvg)};
 const robots = ${JSON.stringify(robotsTxt)};
@@ -1914,6 +1917,7 @@ export default {
     if (url.pathname === '/cloud-sync.js') return asset(cloudSync, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-auth.js') return asset(cloudAuth, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-core.js') return asset(cloudCore, 'application/javascript; charset=utf-8');
+    if (url.pathname === '/read-excel-file.min.js') return asset(excelReader, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-config.json') return asset(cloudConfig, 'application/json; charset=utf-8');
     if (url.pathname === '/favicon.svg') return asset(favicon, 'image/svg+xml; charset=utf-8');
     if (url.pathname === '/robots.txt') return asset(robots, 'text/plain; charset=utf-8');
@@ -1959,6 +1963,7 @@ await writeFile(path.join(dist, 'data-store.js'), dataStoreJs)
 await writeFile(path.join(dist, 'cloud-sync.js'), cloudSyncJs)
 await writeFile(path.join(dist, 'cloud-auth.js'), cloudAuthJs)
 await writeFile(path.join(dist, 'cloud-core.js'), cloudCoreJs)
+await writeFile(path.join(dist, 'read-excel-file.min.js'), excelReaderJs)
 await writeFile(path.join(dist, 'cloud-config.json'), cloudConfigJson)
 await writeFile(path.join(dist, 'robots.txt'), robotsTxt)
 await writeFile(path.join(dist, 'sitemap.xml'), sitemapXml)
@@ -1974,6 +1979,7 @@ if (!isDevBuild) {
   await writeFile(path.join(root, 'cloud-sync.js'), cloudSyncJs)
   await writeFile(path.join(root, 'cloud-auth.js'), cloudAuthJs)
   await writeFile(path.join(root, 'cloud-core.js'), cloudCoreJs)
+  await writeFile(path.join(root, 'read-excel-file.min.js'), excelReaderJs)
   await writeFile(path.join(root, 'cloud-config.json'), cloudConfigJson)
   await writeFile(path.join(root, 'robots.txt'), robotsTxt)
   await writeFile(path.join(root, 'sitemap.xml'), sitemapXml)

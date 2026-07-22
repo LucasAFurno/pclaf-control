@@ -1852,6 +1852,64 @@ input, select { outline: none; }
   box-shadow: 0 0 0 3px rgba(214, 16, 16, 0.08);
 }
 
+.import-mapping-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+}
+
+.import-mapping-panel .panel-note {
+  display: grid;
+  gap: 4px;
+}
+
+.import-mapping-panel .panel-note span,
+.import-help {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.import-help { margin: 0; }
+.import-help.is-error { color: var(--danger); }
+
+.import-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.import-mapping-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.import-mapping-grid select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.import-advanced-mapping {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.import-advanced-mapping summary {
+  margin-bottom: 12px;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

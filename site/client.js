@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.21-d'
+const appVersion = 'v2026.07.22-a'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -120,7 +120,9 @@ let productImportPreview = null
 let productImportBusy = false
 let productImportError = ''
 let productImportFileName = ''
-let xlsxModulePromise = null
+let productImportSourceRows = []
+let productImportHeaders = []
+let productImportMapping = {}
 let pendingScrollSelector = ''
 let userDraftRoleId = 'role-cashier'
 
@@ -281,6 +283,46 @@ const normalizeImportHeader = (value) => String(value || '')
   .replace(/[\u0300-\u036f]/g, '')
   .replace(/[^a-z0-9]+/g, '_')
   .replace(/^_+|_+$/g, '')
+
+const productImportFields = [
+  { key: 'name', label: 'Nombre del producto', required: true, aliases: ['nombre', 'name', 'producto', 'articulo', 'descripcion', 'detalle', 'denominacion', 'item'] },
+  { key: 'salePrice', label: 'Precio de venta', aliases: ['precio_venta', 'precio', 'sale_price', 'pvp', 'venta', 'precio_publico', 'precio_final'] },
+  { key: 'stock', label: 'Stock actual', aliases: ['stock', 'cantidad', 'existencia', 'existencias', 'unidades', 'stock_actual', 'saldo'] },
+  { key: 'sku', label: 'SKU o codigo interno', aliases: ['sku', 'codigo', 'codigo_interno', 'cod', 'cod_articulo', 'referencia', 'id_producto'] },
+  { key: 'barcode', label: 'Codigo de barras', aliases: ['codigo_barras', 'codigo_de_barras', 'cod_barra', 'barcode', 'ean', 'ean13', 'gtin', 'upc'] },
+  { key: 'category', label: 'Categoria', aliases: ['categoria', 'category', 'rubro', 'familia', 'grupo', 'linea'] },
+  { key: 'costPrice', label: 'Costo', aliases: ['costo', 'cost_price', 'precio_costo', 'precio_compra', 'compra'] },
+  { key: 'minStock', label: 'Stock minimo', aliases: ['stock_minimo', 'min_stock', 'minimo', 'punto_reposicion', 'reposicion'] },
+  { key: 'trackStock', label: 'Controla stock', aliases: ['controla_stock', 'track_stock', 'control_stock', 'lleva_stock'] },
+]
+
+const suggestProductImportMapping = (headers = []) => Object.fromEntries(productImportFields.map((field) => [
+  field.key,
+  field.aliases.find((alias) => headers.includes(alias)) || '',
+]))
+
+const applyProductImportMapping = (rows = [], mapping = {}) => rows.map((sourceRow) => {
+  const mapped = { __rowNumber: sourceRow.__rowNumber }
+  for (const field of productImportFields) {
+    const sourceHeader = mapping[field.key]
+    mapped[field.key] = sourceHeader ? sourceRow[sourceHeader] : ''
+  }
+  return mapped
+})
+
+const generatedImportSku = (name, rowNumber) => {
+  const base = normalizeImportHeader(name).replaceAll('_', '-').slice(0, 24).toUpperCase() || 'PRODUCTO'
+  return `AUTO-${base}-${String(rowNumber || 1).padStart(4, '0')}`
+}
+const importHeaderLabel = (value) => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+const renderProductImportMappingField = (field) => `
+  <label>${field.label}${field.required ? ' *' : ''}
+    <select data-import-map="${field.key}">
+      <option value="">${field.required ? 'Selecciona una columna' : 'No importar'}</option>
+      ${productImportHeaders.map((header) => `<option value="${escapeHtml(header)}" ${productImportMapping[field.key] === header ? 'selected' : ''}>${escapeHtml(importHeaderLabel(header))}</option>`).join('')}
+    </select>
+  </label>
+`
 const readCurrentSaleQuantities = () => Object.fromEntries(
   [...document.querySelectorAll('input[name^="qty_"]')]
     .map((input) => [input.name.replace('qty_', ''), Number(input.value || 0)])
@@ -433,7 +475,7 @@ const closeDocumentUtilityForms = () => {
   invoiceEditingId = ''
   ticketEditingId = ''
 }
-const parseCsvLine = (line) => {
+const parseCsvLine = (line, delimiter = ',') => {
   const values = []
   let current = ''
   let quoted = false
@@ -448,7 +490,7 @@ const parseCsvLine = (line) => {
       }
       continue
     }
-    if (char === ',' && !quoted) {
+    if (char === delimiter && !quoted) {
       values.push(current)
       current = ''
       continue
@@ -465,33 +507,59 @@ const parseCsvRows = (content) => {
     .map((line) => line.trimEnd())
     .filter(Boolean)
   if (!lines.length) return []
-  const headers = parseCsvLine(lines[0]).map(normalizeImportHeader)
-  return lines.slice(1).map((line, index) => {
-    const cells = parseCsvLine(line)
-    return headers.reduce((row, header, headerIndex) => {
-      row[header] = cells[headerIndex] ?? ''
-      row.__rowNumber = index + 2
+  const delimiterSample = lines.slice(0, 10).join('\n')
+  const delimiter = (delimiterSample.match(/;/g) || []).length > (delimiterSample.match(/,/g) || []).length ? ';' : ','
+  return spreadsheetRowsToObjects(lines.map((line) => parseCsvLine(line, delimiter)))
+}
+const spreadsheetRowsToObjects = (matrix = []) => {
+  const aliases = new Set(productImportFields.flatMap((field) => field.aliases))
+  const candidates = matrix.slice(0, 20).map((row, index) => ({
+    index,
+    headers: (row || []).map(normalizeImportHeader),
+    score: (row || []).map(normalizeImportHeader).filter((header) => aliases.has(header)).length,
+    populated: (row || []).filter((cell) => String(cell ?? '').trim()).length,
+  }))
+  const best = candidates.sort((left, right) => right.score - left.score)[0]
+  const fallback = candidates.sort((left, right) => right.populated - left.populated)[0]
+  const headerIndex = best?.score ? best.index : fallback?.index ?? -1
+  if (headerIndex < 0) return []
+  const headers = (matrix[headerIndex] || []).map((header, index) => normalizeImportHeader(header) || `columna_${index + 1}`)
+  return matrix.slice(headerIndex + 1).filter((row) => (row || []).some((cell) => String(cell ?? '').trim())).map((cells, rowIndex) => (
+    headers.reduce((row, header, columnIndex) => {
+      row[header] = cells?.[columnIndex] ?? ''
+      row.__rowNumber = headerIndex + rowIndex + 2
       return row
     }, {})
-  })
+  ))
 }
 const toImportNumber = (value) => {
-  const normalized = String(value ?? '').trim().replace(/\./g, '').replace(',', '.')
+  if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN
+  let normalized = String(value ?? '').trim().replace(/[$\s]/g, '')
   if (!normalized) return 0
+  if (normalized.includes(',') && normalized.includes('.')) {
+    normalized = normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
+      ? normalized.replace(/\./g, '').replace(',', '.')
+      : normalized.replace(/,/g, '')
+  } else if (normalized.includes(',')) {
+    normalized = normalized.replace(/\./g, '').replace(',', '.')
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, '')
+  }
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : Number.NaN
 }
 const normalizeImportProductRow = (row = {}, ui = {}) => {
   const pick = (...keys) => keys.map((key) => row[key]).find((value) => value != null && String(value).trim() !== '') ?? ''
   const name = String(pick('nombre', 'name', 'producto')).trim()
-  const sku = String(pick('sku', 'codigo', 'codigo_interno')).trim()
+  const providedSku = String(pick('sku', 'codigo', 'codigo_interno')).trim()
+  const sku = providedSku || generatedImportSku(name, row.__rowNumber)
   const barcode = String(pick('codigo_barras', 'codigo_de_barras', 'barcode', 'ean')).trim()
   const category = String(pick('categoria', 'category')).trim() || 'General'
-  const salePrice = toImportNumber(pick('precio_venta', 'precio', 'sale_price'))
-  const costPrice = toImportNumber(pick('costo', 'cost_price'))
+  const salePrice = toImportNumber(pick('salePrice', 'precio_venta', 'precio', 'sale_price'))
+  const costPrice = toImportNumber(pick('costPrice', 'costo', 'cost_price'))
   const stock = toImportNumber(pick('stock', 'cantidad'))
-  const minStock = toImportNumber(pick('stock_minimo', 'min_stock'))
-  const trackRaw = String(pick('controla_stock', 'track_stock')).trim().toLowerCase()
+  const minStock = toImportNumber(pick('minStock', 'stock_minimo', 'min_stock'))
+  const trackRaw = String(pick('trackStock', 'controla_stock', 'track_stock')).trim().toLowerCase()
   const trackStock = trackRaw ? !['0', 'false', 'no', 'n'].includes(trackRaw) : category.toLowerCase() !== 'servicio'
   const existing = ui.snapshot.products.find((product) => (
     (sku && String(product.sku || '').trim().toLowerCase() === sku.toLowerCase())
@@ -503,11 +571,11 @@ const normalizeImportProductRow = (row = {}, ui = {}) => {
   if (Number.isNaN(costPrice)) errors.push('Costo invalido')
   if (Number.isNaN(stock)) errors.push('Stock invalido')
   if (Number.isNaN(minStock)) errors.push('Stock minimo invalido')
-  if (!sku && !barcode) errors.push('Falta SKU o codigo de barras')
   return {
     rowNumber: Number(row.__rowNumber || 0),
     name,
     sku,
+    skuGenerated: !providedSku,
     barcode,
     category,
     salePrice: Number.isNaN(salePrice) ? 0 : salePrice,
@@ -556,30 +624,32 @@ const buildProductImportPreview = (rows = [], ui = {}) => {
     },
   }
 }
+const buildMappedProductImportPreview = (sourceRows = [], mapping = {}, ui = {}) => (
+  buildProductImportPreview(applyProductImportMapping(sourceRows, mapping), ui)
+)
 const readProductsImportFile = async (file, ui) => {
   const fileName = String(file?.name || '').trim()
   const lowerName = fileName.toLowerCase()
   let rows = []
   if (lowerName.endsWith('.csv')) {
     rows = parseCsvRows(await file.text())
-  } else if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
-    xlsxModulePromise ||= import('https://esm.sh/xlsx@0.18.5')
-    const xlsx = await xlsxModulePromise
-    const buffer = await file.arrayBuffer()
-    const workbook = xlsx.read(buffer, { type: 'array' })
-    const sheetName = workbook.SheetNames[0]
-    if (!sheetName) return buildProductImportPreview([], ui)
-    const jsonRows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' })
-    rows = jsonRows.map((row, index) => {
-      const normalized = {}
-      for (const [key, value] of Object.entries(row)) normalized[normalizeImportHeader(key)] = value
-      normalized.__rowNumber = index + 2
-      return normalized
-    })
+  } else if (lowerName.endsWith('.xlsx')) {
+    const readExcel = window.readXlsxFile
+    if (!readExcel) throw new Error('No se pudo iniciar el lector de Excel. Recarga la pagina e intenta nuevamente.')
+    const sheets = await readExcel(file)
+    const matrix = Array.isArray(sheets?.[0]?.data) ? sheets[0].data : sheets
+    rows = spreadsheetRowsToObjects(Array.isArray(matrix) ? matrix : [])
   } else {
-    throw new Error('Formato no compatible. Usa CSV o Excel.')
+    throw new Error('Formato no compatible. Guarda el archivo como Excel .xlsx o CSV.')
   }
-  return buildProductImportPreview(rows, ui)
+  const headers = [...new Set(rows.flatMap((row) => Object.keys(row).filter((key) => key !== '__rowNumber')))]
+  const mapping = suggestProductImportMapping(headers)
+  return {
+    ...buildMappedProductImportPreview(rows, mapping, ui),
+    sourceRows: rows,
+    headers,
+    mapping,
+  }
 }
 const saleActionButtons = (sale) => `
   <div class="inline-action-group sale-actions-compact">
@@ -1741,7 +1811,7 @@ const productsView = (ui) => `
             ${createToggleButton('stock-adjustment', stockAdjustmentFormOpen, 'Ajuste de stock')}
             ${createToggleButton('stock-transfer', stockTransferFormOpen, 'Transferencia')}
           </div>
-          <input type="file" class="hidden-file-input" data-action="import-products-file" accept=".csv,.xlsx,.xls" hidden />
+          <input type="file" class="hidden-file-input" data-action="import-products-file" accept=".csv,.xlsx" hidden />
           ${productImportPreview ? `<article class="panel import-preview-panel">
             <div class="panel-head"><div><h3>Vista previa de importacion</h3><p>${escapeHtml(productImportFileName || 'Archivo cargado')}</p></div><div class="panel-inline-stats section-inline-stats">
               <span class="panel-inline-stat"><strong>${productImportPreview.summary.total}</strong><span>Filas</span></span>
@@ -1750,9 +1820,20 @@ const productsView = (ui) => `
               <span class="panel-inline-stat"><strong>${productImportPreview.summary.rejected}</strong><span>Rechazados</span></span>
             </div></div>
             ${productImportError ? `<div class="feedback-banner is-error">${escapeHtml(productImportError)}</div>` : ''}
+            <div class="import-mapping-panel">
+              <div class="panel-note"><strong>Confirma las columnas</strong><span>Las relacionamos automaticamente. Cambia solo lo que no coincida con tu archivo.</span></div>
+              <div class="import-mapping-grid">
+                ${productImportFields.slice(0, 5).map(renderProductImportMappingField).join('')}
+              </div>
+              <details class="import-advanced-mapping">
+                <summary>Otras columnas opcionales</summary>
+                <div class="import-mapping-grid">${productImportFields.slice(5).map(renderProductImportMappingField).join('')}</div>
+              </details>
+              ${productImportMapping.name ? '<p class="import-help">Si no hay SKU, PCLAF Control genera uno automaticamente. Precio y stock pueden comenzar en cero.</p>' : '<p class="import-help is-error">Indica que columna contiene el nombre del producto para continuar.</p>'}
+            </div>
             <div class="settings-actions dual-actions">
-              <button type="button" class="primary-action" data-action="confirm-product-import-create" ${productImportBusy ? 'disabled' : ''}>Importar nuevos</button>
-              <button type="button" class="primary-action" data-action="confirm-product-import-upsert" ${productImportBusy ? 'disabled' : ''}>Crear y actualizar</button>
+              <button type="button" class="primary-action" data-action="confirm-product-import-create" ${productImportBusy || !productImportMapping.name ? 'disabled' : ''}>Importar nuevos</button>
+              <button type="button" class="primary-action" data-action="confirm-product-import-upsert" ${productImportBusy || !productImportMapping.name ? 'disabled' : ''}>Crear y actualizar</button>
               <button type="button" class="ghost-action" data-action="cancel-product-import" ${productImportBusy ? 'disabled' : ''}>Cancelar</button>
             </div>
             <div class="data-table import-preview-table">
@@ -1760,7 +1841,7 @@ const productsView = (ui) => `
               ${productImportPreview.rows.map((row) => `<div class="data-row ${row.errors.length ? 'is-error' : ''}">
                 <span>${row.rowNumber || '-'}</span>
                 <span>${escapeHtml(row.name || '-')}</span>
-                <span>${escapeHtml(row.sku || '-')}</span>
+                <span>${escapeHtml(row.sku || '-')}${row.skuGenerated ? '<small>Generado</small>' : ''}</span>
                 <span>${escapeHtml(row.barcode || '-')}</span>
                 <span>${row.action === 'update' ? `Actualiza ${escapeHtml(row.existingName || '')}` : 'Crea nuevo'}</span>
                 <span>${row.errors.length ? escapeHtml(row.errors.join(' · ')) : 'OK'}</span>
@@ -3571,11 +3652,18 @@ const bindEvents = () => {
       productImportBusy = true
       productImportError = ''
       try {
-        productImportPreview = await readProductsImportFile(file, getUiState())
+        const importSession = await readProductsImportFile(file, getUiState())
+        productImportSourceRows = importSession.sourceRows
+        productImportHeaders = importSession.headers
+        productImportMapping = importSession.mapping
+        productImportPreview = importSession
         productImportFileName = file.name || ''
         feedbackMessage = 'Archivo analizado. Revisa la vista previa antes de importar.'
       } catch (error) {
         productImportPreview = null
+        productImportSourceRows = []
+        productImportHeaders = []
+        productImportMapping = {}
         productImportFileName = ''
         productImportError = mapPublicAuthError(error.message, 'signup')
         feedbackMessage = ''
@@ -3586,9 +3674,25 @@ const bindEvents = () => {
       }
     })
   }
+  for (const mappingSelect of document.querySelectorAll('[data-import-map]')) {
+    mappingSelect.addEventListener('change', () => {
+      productImportMapping[mappingSelect.dataset.importMap] = mappingSelect.value
+      productImportPreview = {
+        ...buildMappedProductImportPreview(productImportSourceRows, productImportMapping, getUiState()),
+        sourceRows: productImportSourceRows,
+        headers: productImportHeaders,
+        mapping: productImportMapping,
+      }
+      productImportError = ''
+      render()
+    })
+  }
   for (const cancelImportButton of document.querySelectorAll('[data-action="cancel-product-import"]')) {
     cancelImportButton.addEventListener('click', () => {
       productImportPreview = null
+      productImportSourceRows = []
+      productImportHeaders = []
+      productImportMapping = {}
       productImportError = ''
       productImportFileName = ''
       render()
@@ -3608,6 +3712,9 @@ const bindEvents = () => {
         const result = await store.importProducts(productImportPreview.validRows, mode)
         feedbackMessage = result.message || 'Importacion completada.'
         productImportPreview = null
+        productImportSourceRows = []
+        productImportHeaders = []
+        productImportMapping = {}
         productImportError = ''
         productImportFileName = ''
       } catch (error) {
