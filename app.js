@@ -430,7 +430,7 @@ const renderUserScopeSelector = (ui, editingUser, canManageUsers) => {
 }
 
 const actionButton = (entity, id) => `<button type="button" class="inline-action" data-delete="${entity}" data-id="${id}">Eliminar</button>`
-const createToggleButton = (key, isOpen, label = 'Agregar') => `<button type="button" class="${isOpen ? 'ghost-action' : 'primary-action'}" data-action="${isOpen ? `close-${key}-form` : `open-${key}-form`}">${isOpen ? 'Cerrar' : label}</button>`
+const createToggleButton = (key, isOpen, label = 'Agregar') => `<button type="button" class="add-action${isOpen ? ' is-open' : ''}" data-action="${isOpen ? `close-${key}-form` : `open-${key}-form`}" aria-label="${isOpen ? 'Cerrar' : label}" title="${isOpen ? 'Cerrar' : label}"><span aria-hidden="true">${isOpen ? '&times;' : '+'}</span></button>`
 const closeProductUtilityForms = () => {
   productFormOpen = false
   stockAdjustmentFormOpen = false
