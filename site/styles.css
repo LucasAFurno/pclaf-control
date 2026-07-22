@@ -2912,6 +2912,17 @@ input, select { outline: none; }
   padding: 20px;
 }
 
+.pos-sale-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.pos-sale-head > div {
+  min-width: 0;
+}
+
 .pos-sale-form {
   grid-template-columns: 1fr;
 }
@@ -2923,18 +2934,36 @@ input, select { outline: none; }
 .pos-cash-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   min-height: 32px;
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
   color: var(--muted);
+  font-family: inherit;
   font-size: 0.72rem;
   font-weight: 700;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.pos-cash-badge:hover,
+.pos-cash-badge:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  outline: none;
 }
 
 .pos-cash-badge.is-open {
   border-color: color-mix(in srgb, var(--ok) 32%, var(--line));
   color: var(--ok);
+}
+
+.pos-cash-badge.is-closed {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+  color: var(--accent);
 }
 
 .pos-product-search {

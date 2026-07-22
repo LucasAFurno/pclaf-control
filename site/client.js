@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-g'
+const appVersion = 'v2026.07.22-h'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -1452,7 +1452,7 @@ const salesViewV2 = (ui) => `
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
       ${showSaleForm ? `<article class="panel pos-sale-panel">
-        <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Punto de venta'}</h3><p>${editingSale ? 'Actualiza los articulos y el cobro' : 'Busca un articulo o escanea su codigo para comenzar'}</p></div><span class="pos-cash-badge ${ui.openCashSession ? 'is-open' : 'is-closed'}">Caja ${ui.openCashSession ? 'abierta' : 'cerrada'}</span></div>
+        <div class="panel-head pos-sale-head"><div><h3>${editingSale ? 'Editar venta' : 'Punto de venta'}</h3><p>${editingSale ? 'Actualiza los articulos y el cobro' : 'Busca un articulo o escanea su codigo para comenzar'}</p></div><button type="button" class="pos-cash-badge ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="Ir a Caja">Caja ${ui.openCashSession ? 'abierta' : 'cerrada'}</button></div>
         <form class="form-grid sales-form pos-sale-form" data-form="sale">
           <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
           <div class="full-span pos-product-search">
