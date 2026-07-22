@@ -1,0 +1,5 @@
+nombre,sku,codigo_barras,categoria,precio_venta,costo,stock,stock_minimo,controla_stock
+Yerba 1kg,YERBA-1KG,779000000001,Bebidas,4500,3200,24,6,si
+Galletitas chocolate,GALL-CHOCO-01,779000000002,Almacen,1800,1100,40,10,si
+Pila AA x4,PILA-AA-4,779000000003,Electronica,5200,3400,12,4,si
+Mouse USB,MOUSE-USB-01,779000000004,Informatica,12500,7800,8,2,si

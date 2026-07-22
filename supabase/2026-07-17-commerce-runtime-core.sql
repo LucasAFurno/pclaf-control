@@ -571,9 +571,9 @@ declare
   v_membership public.commerce_memberships;
   v_is_admin boolean := false;
   v_roles jsonb := jsonb_build_array(
-    jsonb_build_object('id', 'role-admin', 'key', 'admin', 'name', 'Administrador', 'permissions', jsonb_build_array('dashboard:view','customers:view','sales:view','cash:view','branches:view','registers:view','products:view','purchases:view','invoices:view','tickets:view','reports:view','settings:view')),
-    jsonb_build_object('id', 'role-cashier', 'key', 'cashier', 'name', 'Caja', 'permissions', jsonb_build_array('dashboard:view','customers:view','sales:view','cash:view','invoices:view','reports:view')),
-    jsonb_build_object('id', 'role-warehouse', 'key', 'warehouse', 'name', 'Deposito', 'permissions', jsonb_build_array('dashboard:view','products:view','purchases:view','tickets:view','reports:view'))
+    jsonb_build_object('id', 'role-admin', 'key', 'admin', 'name', 'Administrador', 'permissions', jsonb_build_array('dashboard:view','customers:view','sales:view','cash:view','branches:view','registers:view','products:view','purchases:view','invoices:view','tickets:view','reports:view','settings:view','customers:write','sales:write','cash:operate','branches:manage','registers:manage','products:write','products:adjust','products:transfer','purchases:write','invoices:write','tickets:write','reports:export','settings:manage')),
+    jsonb_build_object('id', 'role-cashier', 'key', 'cashier', 'name', 'Caja', 'permissions', jsonb_build_array('dashboard:view','customers:view','sales:view','cash:view','invoices:view','reports:view','customers:write','sales:write','cash:operate','invoices:write')),
+    jsonb_build_object('id', 'role-warehouse', 'key', 'warehouse', 'name', 'Deposito', 'permissions', jsonb_build_array('dashboard:view','customers:view','products:view','purchases:view','tickets:view','reports:view','customers:write','products:write','products:adjust','products:transfer','purchases:write','tickets:write'))
   );
 begin
   select *

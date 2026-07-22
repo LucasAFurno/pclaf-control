@@ -13,6 +13,7 @@ dist-ssr
 *.local
 release
 .env
+tmp-screens/
 
 # Editor directories and files
 .vscode/*

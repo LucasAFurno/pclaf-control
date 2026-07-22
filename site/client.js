@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.21-a'
+const appVersion = 'v2026.07.21-b'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -69,6 +69,7 @@ const navItems = [
 
 const app = document.querySelector('#app')
 const bootStatus = document.querySelector('#boot-status')
+const preloadSite = document.querySelector('#preload-site')
 let theme = 'dark'
 let activeSection = 'dashboard'
 let loginMessage = ''
@@ -211,6 +212,15 @@ const getPublicAppBaseUrl = () => {
   if (/localhost|127\.0\.0\.1/i.test(origin)) return publicSiteUrl
   return origin
 }
+const getRequestedPublicView = () => {
+  try {
+    const params = new URLSearchParams(window.location.search || '')
+    const requested = String(params.get('view') || '').trim().toLowerCase()
+    return requested === 'login' || requested === 'signup' ? requested : ''
+  } catch {
+    return ''
+  }
+}
 const mapPublicAuthError = (message, context = 'login') => {
   const normalized = String(message || '').trim().toLowerCase()
   if (!normalized) return context === 'signup' ? 'No se pudo crear la cuenta.' : 'No se pudo iniciar sesion.'
@@ -247,6 +257,7 @@ const applyTheme = () => { document.documentElement.dataset.theme = theme }
 const markBootComplete = () => {
   window.__pclafBooted = true
   document.body?.removeAttribute('data-booting')
+  preloadSite?.setAttribute('hidden', 'hidden')
   bootStatus?.remove()
 }
 const saveSection = () => safeStorage.setItem(sectionStorageKey, activeSection)
@@ -935,6 +946,66 @@ const getUiState = () => {
   }
 }
 
+const standaloneAuthView = (ui) => `
+  <div class="login-shell auth-standalone-shell">
+    <main class="auth-standalone" aria-labelledby="auth-title">
+      <a class="auth-back-link" href="/" aria-label="Volver a la portada">&larr; Volver al sitio</a>
+      <section class="login-card auth-standalone-card">
+        <div class="auth-brand">
+          <img src="/pclaf-logo.png" alt="PCLAF Control" />
+          <div>
+            <strong>${productName}</strong>
+            <span>Gestion comercial online</span>
+          </div>
+        </div>
+        ${authViewMode === 'login' ? `
+          <div class="auth-heading">
+            <p class="kicker">Ingreso al sistema</p>
+            <h1 id="auth-title">Iniciar sesion</h1>
+            <p>Ingresa con tu correo y tu clave para abrir tu comercio.</p>
+          </div>
+          <form class="login-form" data-form="login" autocomplete="on">
+            <label>Email<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
+            <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
+            ${loginMessage ? `<p class="login-error" role="alert">${loginMessage}</p>` : ''}
+            <button type="submit">Ingresar</button>
+          </form>
+          <div class="auth-secondary-actions">
+            <button type="button" class="auth-text-action" data-action="recover-password">Olvide mi clave</button>
+            <span>No tienes cuenta? <button type="button" class="auth-text-action" data-action="show-signup">Crear cuenta</button></span>
+          </div>
+        ` : `
+          <div class="auth-heading">
+            <p class="kicker">Empieza ahora</p>
+            <h1 id="auth-title">Crear cuenta</h1>
+            <p>Carga tus datos y empieza a usar PCLAF Control en minutos.</p>
+          </div>
+          <form class="login-form compact-signup-form" data-form="instance-setup" autocomplete="on">
+            <div class="login-form-grid-1">
+              <label>Nombre comercial<input type="text" name="commerceName" value="" placeholder="Mi comercio" autocomplete="organization" required /></label>
+              <label>Tu nombre<input type="text" name="ownerName" value="" placeholder="Nombre del responsable" autocomplete="name" required /></label>
+              <label>Email<input type="email" name="ownerEmail" value="" placeholder="tu@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" required /></label>
+              <label>Clave<input type="password" name="ownerPin" value="" placeholder="Minimo 6 caracteres" autocomplete="new-password" required /></label>
+            </div>
+            <input type="hidden" name="instanceKey" value="" />
+            <input type="hidden" name="ownerLogin" value="" />
+            <input type="hidden" name="branchName" value="Casa central" />
+            <input type="hidden" name="branchCode" value="CASA" />
+            <input type="hidden" name="registerName" value="Caja 1" />
+            <input type="hidden" name="registerCode" value="CAJA-01" />
+            ${signupMessage ? `<p class="login-error" role="alert">${signupMessage}</p>` : ''}
+            <button type="submit">Crear cuenta y empezar</button>
+          </form>
+          <div class="auth-secondary-actions auth-secondary-centered">
+            <span>Ya tienes cuenta? <button type="button" class="auth-text-action" data-action="show-login">Iniciar sesion</button></span>
+          </div>
+        `}
+      </section>
+      <p class="auth-support">Necesitas ayuda? <button type="button" class="auth-text-action" data-action="open-support">Hablar con soporte</button></p>
+    </main>
+  </div>
+`
+
 const loginView = (ui) => {
   if (recoveryState) {
     return `
@@ -970,6 +1041,8 @@ const loginView = (ui) => {
   </div>
 `
   }
+
+  if (authViewMode === 'login' || authViewMode === 'signup') return standaloneAuthView(ui)
 
   return `
   <div class="login-shell login-shell-home">
@@ -2653,6 +2726,7 @@ const readSiteCloudConfig = async () => {
 
 const bootstrap = async () => {
   const initialCloudConfig = await readSiteCloudConfig()
+  authViewMode = getRequestedPublicView() || (window.__pclafAppEntry ? 'login' : authViewMode)
   if (!window.pclafDesktop) {
     safeStorage.removeItem(dataStorageKey)
     safeStorage.removeItem(cloudConfigStorageKey)
@@ -3298,6 +3372,10 @@ const bindEvents = () => {
     scrollToAuthBlock('#acceso-signup')
   })
   for (const button of document.querySelectorAll('[data-action="back-landing"]')) button.addEventListener('click', () => {
+    if (window.__pclafAppEntry) {
+      window.location.href = '/'
+      return
+    }
     authViewMode = 'landing'
     loginMessage = ''
     signupMessage = ''
@@ -3730,7 +3808,7 @@ const bindEvents = () => {
     store.signOut()
     store.clearCloudAuthSession()
     commerceContext = null
-    authViewMode = 'landing'
+    authViewMode = window.__pclafAppEntry ? 'login' : 'landing'
     loginMessage = ''
     signupMessage = ''
     feedbackMessage = ''

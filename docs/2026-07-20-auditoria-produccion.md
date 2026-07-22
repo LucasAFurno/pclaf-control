@@ -1,123 +1,188 @@
-# Auditoria tecnica PCLAF Control
+# Auditoria final de salida a produccion
 
 Fecha: 2026-07-20
+Proyecto: PCLAF Control
 
-## Estado general
+## 1. Estado actual real
 
-- Frontend web productivo con HTML, CSS y JavaScript vanilla compilado a `app.js`.
-- Backend real en Supabase con tablas core, sesiones propias, RLS activa y RPC publicas.
-- Dominio web productivo separado.
-- `Mi admin` ya funciona como consola PCLAF separada del admin operativo del comercio.
+### Frontend
 
-## Lo que esta bien
+- La web publica funciona con HTML, CSS y JavaScript vanilla.
+- El frontend operativo ya apunta a Supabase como base real.
+- En web publica no se guarda operacion comercial en `localStorage`.
+- Las vistas activas de `Mi Admin` y `Ajustes` quedaron unificadas para no arrastrar paneles tecnicos viejos.
 
-- Todas las tablas del schema `public` tienen RLS activa.
-- La web publica no depende de `localStorage` para guardar operacion del comercio.
-- El panel operativo usa base real de Supabase para clientes, ventas, caja, productos, compras, tickets y comprobantes.
-- `Mi admin` tiene seguimiento por comercio con:
-  - pack
-  - estado
-  - estado de cobro
-  - alta publica
-  - responsable PCLAF
-  - seguimiento
-  - etiqueta interna
-  - nota comercial
-  - nota de cobro
-- Las RPC de plataforma quedaron endurecidas para que no esten expuestas tambien al rol `authenticated`.
+### Base de datos
 
-## Riesgos reales hoy
+- La base productiva usa tablas core reales para:
+  - comercios
+  - usuarios
+  - membresias
+  - clientes
+  - productos
+  - stock
+  - caja
+  - ventas
+  - compras
+  - comprobantes
+  - tickets
+  - auditoria
+- Se agrego alcance por usuario en `commerce_memberships`:
+  - `allowed_modules`
+  - `blocked_permissions`
 
-### 1. Seguridad de RPC publicas
+### Auth
 
-El mayor punto delicado hoy es la arquitectura basada en RPC `SECURITY DEFINER` publicas.
+- El login y la recuperacion de acceso ya trabajan con Supabase Auth y sesiones reales.
+- Los correos ya salen con identidad de PCLAF Control.
+- La sesion web depende de Supabase, no de datos locales del navegador.
 
-Aunque cada RPC valida `session_token` y contexto interno, Supabase sigue marcando como advertencia que muchas funciones pueden ejecutarse desde `anon`.
+### Consola PCLAF
 
-Esto no significa automaticamente que esten rotas, pero si significa que:
+- `Mi Admin` ya esta planteado como consola global de plataforma.
+- Muestra comercios, estado, pack, soporte, ultimo acceso, sucursales, cajas y usuarios sin mezclar la operacion diaria del cliente.
 
-- la seguridad depende mucho de la validacion interna de cada funcion
-- cualquier error de validacion dentro de una RPC puede abrir una via seria
-- todavia no es una arquitectura tan robusta como una capa backend privada intermedia
+## 2. Cambios cerrados hoy
 
-### 2. Password security
+- Se aplico migracion remota en Supabase para permisos finos por usuario.
+- `app_build_public_session_payload` ahora devuelve:
+  - `allowed_modules`
+  - `blocked_permissions`
+- `app_public_export_snapshot` ahora devuelve esos datos en cada usuario para que el frontend aplique alcance real por cuenta.
+- `app_public_upsert_user` ahora permite que un admin del comercio cree y edite usuarios sin depender siempre del owner.
+- `app_public_toggle_user_active` ahora respeta owner/admin y evita desactivar al propietario desde una cuenta que no corresponda.
+- El rol `warehouse` quedo alineado para poder ver y cargar clientes, como pediste para operacion real.
+- Las vistas viejas de `Mi Admin` y `Ajustes` quedaron delegadas a las vistas nuevas para evitar que reaparezcan bloques tecnicos.
 
-- Supabase informa que la proteccion contra contrasenas filtradas esta desactivada.
-- Conviene activarla antes de abrir mas cuentas reales.
+## 3. Seguridad
 
-### 3. Performance de base
+### Lo que hoy esta bien
 
-Hay muchas foreign keys sin indice de cobertura.
+- La web publica no guarda datos operativos del comercio en el navegador.
+- La base esta separada del frontend publico.
+- Las funciones sensibles trabajan con contexto de sesion y comercio.
+- Los usuarios de comercio ya pueden tener modulos visibles y acciones recortadas por cuenta.
+- La consola global PCLAF no depende de snapshots del navegador.
 
-No es el problema numero uno para seguridad, pero si para escalar:
+### Lo que sigue siendo delicado
 
-- ventas
-- caja
-- movimientos
-- comprobantes
-- stock
-- auditoria
+- La arquitectura todavia depende bastante de RPC `SECURITY DEFINER` expuestas a `anon`.
+- Eso puede funcionar bien si cada RPC valida perfecto el contexto, pero sigue siendo una superficie sensible.
+- El recorte fino por usuario ya existe para el frontend y para gestion de cuentas, pero todavia no esta aplicado uno por uno en cada operacion sensible del backend.
 
-Cuando empiecen a usarlo varios comercios al mismo tiempo, esto puede sentirse.
+### Recomendacion de endurecimiento inmediata
 
-### 4. Permisos finos aun no terminados
+1. Revisar RPC por RPC y marcar:
+   - cuales deben seguir publicas
+   - cuales conviene mover a una capa privada
+   - cuales necesitan mas chequeos por accion
+2. Activar proteccion contra passwords filtradas en Supabase Auth.
+3. Agregar logs visibles para acciones sensibles:
+   - crear usuario
+   - cambiar permisos
+   - cambiar pack
+   - bloquear comercio
+   - editar comprobantes
 
-El modelo actual ya separa bastante por rol y comercio, pero todavia falta cerrar mejor:
+## 4. Dev y prod
 
-- permisos por accion dentro de cada modulo
-- permisos por usuario empleado tipo "solo caja", "solo ventas", "solo productos"
-- limites comerciales por pack a nivel plataforma
+### Como conviene manejarlo
 
-## Apto para vender hoy
+- `pclaf-prod`: proyecto productivo con clientes reales.
+- `pclaf-dev`: proyecto separado para pruebas, cambios de schema y UI inestable.
 
-### Si
+### Regla importante
 
-Es viable para:
+- Nunca probar migraciones nuevas directo en prod.
+- Primero:
+  - aplicar en dev
+  - probar login
+  - probar alta de cuenta
+  - probar ventas
+  - probar caja
+  - probar comprobantes
+  - probar permisos
+- Recién despues pasar a prod.
 
-- demo real con clientes
+### Para no romper prod
+
+- Mantener variables de entorno separadas.
+- Mantener dominio productivo apuntando solo a prod.
+- Tener migraciones versionadas en repo.
+- Probar cada cambio fuerte con una cuenta de prueba en dev antes de publicarlo.
+
+## 5. Viabilidad para venderlo
+
+### Si es viable hoy para
+
+- demos reales con clientes
+- pruebas guiadas
 - pilotos controlados
-- comercios chicos o medianos en etapa de prueba
-- preventa o beta paga con soporte cercano
+- primeras implementaciones con soporte cercano
 
-### Todavia no como version final blindada
+### Todavia no lo venderia como
 
-No lo venderia todavia como:
+- sistema enterprise cerrado
+- producto blindado sin supervision
+- plataforma “autoservicio masivo” sin una ronda mas de endurecimiento
 
-- sistema totalmente endurecido
-- solucion enterprise
-- producto cerrado sin supervision
-
-## Prioridad recomendada
+## 6. Lo que falta para venderlo mas solido
 
 ### Prioridad alta
 
-1. Revisar una por una las RPC `SECURITY DEFINER` publicas y dejar documentado:
-   - cuales deben seguir en `anon`
-   - cuales deben pasar a otra capa
-   - cuales se pueden cerrar mas
-2. Activar leaked password protection.
-3. Completar permisos finos por modulo y accion para empleados.
-4. Terminar de unificar layout roto en modulos grandes.
+1. Terminar permisos finos backend por accion real, no solo por pantalla.
+2. Hacer auditoria de todas las RPC publicas.
+3. Cerrar cualquier modulo roto restante de layout.
+4. Crear importacion masiva de productos con preview y validacion.
+5. Armar ambiente dev completo separado de prod.
 
 ### Prioridad media
 
-1. Indexar foreign keys criticas.
-2. Agregar auditoria visible de acciones sensibles:
-   - alta y baja de usuarios
-   - cambios de pack
-   - bloqueo de comercios
-   - edicion de comprobantes
-3. Importacion masiva de productos por Excel/CSV con preview y validacion.
+1. Indexar foreign keys y revisar performance.
+2. Agregar onboarding por rubro.
+3. Mejorar la portada/index para venta comercial.
+4. Sumar monitoreo de errores productivos.
 
-## Conclusion
+## 7. Carga masiva desde Excel o CSV
 
-PCLAF Control ya esta en una etapa util y real, no en maqueta.
+La forma profesional de hacerlo es:
 
-Hoy esta bien para trabajar demos, pruebas y primeras implementaciones cuidadas.
+1. Boton `Importar productos`.
+2. Aceptar `.xlsx` y `.csv`.
+3. Dar plantilla con columnas:
+   - `nombre`
+   - `sku`
+   - `codigo_barras`
+   - `categoria`
+   - `precio_venta`
+   - `costo`
+   - `stock`
+   - `stock_minimo`
+   - `controla_stock`
+4. Mostrar preview antes de guardar.
+5. Validar fila por fila:
+   - faltantes
+   - SKU repetido
+   - codigo de barras repetido
+   - precios invalidos
+6. Dar dos modos:
+   - crear nuevos
+   - actualizar existentes por `sku` o `codigo_barras`
+7. Mostrar resumen final:
+   - importados
+   - actualizados
+   - rechazados
 
-Para venderlo como producto serio y dormir tranquilo, todavia falta una ronda mas de endurecimiento sobre:
+## 8. Conclusion honesta
 
-- RPC publicas
-- permisos finos
-- performance de base
-- auditoria operativa
+PCLAF Control ya no esta en maqueta. Ya tiene una base productiva real, auth real, consola global y operacion comercial real.
+
+Lo que le falta no es “hacerlo andar”, sino endurecerlo para venderlo sin miedo:
+
+- revisar RPC publicas
+- cerrar permisos backend finos
+- terminar layout de modulos que quedaron desparejos
+- separar dev/prod con disciplina estricta
+
+Hoy esta bien para seguir mostrando, probar y vender implementaciones cuidadas.
+Para escalarlo con muchos clientes y dormir tranquilo, falta una ronda mas de seguridad y hardening.
