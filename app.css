@@ -2803,14 +2803,17 @@ input, select { outline: none; }
 .sale-actions-compact {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  width: min(300px, 100%);
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
   position: relative;
 }
 
 .sale-actions-compact .inline-action {
+  width: 100%;
+  min-width: 0;
   min-height: 36px;
-  padding: 8px 10px;
+  padding: 8px 6px;
   font-size: 0.76rem;
   text-align: center;
   justify-content: center;
@@ -2818,6 +2821,7 @@ input, select { outline: none; }
 
 .sale-more-menu {
   position: relative;
+  width: 100%;
   min-width: 0;
 }
 
@@ -2826,7 +2830,9 @@ input, select { outline: none; }
   align-items: center;
   justify-content: center;
   min-height: 36px;
-  padding: 8px 10px;
+  width: 100%;
+  padding: 8px 6px;
+  box-sizing: border-box;
   border: 1px solid rgba(214, 16, 16, 0.22);
   border-radius: 12px;
   background: rgba(214, 16, 16, 0.06);
