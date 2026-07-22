@@ -2807,6 +2807,19 @@ input, select { outline: none; }
   align-items: center;
 }
 
+.inventory-action-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.inventory-action-bar > * {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+}
+
 .info-strip {
   display: flex;
   flex-wrap: wrap;
@@ -3477,6 +3490,16 @@ input, select { outline: none; }
 }
 
 @media (max-width: 640px) {
+  .inventory-action-bar {
+    gap: 6px;
+  }
+
+  .inventory-action-bar > * {
+    min-height: 40px;
+    padding-inline: 6px;
+    font-size: 0.68rem;
+  }
+
   .login-shell {
     padding: 14px;
   }

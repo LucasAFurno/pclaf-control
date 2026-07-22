@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-k'
+const appVersion = 'v2026.07.22-l'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -1654,11 +1654,10 @@ const productsView = (ui) => `
           <div class="panel-head inventory-headline">
             <div><h3>Inventario</h3><p>Stock actual y precio de venta</p></div>
           </div>
-          <div class="settings-actions dual-actions dual-actions-quad">
+          <div class="inventory-action-bar">
             ${createToggleButton('product', productFormOpen, 'Agregar producto')}
             ${createToggleButton('stock-adjustment', stockAdjustmentFormOpen, 'Ajuste de stock')}
             ${createToggleButton('stock-transfer', stockTransferFormOpen, 'Transferencia')}
-            <button type="button" class="ghost-action" data-action="request-bulk-import">Carga masiva asistida</button>
           </div>
           <div class="assisted-import-note">
             <div><strong>¿Ya tienes tus productos en Excel?</strong><span>Envíanos la planilla. Revisamos las columnas y hacemos una carga controlada para no duplicar productos ni alterar precios o stock.</span></div>
