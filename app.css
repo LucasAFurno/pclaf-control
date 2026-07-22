@@ -1272,10 +1272,10 @@ input, select { outline: none; }
 
 .account-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: auto minmax(110px, 1fr) auto auto auto;
+  gap: 10px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 8px 10px;
   min-width: 0;
 }
 
@@ -1312,6 +1312,67 @@ input, select { outline: none; }
   position: relative;
 }
 
+.topbar-right.is-account-only {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.topbar-right.is-account-only .account-card {
+  min-width: 310px;
+}
+
+.account-cash-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.account-cash-state .status-led,
+.account-cash-action .status-led {
+  width: 8px;
+  height: 8px;
+  box-shadow: none;
+}
+
+.account-cash-state.is-open .status-led,
+.account-cash-action.is-open .status-led {
+  background: var(--ok);
+}
+
+.account-cash-state.is-closed .status-led,
+.account-cash-action.is-closed .status-led {
+  background: var(--accent);
+}
+
+.account-alert-count {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 82%, #000);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.account-menu-chevron {
+  color: var(--muted);
+  font-size: 1rem;
+  transition: transform 160ms ease;
+}
+
+.account-card.is-open .account-menu-chevron {
+  transform: rotate(180deg);
+}
+
 .account-card.is-open {
   border-color: rgba(214, 16, 16, 0.22);
   background: color-mix(in srgb, var(--accent) 10%, var(--panel));
@@ -1339,6 +1400,16 @@ input, select { outline: none; }
   gap: 10px;
 }
 
+.account-alerts-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.account-alerts-head span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 .account-alerts-head strong {
   font-family: 'Oswald', sans-serif;
   font-size: 1rem;
@@ -1353,6 +1424,75 @@ input, select { outline: none; }
 .account-alerts-list {
   display: grid;
   gap: 8px;
+}
+
+.account-popover-label {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.account-cash-action {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  color: var(--text);
+  text-align: left;
+}
+
+.account-cash-action > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.account-cash-action small,
+.account-theme-action small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.account-menu-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.account-theme-action,
+.account-signout-action {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+}
+
+.account-theme-action {
+  display: grid;
+  gap: 2px;
+  padding: 7px 11px;
+  text-align: left;
+}
+
+.account-signout-action {
+  padding: 0 14px;
+  color: #ff6b6b;
+}
+
+.account-theme-action:hover,
+.account-signout-action:hover,
+.account-cash-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 
 .account-alert-item {
@@ -2952,5 +3092,45 @@ input, select { outline: none; }
     right: 12px;
     width: calc(100vw - 24px);
     font-size: 0.9rem;
+  }
+
+  .topbar-right.is-account-only {
+    display: block;
+    width: 100%;
+  }
+
+  .topbar-right.is-account-only .account-alerts-wrap,
+  .topbar-right.is-account-only .account-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .account-card {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    min-height: 46px;
+    padding: 7px 9px;
+  }
+
+  .account-card.compact-meta .account-copy strong {
+    font-size: 0.82rem;
+  }
+
+  .account-card .account-copy span,
+  .account-cash-state {
+    font-size: 0.64rem;
+  }
+
+  .account-alerts-popover {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  .account-menu-actions {
+    grid-template-columns: 1fr;
   }
 }

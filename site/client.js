@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.21-b'
+const appVersion = 'v2026.07.21-c'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -2636,13 +2636,7 @@ const renderApp = (ui) => {
       section: 'facturacion',
     })),
   ]
-  const showStatusChip = ['dashboard', 'ventas', 'caja'].includes(activeSection)
-  const showSessionControls = ['dashboard', 'ajustes', 'mi-admin'].includes(activeSection)
-  const topbarRightClass = [
-    'topbar-right',
-    showStatusChip ? '' : 'is-compact',
-    showSessionControls ? '' : 'is-minimal',
-  ].filter(Boolean).join(' ')
+  const topbarRightClass = 'topbar-right is-account-only'
 
   return `
     <div class="app-shell">
@@ -2664,36 +2658,38 @@ const renderApp = (ui) => {
             </form>
           </div>
           <div class="${topbarRightClass}">
-            ${showStatusChip ? `<button type="button" class="status-card status-chip ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" aria-label="Caja ${statusTitle}">
-              <span class="status-led" aria-hidden="true"></span>
-              <div class="status-copy"><strong>Caja</strong><span>${statusTitle}${statusHint ? ` / ${statusHint}` : ''}</span></div>
-            </button>` : ''}
             ${isDevEnvironment ? `<span class="topbar-runtime is-dev">${environmentLabel}</span>` : ''}
             <div class="account-alerts-wrap">
-              <button class="account-card compact-meta ${accountAlertsOpen ? 'is-open' : ''}" type="button" data-action="toggle-account-alerts" aria-label="Ver alertas y cuenta" aria-expanded="${accountAlertsOpen ? 'true' : 'false'}">
+              <button class="account-card compact-meta ${accountAlertsOpen ? 'is-open' : ''}" type="button" data-action="toggle-account-alerts" aria-label="Abrir menu de cuenta" aria-expanded="${accountAlertsOpen ? 'true' : 'false'}">
                 <span class="account-avatar">${userInitials}</span>
-                <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}${notificationCount ? ` / ${notificationCount} alertas` : ' / Sin alertas'}</span></span>
+                <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}</span></span>
+                <span class="account-cash-state ${ui.openCashSession ? 'is-open' : 'is-closed'}"><span class="status-led" aria-hidden="true"></span><span>Caja ${statusTitle.toLowerCase()}</span></span>
+                ${notificationCount ? `<span class="account-alert-count" aria-label="${notificationCount} alertas">${notificationCount}</span>` : ''}
+                <span class="account-menu-chevron" aria-hidden="true">⌄</span>
               </button>
               ${accountAlertsOpen ? `<div class="account-alerts-popover">
                 <div class="account-alerts-head">
-                  <strong>Alertas</strong>
+                  <div><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}</span></div>
                   <button type="button" class="ghost-action account-alerts-link" data-action="open-account-panel">Mi cuenta</button>
                 </div>
+                <button type="button" class="account-cash-action ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja">
+                  <span class="status-led" aria-hidden="true"></span>
+                  <span><strong>Caja ${statusTitle.toLowerCase()}</strong><small>${statusHint || (ui.openCashSession ? 'Lista para operar' : 'Abrir para cobrar en efectivo')}</small></span>
+                  <span aria-hidden="true">›</span>
+                </button>
+                <div class="account-popover-label">Alertas</div>
                 <div class="account-alerts-list">
                   ${alertItems.length ? alertItems.map((item) => `<button type="button" class="account-alert-item" data-alert-section="${item.section}">
                     <strong>${item.title}</strong>
                     <span>${item.detail}</span>
                   </button>`).join('') : `<div class="account-alert-item is-empty"><strong>Todo en orden</strong><span>No hay alertas activas en este momento.</span></div>`}
                 </div>
+                <div class="account-menu-actions">
+                  <button class="account-theme-action" type="button" data-action="toggle-theme" aria-label="Cambiar tema"><span>${theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}</span><small>Cambiar apariencia</small></button>
+                  <button class="account-signout-action" type="button" data-action="sign-out">Cerrar sesión</button>
+                </div>
               </div>` : ''}
             </div>
-            ${showSessionControls ? `<div class="topbar-controls">
-              <button class="theme-switch ${theme === 'dark' ? 'is-dark' : 'is-light'}" type="button" data-action="toggle-theme" aria-label="Cambiar tema">
-                <span class="theme-switch-track"><span class="theme-switch-thumb"></span></span>
-                <span class="theme-switch-label">${theme === 'dark' ? 'Oscuro' : 'Claro'}</span>
-              </button>
-              <button class="inline-action danger topbar-logout" type="button" data-action="sign-out">Salir</button>
-            </div>` : ''}
           </div>
         </header>
         <main class="page">${renderCurrentView(ui)}</main>
