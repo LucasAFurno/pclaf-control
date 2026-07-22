@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-f'
+const appVersion = 'v2026.07.22-g'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -1253,25 +1253,24 @@ const cloudActivationView = (ui) => `
 
 const dashboardView = (ui) => `
   <section class="view-section">
-    <div class="section-header"><div><p class="kicker">Resumen diario</p><h2>Operacion del local</h2></div></div>
+    <div class="section-header"><div><p class="kicker">Resumen diario</p><h2>Operacion del local</h2></div><div class="panel-inline-stats section-inline-stats dashboard-inline-stats">
+      <span class="panel-inline-stat"><strong>${money(ui.totalSales)}</strong><span>Ventas</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.unpaidSales)}</strong><span>Por cobrar</span></span>
+      <span class="panel-inline-stat"><strong>${ui.openCashSession ? money(ui.expectedCash) : 'Cerrada'}</strong><span>Caja</span></span>
+      <span class="panel-inline-stat"><strong>${money(ui.pendingInvoices)}</strong><span>Facturas</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="metrics-grid">
-      <article class="metric-card"><span>Ventas registradas</span><strong>${money(ui.totalSales)}</strong><p>${ui.snapshot.sales.length} tickets</p></article>
-      <article class="metric-card"><span>Por cobrar</span><strong>${money(ui.unpaidSales)}</strong><p>Cuentas corrientes abiertas</p></article>
-      <article class="metric-card"><span>Caja actual</span><strong>${ui.openCashSession ? money(ui.expectedCash) : 'Cerrada'}</strong><p>${ui.openCashSession ? 'Caja abierta' : 'Abrir para operar'}</p></article>
-      <article class="metric-card"><span>Facturas abiertas</span><strong>${money(ui.pendingInvoices)}</strong><p>${ui.snapshot.invoices.length} comprobantes</p></article>
-    </section>
-    <section class="dashboard-grid">
+    <section class="dashboard-grid dashboard-operation-grid">
       <article class="panel"><div class="panel-head"><div><h3>Ventas recientes</h3><p>Con multiples articulos</p></div></div><div class="list">
         ${ui.enrichedSales.slice(0, 5).map((sale) => `<div class="list-row"><div><strong>${sale.customerName}</strong><p>${sale.itemSummary}</p></div><div class="right"><strong>${money(sale.totalAmount)}</strong><p>${sale.channel} - ${sale.paymentMethod}</p></div></div>`).join('')}
       </div></article>
       <article class="panel"><div class="panel-head"><div><h3>Top productos</h3><p>Ranking de movimiento</p></div></div><div class="top-list">
         ${ui.topProducts.length ? ui.topProducts.map(([name, qty], index) => `<div class="top-row"><span>${index + 1}</span><div><strong>${name}</strong><p>${qty} unidades vendidas</p></div></div>`).join('') : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
       </div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Stock critico</h3><p>${ui.lowStock.length ? `${ui.lowStock.length} articulos para revisar` : 'Inventario estable'}</p></div></div><div class="alert-list">
+      <article class="panel dashboard-stock-panel"><div class="panel-head"><div><h3>Stock critico</h3><p>${ui.lowStock.length ? `${ui.lowStock.length} articulos para revisar` : 'Inventario estable'}</p></div></div><div class="alert-list">
         ${ui.lowStock.length ? paginatedCardList(ui.lowStock, 'stock-critico', (product) => `<div class="alert-card"><strong>${product.name}</strong><p>Stock ${product.scopedStock} en ${ui.currentBranch?.name || 'sucursal'} / minimo ${product.minStock}</p></div>`) : '<div class="alert-card ok"><strong>Sin alertas</strong><p>No hay productos con stock bajo.</p></div>'}
       </div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimas acciones</p></div></div><div class="timeline-list">
+      <article class="panel dashboard-audit-panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimas acciones</p></div></div><div class="timeline-list">
         ${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}
       </div></article>
     </section>
