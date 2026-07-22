@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-d'
+const appVersion = 'v2026.07.22-e'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -119,6 +119,12 @@ let platformSupportFilter = 'all'
 let platformSearchQuery = ''
 let pendingScrollSelector = ''
 let userDraftRoleId = 'role-cashier'
+const pageSizeOptions = [10, 20, 50, 100, 1000]
+const listPagination = {
+  clientes: { page: 1, pageSize: 20 },
+  ventas: { page: 1, pageSize: 20 },
+  productos: { page: 1, pageSize: 20 },
+}
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
 const createCommerceKey = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || `comercio-${Date.now().toString().slice(-6)}`
@@ -868,6 +874,50 @@ const standaloneAuthView = (ui) => `
   </div>
 `
 
+const paginateList = (items, listKey) => {
+  const pagination = listPagination[listKey]
+  const totalItems = items.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pagination.pageSize))
+  pagination.page = Math.min(Math.max(1, pagination.page), totalPages)
+  const startIndex = (pagination.page - 1) * pagination.pageSize
+  const endIndex = Math.min(startIndex + pagination.pageSize, totalItems)
+  return {
+    items: items.slice(startIndex, endIndex),
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+    totalItems,
+    totalPages,
+    startIndex,
+    endIndex,
+  }
+}
+
+const paginationControls = (listKey, pageData) => `
+  <div class="list-pagination" aria-label="Paginacion de registros">
+    <span class="pagination-count">${pageData.totalItems ? `${pageData.startIndex + 1}-${pageData.endIndex} de ${pageData.totalItems}` : '0 registros'}</span>
+    <label class="pagination-size">Mostrar
+      <select data-page-size="${listKey}" aria-label="Registros por pagina">
+        ${pageSizeOptions.map((size) => `<option value="${size}" ${pageData.pageSize === size ? 'selected' : ''}>${size}</option>`).join('')}
+      </select>
+    </label>
+    <div class="pagination-actions">
+      <button type="button" class="ghost-action" data-page-list="${listKey}" data-page-action="previous" ${pageData.page <= 1 ? 'disabled' : ''}>Anterior</button>
+      <span>Pagina ${pageData.page} de ${pageData.totalPages}</span>
+      <button type="button" class="ghost-action" data-page-list="${listKey}" data-page-action="next" ${pageData.page >= pageData.totalPages ? 'disabled' : ''}>Siguiente</button>
+    </div>
+  </div>
+`
+
+const paginatedDataTable = (headers, items, listKey, rowTemplate, className = '') => {
+  const pageData = paginateList(items, listKey)
+  return `${dataTable(headers, pageData.items.map(rowTemplate), className)}${paginationControls(listKey, pageData)}`
+}
+
+const paginatedInventoryTable = (items, listKey, rowTemplate) => {
+  const pageData = paginateList(items, listKey)
+  return `${inventoryTable(pageData.items.map(rowTemplate))}${paginationControls(listKey, pageData)}`
+}
+
 const loginView = (ui) => {
   if (recoveryState) {
     return `
@@ -1262,7 +1312,7 @@ const customersViewV2 = (ui) => `
         </article>` : ''}
         <article class="panel"><div class="panel-head"><div><h3>Clientes</h3><p>Primero ves la base cargada y agregas solo si hace falta</p></div></div>
           <div class="settings-actions">${createToggleButton('customer', customerFormOpen, 'Agregar cliente')}</div>
-          ${dataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers.map((customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`))}
+          ${paginatedDataTable(['Cliente', 'Telefono', 'Email', 'Saldo', 'Accion'], ui.snapshot.customers, 'clientes', (customer) => `<div class="data-row"><span>${customer.fullName}<br /><small>${customer.tag || 'Sin etiqueta'}</small></span><span>${customer.phone || '-'}</span><span>${customer.email || '-'}</span><span>${money(customer.balance)}</span><span>${actionButton('customer', customer.id)}</span></div>`)}
         </article>
       </div>
     </section>
@@ -1328,7 +1378,7 @@ const salesView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
-        <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} / ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
+        <div class="sales-table">${paginatedDataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales, 'ventas', (sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} / ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`)}</div>
       </article>
     </section>
   </section>
@@ -1607,7 +1657,7 @@ const productsView = (ui) => `
             <div><strong>¿Ya tienes tus productos en Excel?</strong><span>Envíanos la planilla. Revisamos las columnas y hacemos una carga controlada para no duplicar productos ni alterar precios o stock.</span></div>
             <button type="button" class="inline-action" data-action="request-bulk-import">Hablar con soporte</button>
           </div>
-          ${inventoryTable(ui.scopedProducts.map((product) => `
+          ${paginatedInventoryTable(ui.scopedProducts, 'productos', (product) => `
             <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
               <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
               <span>${product.barcode || '-'}</span>
@@ -1616,7 +1666,7 @@ const productsView = (ui) => `
               <span>${money(product.salePrice)}</span>
               <span class="inventory-actions">${actionButton('product', product.id)}</span>
             </div>
-          `))}
+          `)}
         </article>
       </div>
     </section>
@@ -3185,6 +3235,20 @@ const bindEvents = () => {
     quickSearchInput.addEventListener('change', () => jumpToSearchMatch(quickSearchInput.value))
   }
   for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); requestScrollTop(); render() })
+  for (const select of document.querySelectorAll('[data-page-size]')) select.addEventListener('change', () => {
+    const pagination = listPagination[select.dataset.pageSize]
+    const pageSize = Number(select.value)
+    if (!pagination || !pageSizeOptions.includes(pageSize)) return
+    pagination.pageSize = pageSize
+    pagination.page = 1
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-page-action]')) button.addEventListener('click', () => {
+    const pagination = listPagination[button.dataset.pageList]
+    if (!pagination || button.disabled) return
+    pagination.page += button.dataset.pageAction === 'next' ? 1 : -1
+    render()
+  })
   for (const toggleAlertsButton of document.querySelectorAll('[data-action="toggle-account-alerts"]')) {
     toggleAlertsButton.addEventListener('click', (event) => {
       event.stopPropagation()
