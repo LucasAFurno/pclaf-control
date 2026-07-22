@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-e'
+const appVersion = 'v2026.07.22-f'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -124,6 +124,9 @@ const listPagination = {
   clientes: { page: 1, pageSize: 20 },
   ventas: { page: 1, pageSize: 20 },
   productos: { page: 1, pageSize: 20 },
+  recepciones: { page: 1, pageSize: 20 },
+  proveedores: { page: 1, pageSize: 20 },
+  'stock-critico': { page: 1, pageSize: 20 },
 }
 
 const normalizeInstanceKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-') || 'pclaf-dev'
@@ -409,17 +412,17 @@ const renderUserScopeSelector = (ui, editingUser, canManageUsers) => {
     module.key !== 'settings' && (!isAdministrator || module.key !== 'dashboard')
   ))
   return `
-    <div class="full-span">
-      <div class="panel-note"><span>Modulos visibles para esta cuenta</span><span>Si no marcas nada extra, usa lo habilitado en el comercio.</span></div>
+    <div class="full-span permission-scope-block">
+      <div class="panel-note"><strong>Modulos visibles</strong><span>Elige las pantallas que esta cuenta puede usar.</span></div>
       ${isAdministrator ? '<div class="info-strip"><strong>Accesos fijos</strong><span>Inicio y Ajustes siempre estan disponibles para administradores.</span></div>' : ''}
-      <div class="chip-grid">
-        ${configurableModules.map((module) => `<label class="module-chip ${selectedModules.has(module.key) ? 'is-active' : ''}"><input type="checkbox" name="allowedModules" value="${module.key}" ${selectedModules.has(module.key) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span>${module.name}</span></label>`).join('')}
+      <div class="permission-option-grid module-option-grid">
+        ${configurableModules.map((module) => `<label class="permission-option ${selectedModules.has(module.key) ? 'is-active' : ''}"><input type="checkbox" name="allowedModules" value="${module.key}" ${selectedModules.has(module.key) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span><strong>${module.name}</strong><small>${selectedModules.has(module.key) ? 'Visible' : 'Oculto'}</small></span></label>`).join('')}
       </div>
     </div>
-    <div class="full-span">
-      <div class="panel-note"><span>Acciones bloqueadas</span><span>El rol da una base y desde aca recortas lo que no quieres que toque.</span></div>
-      <div class="chip-grid">
-        ${Object.entries(permissionLabelMap).map(([permission, label]) => `<label class="module-chip ${blockedPermissions.has(permission) ? '' : 'is-active'}"><input type="checkbox" name="blockedPermissions" value="${permission}" ${blockedPermissions.has(permission) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span>${label}</span></label>`).join('')}
+    <div class="full-span permission-scope-block">
+      <div class="panel-note"><strong>Permisos de accion</strong><span>Marca solamente las acciones que este usuario no debe realizar.</span></div>
+      <div class="permission-option-grid action-option-grid">
+        ${Object.entries(permissionLabelMap).map(([permission, label]) => `<label class="permission-option ${blockedPermissions.has(permission) ? 'is-blocked' : 'is-active'}"><input type="checkbox" name="blockedPermissions" value="${permission}" ${blockedPermissions.has(permission) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span><strong>${label}</strong><small>${blockedPermissions.has(permission) ? 'Bloqueada' : 'Permitida'}</small></span></label>`).join('')}
       </div>
     </div>
   `
@@ -918,6 +921,11 @@ const paginatedInventoryTable = (items, listKey, rowTemplate) => {
   return `${inventoryTable(pageData.items.map(rowTemplate))}${paginationControls(listKey, pageData)}`
 }
 
+const paginatedCardList = (items, listKey, rowTemplate) => {
+  const pageData = paginateList(items, listKey)
+  return `${pageData.items.length ? pageData.items.map(rowTemplate).join('') : '<p class="empty-state">No hay registros todavia.</p>'}${paginationControls(listKey, pageData)}`
+}
+
 const loginView = (ui) => {
   if (recoveryState) {
     return `
@@ -1260,8 +1268,8 @@ const dashboardView = (ui) => `
       <article class="panel"><div class="panel-head"><div><h3>Top productos</h3><p>Ranking de movimiento</p></div></div><div class="top-list">
         ${ui.topProducts.length ? ui.topProducts.map(([name, qty], index) => `<div class="top-row"><span>${index + 1}</span><div><strong>${name}</strong><p>${qty} unidades vendidas</p></div></div>`).join('') : '<p class="empty-state">Todavia no hay ventas cargadas.</p>'}
       </div></article>
-      <article class="panel"><div class="panel-head"><div><h3>Stock critico</h3><p>Reposicion inmediata</p></div></div><div class="alert-list">
-        ${ui.lowStock.length ? ui.lowStock.map((product) => `<div class="alert-card"><strong>${product.name}</strong><p>Stock ${product.scopedStock} en ${ui.currentBranch?.name || 'sucursal'} / minimo ${product.minStock}</p></div>`).join('') : '<div class="alert-card ok"><strong>Sin alertas</strong><p>Inventario estable.</p></div>'}
+      <article class="panel"><div class="panel-head"><div><h3>Stock critico</h3><p>${ui.lowStock.length ? `${ui.lowStock.length} articulos para revisar` : 'Inventario estable'}</p></div></div><div class="alert-list">
+        ${ui.lowStock.length ? paginatedCardList(ui.lowStock, 'stock-critico', (product) => `<div class="alert-card"><strong>${product.name}</strong><p>Stock ${product.scopedStock} en ${ui.currentBranch?.name || 'sucursal'} / minimo ${product.minStock}</p></div>`) : '<div class="alert-card ok"><strong>Sin alertas</strong><p>No hay productos con stock bajo.</p></div>'}
       </div></article>
       <article class="panel"><div class="panel-head"><div><h3>Auditoria</h3><p>Ultimas acciones</p></div></div><div class="timeline-list">
         ${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}
@@ -1809,14 +1817,14 @@ const purchasesViewV2 = (ui) => `
           ${editingReceipt ? '' : createToggleButton('purchase', showPurchaseForm, 'Agregar compra')}
           ${createToggleButton('supplier', supplierFormOpen, 'Agregar proveedor')}
         </div>
-        <div class="compact-form-grid">
+        <div class="purchase-list-grid">
           <article class="panel">
             <div class="panel-head"><div><h3>Recepciones recientes</h3><p>Lo ultimo ingresado a stock</p></div></div>
-            ${dataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts.map((receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`), 'is-stable purchases-receipts-table')}
+            ${paginatedDataTable(['Proveedor', 'Producto', 'Cantidad', 'Costo', 'Accion'], ui.enrichedReceipts, 'recepciones', (receipt) => `<div class="data-row"><span>${receipt.supplierName}<br /><small>${receipt.documentNumber || 'Sin comprobante'}</small></span><span>${receipt.productName}${receipt.note ? `<br /><small>${receipt.note}</small>` : ''}</span><span>${receipt.quantity}</span><span>${money(receipt.totalCost)}</span><span>${purchaseActionButtons(receipt)}</span></div>`, 'is-stable purchases-receipts-table')}
           </article>
           <article class="panel">
             <div class="panel-head"><div><h3>Proveedores</h3><p>Lista base para reponer y comprar</p></div></div>
-            ${dataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers.map((supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category || 'General'}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery || '-'}</span><span>${actionButton('supplier', supplier.id)}</span></div>`), 'is-stable suppliers-table')}
+            ${paginatedDataTable(['Proveedor', 'Categoria', 'Saldo', 'Ultima', 'Accion'], ui.snapshot.suppliers, 'proveedores', (supplier) => `<div class="data-row"><span>${supplier.name}</span><span>${supplier.category || 'General'}</span><span>${money(supplier.balance)}</span><span>${supplier.lastDelivery || '-'}</span><span>${actionButton('supplier', supplier.id)}</span></div>`, 'is-stable suppliers-table')}
           </article>
         </div>
       </article>
@@ -2155,9 +2163,9 @@ const reportsView = (ui) => `
       <span class="panel-inline-stat"><strong>${money(ui.reportScopedCashMovements.reduce((sum, movement) => sum + movement.signedAmount, 0))}</strong><span>Mov. caja</span></span>
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="content-grid single-focus">
+    <section class="content-grid single-focus report-filter-shell">
       <article class="panel"><div class="panel-head"><div><h3>Filtro operativo</h3><p>Separado por sucursal y caja</p></div></div>
-        <form class="form-grid compact-form" data-form="report-filter">
+        <form class="form-grid compact-form report-filter-form" data-form="report-filter">
           <label>Sucursal actual<input type="text" value="${ui.currentBranch?.name || '-'}" disabled /></label>
           <label>Caja<select name="registerFilter"><option value="all">Todas</option>${ui.branchRegisters.map((register) => `<option value="${register.id}" ${reportRegisterFilter === register.id ? 'selected' : ''}>${register.name}</option>`).join('')}</select></label>
           <label>Desde<input type="date" name="dateFrom" value="${ui.reportDateFrom}" /></label>
@@ -2425,8 +2433,8 @@ const settingsViewV2 = (ui) => `
           <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
           <button type="submit">Aplicar preset</button>
         </form>
-        <div class="compact-form-grid settings-overview-grid">
-          <div class="timeline-list compact-timeline">
+        <div class="settings-overview-grid">
+          <div class="module-settings-grid">
             ${Object.values(ui.moduleCatalog).map((module) => {
               const isFixedModule = module.key === 'dashboard' || module.key === 'settings'
               return `
@@ -2438,7 +2446,7 @@ const settingsViewV2 = (ui) => `
               </div>
             `}).join('')}
           </div>
-          <div class="timeline-list compact-timeline">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
+          <div class="settings-audit-column"><div class="panel-note"><strong>Actividad reciente</strong><span>Ultimos cambios del comercio.</span></div><div class="timeline-list compact-timeline">${ui.enrichedAudit.slice(0, 8).map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay actividad registrada.</p>'}</div></div>
         </div>
       </article>
     </section>
@@ -3248,6 +3256,16 @@ const bindEvents = () => {
     if (!pagination || button.disabled) return
     pagination.page += button.dataset.pageAction === 'next' ? 1 : -1
     render()
+  })
+  for (const input of document.querySelectorAll('.permission-option input')) input.addEventListener('change', () => {
+    const option = input.closest('.permission-option')
+    const status = option?.querySelector('small')
+    if (!option || !status) return
+    const isBlockedPermission = input.name === 'blockedPermissions'
+    const isActive = isBlockedPermission ? !input.checked : input.checked
+    option.classList.toggle('is-active', isActive)
+    option.classList.toggle('is-blocked', isBlockedPermission && input.checked)
+    status.textContent = isBlockedPermission ? (input.checked ? 'Bloqueada' : 'Permitida') : (input.checked ? 'Visible' : 'Oculto')
   })
   for (const toggleAlertsButton of document.querySelectorAll('[data-action="toggle-account-alerts"]')) {
     toggleAlertsButton.addEventListener('click', (event) => {
