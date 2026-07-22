@@ -2139,6 +2139,87 @@ input, select { outline: none; }
   align-items: start;
 }
 
+.settings-section-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-section-trigger {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 14px 46px 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 94%, var(--accent) 6%);
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+}
+
+.settings-section-trigger::after {
+  content: '+';
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 1.2rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.settings-section-trigger strong {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.04rem;
+}
+
+.settings-section-trigger span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-section-trigger:hover,
+.settings-section-trigger.is-active {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent) 12%);
+  transform: translateY(-1px);
+}
+
+.settings-section-trigger.is-active::after {
+  content: '-';
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  background: var(--accent);
+  color: #fff;
+}
+
+.settings-expand-panel {
+  scroll-margin-top: 18px;
+  animation: settings-panel-reveal 180ms ease both;
+}
+
+@keyframes settings-panel-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .purchase-list-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -3341,6 +3422,14 @@ input, select { outline: none; }
 
   .compact-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-section-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section-trigger {
+    min-height: 64px;
   }
 
   .report-filter-form,

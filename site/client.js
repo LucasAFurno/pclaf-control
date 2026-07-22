@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-m'
+const appVersion = 'v2026.07.22-n'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -113,6 +113,7 @@ let hardwareScanListenerBound = false
 let feedbackTimer = null
 let pendingScrollTop = false
 let accountAlertsOpen = false
+let settingsPanelOpen = ''
 let platformCommerceSelectedId = ''
 let platformCommerceFilter = 'all'
 let platformSupportFilter = 'all'
@@ -2402,7 +2403,12 @@ const settingsViewV2 = (ui) => `
         </div>
         <div class="settings-actions"><button type="button" class="primary-action" data-action="open-support">Soporte por WhatsApp</button><button type="button" class="danger-action" data-action="sign-out">Cerrar sesion</button></div>
       </article>
-      <article class="panel">
+      <nav class="settings-section-switcher" aria-label="Secciones de configuracion">
+        <button type="button" class="settings-section-trigger ${settingsPanelOpen === 'commerce' ? 'is-active' : ''}" data-settings-panel="commerce" aria-expanded="${settingsPanelOpen === 'commerce' ? 'true' : 'false'}"><strong>Datos del comercio</strong><span>Nombre, razon social y propietario</span></button>
+        <button type="button" class="settings-section-trigger ${settingsPanelOpen === 'users' ? 'is-active' : ''}" data-settings-panel="users" aria-expanded="${settingsPanelOpen === 'users' ? 'true' : 'false'}"><strong>Usuarios y permisos</strong><span>${ui.enrichedUsers.length} cuentas del negocio</span></button>
+        <button type="button" class="settings-section-trigger ${settingsPanelOpen === 'modules' ? 'is-active' : ''}" data-settings-panel="modules" aria-expanded="${settingsPanelOpen === 'modules' ? 'true' : 'false'}"><strong>Plan y modulos</strong><span>${ui.snapshot.business.enabledModules.length} modulos activos</span></button>
+      </nav>
+      ${settingsPanelOpen === 'commerce' ? `<article class="panel settings-expand-panel" data-settings-content="commerce">
         <div class="panel-head"><div><h3>Comercio activo</h3><p>Datos principales del negocio y acceso general</p></div></div>
         <div class="summary-mini-row">
           <div class="summary-mini-card"><strong>Estado</strong><span>${syncLabel}</span></div>
@@ -2415,8 +2421,8 @@ const settingsViewV2 = (ui) => `
           <label class="full-span">Razon social<input type="text" name="legalName" value="${ui.snapshot.business.organization || ''}" ${canManageUsers ? '' : 'disabled'} /></label>
           <button type="submit" ${canManageUsers ? '' : 'disabled'}>Guardar comercio</button>
         </form>
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Usuarios del negocio'}</h3><p>Gestiona quienes pueden entrar y que rol tiene cada uno</p></div></div>
+      </article>` : ''}
+      ${settingsPanelOpen === 'users' ? `<article class="panel settings-expand-panel" data-settings-content="users"><div class="panel-head"><div><h3>${editingUser ? 'Editar cuenta' : 'Usuarios del negocio'}</h3><p>Gestiona quienes pueden entrar y que rol tiene cada uno</p></div></div>
           ${!canManageUsers ? '<div class="info-strip"><strong>Solo lectura</strong><span>Necesitas entrar con la cuenta propietaria para editar permisos.</span></div>' : ''}
           <form class="form-grid" data-form="user">
             <input type="hidden" name="userId" value="${editingUser?.id || ''}" />
@@ -2430,8 +2436,8 @@ const settingsViewV2 = (ui) => `
             ${editingUser ? '<button type="button" class="danger-action" data-action="cancel-user-edit">Cancelar edicion</button>' : ''}
           </form>
           ${dataTable(['Usuario', 'Perfil', 'Estado', 'Acceso', 'Gestion'], ui.enrichedUsers.map((entry) => `<div class="data-row"><span>${entry.fullName}${entry.isOwner ? ' <small>/ Propietario</small>' : ''}<br /><small>${entry.email || 'Sin email'}</small></span><span>${entry.roleName}</span><span>${entry.status === 'active' ? 'Activo' : entry.status === 'pending' ? 'Pendiente' : 'Deshabilitado'}</span><span>${entry.id === ui.user.id ? 'Sesion actual' : entry.isOwner ? 'Control total' : `${entry.moduleScopeCount} modulos / ${entry.blockedPermissionsCount} bloqueos`}</span><span>${userActionButtons(entry)}</span></div>`), 'is-stable settings-users-table')}
-      </article>
-      <article class="panel"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
+      </article>` : ''}
+      ${settingsPanelOpen === 'modules' ? `<article class="panel settings-expand-panel" data-settings-content="modules"><div class="panel-head"><div><h3>Plan y modulos</h3><p>Activa solo lo que el cliente necesita</p></div></div>
         <form class="form-grid compact-form" data-form="module-preset">
           <label>Pack<select name="presetKey"><option value="basic" ${ui.snapshot.business.activePlan === 'basic' ? 'selected' : ''}>Gestion base</option><option value="retail" ${ui.snapshot.business.activePlan === 'retail' ? 'selected' : ''}>Mostrador</option><option value="full" ${ui.snapshot.business.activePlan === 'full' ? 'selected' : ''}>Operacion</option><option value="multi" ${ui.snapshot.business.activePlan === 'multi' ? 'selected' : ''}>Multi sucursal</option></select></label>
           <button type="submit">Aplicar preset</button>
@@ -2451,7 +2457,7 @@ const settingsViewV2 = (ui) => `
           </div>
           <div class="settings-audit-column"><div class="panel-note"><strong>Actividad reciente</strong><span>Ultimos cambios del comercio.</span></div><div class="timeline-list compact-timeline">${ui.enrichedAudit.slice(0, 8).map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay actividad registrada.</p>'}</div></div>
         </div>
-      </article>
+      </article>` : ''}
     </section>
   </section>
 `})()}
@@ -3245,7 +3251,23 @@ const bindEvents = () => {
     })
     quickSearchInput.addEventListener('change', () => jumpToSearchMatch(quickSearchInput.value))
   }
-  for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => { activeSection = button.dataset.section; saveSection(); requestScrollTop(); render() })
+  for (const button of document.querySelectorAll('[data-section]')) button.addEventListener('click', () => {
+    const nextSection = button.dataset.section
+    if (nextSection === 'ajustes' && activeSection !== 'ajustes') settingsPanelOpen = ''
+    activeSection = nextSection
+    saveSection()
+    requestScrollTop()
+    render()
+  })
+  for (const button of document.querySelectorAll('[data-settings-panel]')) {
+    button.addEventListener('click', () => {
+      const nextPanel = button.dataset.settingsPanel
+      settingsPanelOpen = settingsPanelOpen === nextPanel ? '' : nextPanel
+      render()
+      if (!settingsPanelOpen) return
+      requestAnimationFrame(() => document.querySelector(`[data-settings-content="${settingsPanelOpen}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    })
+  }
   for (const select of document.querySelectorAll('[data-page-size]')) select.addEventListener('change', () => {
     const pagination = listPagination[select.dataset.pageSize]
     const pageSize = Number(select.value)
@@ -3656,6 +3678,7 @@ const bindEvents = () => {
       if (button.dataset.userAction === 'edit') {
         userEditingId = button.dataset.id
         userDraftRoleId = getUiState().snapshot.users.find((entry) => entry.id === button.dataset.id)?.roleId || 'role-cashier'
+        settingsPanelOpen = 'users'
         queueScrollToSelector('form[data-form="user"]')
         feedbackMessage = 'Usuario cargado para edicion.'
         render()
