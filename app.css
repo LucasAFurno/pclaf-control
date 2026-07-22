@@ -30,10 +30,10 @@
 :root[data-theme='dark'] {
   --panel: #111111;
   --panel-soft: #171717;
-  --workspace: #161616;
+  --workspace: #1d1d1d;
   --shell: #0d0d0d;
   --shell-soft: #121212;
-  --line: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.11);
   --text: #f3f4f6;
   --muted: #9ca3af;
   --accent: #ff3b30;
