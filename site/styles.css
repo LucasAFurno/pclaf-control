@@ -2792,10 +2792,12 @@ input, select { outline: none; }
 
 .pos-payment-panel {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 13px;
   padding: 16px;
   position: sticky;
   top: 16px;
+  align-content: start;
 }
 
 .pos-payment-panel label {
@@ -2805,6 +2807,75 @@ input, select { outline: none; }
 
 .pos-payment-panel .payment-split-grid {
   margin-top: 12px;
+}
+
+.pos-payment-options {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.pos-payment-options .compact-toggle,
+.pos-payment-options .pos-discount-field {
+  min-width: 0;
+  min-height: 64px;
+  margin: 0;
+}
+
+.pos-payment-options .compact-toggle {
+  grid-column: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+}
+
+.pos-payment-options .pos-discount-field {
+  justify-content: space-between;
+}
+
+.pos-payment-options .pos-discount-field input {
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.pos-payment-panel .sales-payment-detail,
+.pos-payment-panel .pos-charge-button,
+.pos-payment-panel > .danger-action {
+  grid-column: 1 / -1;
+}
+
+.pos-payment-panel .sales-payment-detail {
+  padding: 0;
+  overflow: hidden;
+}
+
+.pos-payment-panel .sales-payment-detail summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 14px;
+}
+
+.pos-payment-panel .sales-payment-detail summary::after {
+  content: '+';
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.pos-payment-panel .sales-payment-detail[open] summary::after {
+  content: '\2212';
+}
+
+.pos-payment-panel .sales-payment-detail .payment-split-grid {
+  padding: 0 14px 14px;
 }
 
 .pos-charge-button {
@@ -3412,6 +3483,17 @@ input, select { outline: none; }
 
   .pos-cart .cart-line {
     grid-template-columns: 1fr 86px;
+  }
+
+  .pos-payment-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-payment-options,
+  .pos-payment-panel .sales-payment-detail,
+  .pos-payment-panel .pos-charge-button,
+  .pos-payment-panel > .danger-action {
+    grid-column: 1;
   }
 
   .cart-line-total {
