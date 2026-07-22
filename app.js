@@ -3255,7 +3255,10 @@ const bindEvents = () => {
     if (nextSection === 'ajustes' && activeSection !== 'ajustes') settingsPanelOpen = ''
     activeSection = nextSection
     saveSection()
-    requestScrollTop()
+    // En PC conservamos la posicion para que cambiar de modulo no obligue
+    // a volver a recorrer toda la pantalla. En mobile mantenemos el salto
+    // arriba, que facilita empezar cada vista desde su encabezado.
+    if (window.matchMedia('(max-width: 880px)').matches) requestScrollTop()
     render()
   })
   for (const button of document.querySelectorAll('[data-settings-panel]')) {
