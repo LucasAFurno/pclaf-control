@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-l'
+const appVersion = 'v2026.07.22-m'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -456,13 +456,18 @@ const saleActionButtons = (sale) => `
   <div class="inline-action-group sale-actions-compact">
     <button type="button" class="inline-action is-strong" data-sale-action="edit" data-id="${sale.id}">Editar</button>
     <button type="button" class="inline-action" data-sale-action="invoice" data-id="${sale.id}">Factura</button>
-    <button type="button" class="inline-action" data-sale-action="ticket" data-id="${sale.id}">Ticket</button>
-    <button type="button" class="inline-action" data-sale-action="receipt-80" data-id="${sale.id}">Ticket 80</button>
-    <button type="button" class="inline-action" data-sale-action="receipt-58" data-id="${sale.id}">Ticket 58</button>
-    <button type="button" class="inline-action" data-sale-action="export" data-id="${sale.id}">Exportar</button>
-    <button type="button" class="inline-action" data-sale-action="return" data-id="${sale.id}">Devol.</button>
-    <button type="button" class="inline-action" data-sale-action="cancel" data-id="${sale.id}">Anular</button>
-    <button type="button" class="inline-action danger" data-delete="sale" data-id="${sale.id}">Eliminar</button>
+    <details class="sale-more-menu">
+      <summary>Mas</summary>
+      <div class="sale-more-popover">
+        <button type="button" class="inline-action" data-sale-action="ticket" data-id="${sale.id}">Ticket</button>
+        <button type="button" class="inline-action" data-sale-action="receipt-80" data-id="${sale.id}">Ticket 80 mm</button>
+        <button type="button" class="inline-action" data-sale-action="receipt-58" data-id="${sale.id}">Ticket 58 mm</button>
+        <button type="button" class="inline-action" data-sale-action="export" data-id="${sale.id}">Exportar</button>
+        <button type="button" class="inline-action" data-sale-action="return" data-id="${sale.id}">Devolver</button>
+        <button type="button" class="inline-action" data-sale-action="cancel" data-id="${sale.id}">Anular</button>
+        <button type="button" class="inline-action danger sale-delete-action" data-delete="sale" data-id="${sale.id}">Eliminar venta</button>
+      </div>
+    </details>
   </div>
 `
 const purchaseActionButtons = (receipt) => `
