@@ -9,7 +9,7 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260722a'
+const assetVersion = '20260722b'
 const siteOrigin = 'https://www.pclafcontrol.com.ar'
 const appPath = '/app/'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20quiero%20informacion%20de%20PCLAF%20Control.'
@@ -24,7 +24,6 @@ const stylesCss = await readFile(path.join(root, 'site', 'styles.css'), 'utf8')
 const cloudConfigJson = await readFile(path.join(root, 'site', selectedCloudConfigFile), 'utf8')
 const faviconSvg = await readFile(path.join(root, 'public', 'favicon.svg'), 'utf8')
 const cnameFile = await readFile(path.join(root, 'public', 'CNAME'), 'utf8')
-const excelReaderJs = await readFile(path.join(root, 'node_modules', 'read-excel-file', 'bundle', 'read-excel-file.min.js'), 'utf8')
 
 const escapeHtml = (value) => String(value ?? '')
   .replaceAll('&', '&amp;')
@@ -113,7 +112,7 @@ const marketingCards = [
   },
   {
     title: 'Control de stock',
-    body: 'Actualiza inventario, controla faltantes e importa productos desde Excel o CSV.',
+    body: 'Actualiza inventario, controla faltantes y migra tu catalogo con asistencia.',
     href: '/control-de-stock/',
   },
   {
@@ -134,7 +133,7 @@ const homeFeatureRows = [
   {
     eyebrow: 'Productos y stock',
     title: 'Controla stock sin planillas',
-    body: 'Carga productos, recibe alertas de faltantes e importa tu catalogo desde Excel o CSV para empezar sin volver a escribir todo.',
+    body: 'Carga productos, recibe alertas de faltantes y, si ya tienes una planilla, nuestro equipo te ayuda a migrarla.',
     image: '/control-stock-por-sucursal.svg',
     alt: 'Control de stock por sucursal en PCLAF Control',
     reverse: true,
@@ -162,18 +161,11 @@ const comparisonRows = [
   ['Reportes', 'Requieren armar formulas', 'Vistas listas por fecha, caja y sucursal'],
 ]
 
-const importTemplateDownloads = [
-  {
-    href: '/plantilla-productos-pclaf-control.csv',
-    label: 'Descargar plantilla CSV',
-    body: 'Columnas listas para nombre, SKU, codigo de barras, categoria, precio, costo y stock.',
-  },
-  {
-    href: '/blog/importar-productos-desde-excel/',
-    label: 'Ver guia de importacion',
-    body: 'Explica preview, validaciones, productos repetidos y actualizacion por SKU o codigo.',
-  },
-]
+const importTemplateDownloads = [{
+  href: 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla.',
+  label: 'Solicitar carga asistida',
+  body: 'Envia tu planilla a soporte. Revisamos su formato y migramos los productos de forma controlada.',
+}]
 
 const marketingPages = [
   {
@@ -278,10 +270,10 @@ const marketingPages = [
     sections: [
       { title: 'Catalogo centralizado', body: 'Todos tus productos en una sola base, con precio, costo, codigo, SKU y control por sucursal.' },
       { title: 'Ajustes y transferencias', body: 'Corrige diferencias, mueve mercaderia entre locales y deja trazabilidad del inventario.' },
-      { title: 'Importacion masiva', body: 'Carga cientos o miles de productos desde Excel o CSV con vista previa y validaciones.' },
+      { title: 'Migracion asistida', body: 'Si ya tienes una planilla, nuestro equipo revisa su formato y carga tus productos sin improvisar equivalencias.' },
     ],
     downloads: importTemplateDownloads,
-    featureList: ['Stock por sucursal', 'Ajustes', 'Transferencias', 'Importacion Excel', 'Stock minimo'],
+    featureList: ['Stock por sucursal', 'Ajustes', 'Transferencias', 'Carga asistida', 'Stock minimo'],
   },
   {
     slug: 'sistema-de-caja',
@@ -400,10 +392,10 @@ const marketingPages = [
       ['Funciona desde celular?', 'Si. La interfaz esta pensada para operar y consultar desde distintos dispositivos.'],
       ['Puedo usar lector de codigos?', 'Si. El sistema acepta lectores USB tipo teclado y busqueda manual.'],
       ['Permite varias cajas?', 'Si. Puedes ligar ventas y caja a una caja especifica y separar reportes por puesto de cobro.'],
-      ['Como importo mis productos?', 'La forma profesional es con Excel o CSV, plantilla descargable, preview y validaciones antes de guardar.'],
+      ['Como cargo una planilla de productos?', 'Habla con soporte y envianos el archivo. Revisamos sus columnas y hacemos una carga controlada para evitar duplicados o datos mal interpretados.'],
       ['Que incluye la prueba gratis?', 'Acceso inicial para conocer ventas, caja, stock y flujo del sistema antes de definir el pack ideal.'],
     ],
-    featureList: ['FAQ', 'Prueba gratis', 'Soporte', 'Importacion', 'Caja'],
+    featureList: ['FAQ', 'Prueba gratis', 'Soporte', 'Carga asistida', 'Caja'],
   },
   {
     slug: 'blog/como-controlar-stock',
@@ -443,20 +435,20 @@ const marketingPages = [
   {
     slug: 'blog/importar-productos-desde-excel',
     seoTitle: 'Como importar productos desde Excel | PCLAF Control',
-    description: 'Carga masiva de productos desde Excel o CSV con SKU, codigo de barras, categoria, precios y stock.',
+    description: 'Migra productos desde Excel o CSV a PCLAF Control con revision y carga asistida para evitar errores de stock y precios.',
     kicker: 'Blog',
-    h1: 'Como importar productos desde Excel a tu sistema comercial',
-    lead: 'Cuando ya tienes una planilla con cientos de productos, lo profesional es usar plantilla, vista previa y validaciones antes de guardar.',
+    h1: 'Como pasar tus productos desde Excel a PCLAF Control',
+    lead: 'Cada comercio organiza sus planillas de una forma distinta. Por eso revisamos tu archivo y hacemos la migracion contigo, sin obligarte a adaptar columnas a ciegas.',
     image: '/control-stock-por-sucursal.svg',
     imageAlt: 'Importacion masiva de productos desde Excel en PCLAF Control',
     whatsAppPrompt: 'Hola PCLAF, quiero importar mis productos desde Excel.',
     sections: [
-      { title: 'Columnas recomendadas', body: 'nombre, sku, codigo_barras, categoria, precio_venta, costo, stock, stock_minimo y controla_stock.' },
-      { title: 'Preview antes de importar', body: 'Asi puedes detectar celdas vacias, SKU repetidos o precios invalidos sin romper tu catalogo.' },
-      { title: 'Crear o actualizar', body: 'La importacion debe permitir crear nuevos productos o actualizar existentes por SKU o codigo.' },
+      { title: 'Nos envias tu archivo', body: 'Aceptamos Excel o CSV tal como lo usas hoy. No necesitas aprender una plantilla nueva antes de hablar con nosotros.' },
+      { title: 'Revisamos y confirmamos', body: 'Identificamos nombre, codigo, precio, costo y stock; te mostramos que se va a crear o actualizar antes de guardar.' },
+      { title: 'Carga segura', body: 'Importamos sobre el comercio correcto, controlamos duplicados y dejamos un resumen de filas aceptadas o rechazadas.' },
     ],
     downloads: importTemplateDownloads,
-    featureList: ['Excel', 'CSV', 'Preview', 'Validacion', 'Carga masiva'],
+    featureList: ['Excel', 'CSV', 'Revision', 'Validacion', 'Carga asistida'],
   },
   {
     slug: 'privacidad',
@@ -1837,7 +1829,6 @@ const appHtml = `<!doctype html>
         shell.innerHTML = '<div class="boot-card is-error"><strong>No se pudo iniciar</strong><p>' + message + '</p><p>Si sigue igual, avisame y reviso el error puntual.</p></div>';
       }, 4000);
     </script>
-    <script src="/read-excel-file.min.js?v=${assetVersion}"></script>
     <script type="module" src="/app.js?v=${assetVersion}"></script>
   </body>
 </html>
@@ -1883,7 +1874,6 @@ const dataStore = ${JSON.stringify(dataStoreJs)};
 const cloudSync = ${JSON.stringify(cloudSyncJs)};
 const cloudAuth = ${JSON.stringify(cloudAuthJs)};
 const cloudCore = ${JSON.stringify(cloudCoreJs)};
-const excelReader = ${JSON.stringify(excelReaderJs)};
 const cloudConfig = ${JSON.stringify(cloudConfigJson)};
 const favicon = ${JSON.stringify(faviconSvg)};
 const robots = ${JSON.stringify(robotsTxt)};
@@ -1917,7 +1907,6 @@ export default {
     if (url.pathname === '/cloud-sync.js') return asset(cloudSync, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-auth.js') return asset(cloudAuth, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-core.js') return asset(cloudCore, 'application/javascript; charset=utf-8');
-    if (url.pathname === '/read-excel-file.min.js') return asset(excelReader, 'application/javascript; charset=utf-8');
     if (url.pathname === '/cloud-config.json') return asset(cloudConfig, 'application/json; charset=utf-8');
     if (url.pathname === '/favicon.svg') return asset(favicon, 'image/svg+xml; charset=utf-8');
     if (url.pathname === '/robots.txt') return asset(robots, 'text/plain; charset=utf-8');
@@ -1963,7 +1952,6 @@ await writeFile(path.join(dist, 'data-store.js'), dataStoreJs)
 await writeFile(path.join(dist, 'cloud-sync.js'), cloudSyncJs)
 await writeFile(path.join(dist, 'cloud-auth.js'), cloudAuthJs)
 await writeFile(path.join(dist, 'cloud-core.js'), cloudCoreJs)
-await writeFile(path.join(dist, 'read-excel-file.min.js'), excelReaderJs)
 await writeFile(path.join(dist, 'cloud-config.json'), cloudConfigJson)
 await writeFile(path.join(dist, 'robots.txt'), robotsTxt)
 await writeFile(path.join(dist, 'sitemap.xml'), sitemapXml)
@@ -1979,7 +1967,6 @@ if (!isDevBuild) {
   await writeFile(path.join(root, 'cloud-sync.js'), cloudSyncJs)
   await writeFile(path.join(root, 'cloud-auth.js'), cloudAuthJs)
   await writeFile(path.join(root, 'cloud-core.js'), cloudCoreJs)
-  await writeFile(path.join(root, 'read-excel-file.min.js'), excelReaderJs)
   await writeFile(path.join(root, 'cloud-config.json'), cloudConfigJson)
   await writeFile(path.join(root, 'robots.txt'), robotsTxt)
   await writeFile(path.join(root, 'sitemap.xml'), sitemapXml)

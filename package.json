@@ -38,8 +38,5 @@
         "portable"
       ]
     }
-  },
-  "dependencies": {
-    "read-excel-file": "^9.3.4"
   }
 }

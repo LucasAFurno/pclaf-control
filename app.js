@@ -4,8 +4,9 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-a'
+const appVersion = 'v2026.07.22-b'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
+const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
 const sectionStorageKey = 'pclaf-control-section'
@@ -116,13 +117,6 @@ let platformCommerceSelectedId = ''
 let platformCommerceFilter = 'all'
 let platformSupportFilter = 'all'
 let platformSearchQuery = ''
-let productImportPreview = null
-let productImportBusy = false
-let productImportError = ''
-let productImportFileName = ''
-let productImportSourceRows = []
-let productImportHeaders = []
-let productImportMapping = {}
 let pendingScrollSelector = ''
 let userDraftRoleId = 'role-cashier'
 
@@ -276,53 +270,6 @@ const isWithinDateRange = (value, from, to) => {
   return true
 }
 const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
-const normalizeImportHeader = (value) => String(value || '')
-  .trim()
-  .toLowerCase()
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/[^a-z0-9]+/g, '_')
-  .replace(/^_+|_+$/g, '')
-
-const productImportFields = [
-  { key: 'name', label: 'Nombre del producto', required: true, aliases: ['nombre', 'name', 'producto', 'articulo', 'descripcion', 'detalle', 'denominacion', 'item'] },
-  { key: 'salePrice', label: 'Precio de venta', aliases: ['precio_venta', 'precio', 'sale_price', 'pvp', 'venta', 'precio_publico', 'precio_final'] },
-  { key: 'stock', label: 'Stock actual', aliases: ['stock', 'cantidad', 'existencia', 'existencias', 'unidades', 'stock_actual', 'saldo'] },
-  { key: 'sku', label: 'SKU o codigo interno', aliases: ['sku', 'codigo', 'codigo_interno', 'cod', 'cod_articulo', 'referencia', 'id_producto'] },
-  { key: 'barcode', label: 'Codigo de barras', aliases: ['codigo_barras', 'codigo_de_barras', 'cod_barra', 'barcode', 'ean', 'ean13', 'gtin', 'upc'] },
-  { key: 'category', label: 'Categoria', aliases: ['categoria', 'category', 'rubro', 'familia', 'grupo', 'linea'] },
-  { key: 'costPrice', label: 'Costo', aliases: ['costo', 'cost_price', 'precio_costo', 'precio_compra', 'compra'] },
-  { key: 'minStock', label: 'Stock minimo', aliases: ['stock_minimo', 'min_stock', 'minimo', 'punto_reposicion', 'reposicion'] },
-  { key: 'trackStock', label: 'Controla stock', aliases: ['controla_stock', 'track_stock', 'control_stock', 'lleva_stock'] },
-]
-
-const suggestProductImportMapping = (headers = []) => Object.fromEntries(productImportFields.map((field) => [
-  field.key,
-  field.aliases.find((alias) => headers.includes(alias)) || '',
-]))
-
-const applyProductImportMapping = (rows = [], mapping = {}) => rows.map((sourceRow) => {
-  const mapped = { __rowNumber: sourceRow.__rowNumber }
-  for (const field of productImportFields) {
-    const sourceHeader = mapping[field.key]
-    mapped[field.key] = sourceHeader ? sourceRow[sourceHeader] : ''
-  }
-  return mapped
-})
-
-const generatedImportSku = (name, rowNumber) => {
-  const base = normalizeImportHeader(name).replaceAll('_', '-').slice(0, 24).toUpperCase() || 'PRODUCTO'
-  return `AUTO-${base}-${String(rowNumber || 1).padStart(4, '0')}`
-}
-const importHeaderLabel = (value) => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
-const renderProductImportMappingField = (field) => `
-  <label>${field.label}${field.required ? ' *' : ''}
-    <select data-import-map="${field.key}">
-      <option value="">${field.required ? 'Selecciona una columna' : 'No importar'}</option>
-      ${productImportHeaders.map((header) => `<option value="${escapeHtml(header)}" ${productImportMapping[field.key] === header ? 'selected' : ''}>${escapeHtml(importHeaderLabel(header))}</option>`).join('')}
-    </select>
-  </label>
-`
 const readCurrentSaleQuantities = () => Object.fromEntries(
   [...document.querySelectorAll('input[name^="qty_"]')]
     .map((input) => [input.name.replace('qty_', ''), Number(input.value || 0)])
@@ -474,182 +421,6 @@ const closeDocumentUtilityForms = () => {
   ticketFormOpen = false
   invoiceEditingId = ''
   ticketEditingId = ''
-}
-const parseCsvLine = (line, delimiter = ',') => {
-  const values = []
-  let current = ''
-  let quoted = false
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-    if (char === '"') {
-      if (quoted && line[index + 1] === '"') {
-        current += '"'
-        index += 1
-      } else {
-        quoted = !quoted
-      }
-      continue
-    }
-    if (char === delimiter && !quoted) {
-      values.push(current)
-      current = ''
-      continue
-    }
-    current += char
-  }
-  values.push(current)
-  return values.map((value) => value.trim())
-}
-const parseCsvRows = (content) => {
-  const lines = String(content || '')
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter(Boolean)
-  if (!lines.length) return []
-  const delimiterSample = lines.slice(0, 10).join('\n')
-  const delimiter = (delimiterSample.match(/;/g) || []).length > (delimiterSample.match(/,/g) || []).length ? ';' : ','
-  return spreadsheetRowsToObjects(lines.map((line) => parseCsvLine(line, delimiter)))
-}
-const spreadsheetRowsToObjects = (matrix = []) => {
-  const aliases = new Set(productImportFields.flatMap((field) => field.aliases))
-  const candidates = matrix.slice(0, 20).map((row, index) => ({
-    index,
-    headers: (row || []).map(normalizeImportHeader),
-    score: (row || []).map(normalizeImportHeader).filter((header) => aliases.has(header)).length,
-    populated: (row || []).filter((cell) => String(cell ?? '').trim()).length,
-  }))
-  const best = candidates.sort((left, right) => right.score - left.score)[0]
-  const fallback = candidates.sort((left, right) => right.populated - left.populated)[0]
-  const headerIndex = best?.score ? best.index : fallback?.index ?? -1
-  if (headerIndex < 0) return []
-  const headers = (matrix[headerIndex] || []).map((header, index) => normalizeImportHeader(header) || `columna_${index + 1}`)
-  return matrix.slice(headerIndex + 1).filter((row) => (row || []).some((cell) => String(cell ?? '').trim())).map((cells, rowIndex) => (
-    headers.reduce((row, header, columnIndex) => {
-      row[header] = cells?.[columnIndex] ?? ''
-      row.__rowNumber = headerIndex + rowIndex + 2
-      return row
-    }, {})
-  ))
-}
-const toImportNumber = (value) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN
-  let normalized = String(value ?? '').trim().replace(/[$\s]/g, '')
-  if (!normalized) return 0
-  if (normalized.includes(',') && normalized.includes('.')) {
-    normalized = normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
-      ? normalized.replace(/\./g, '').replace(',', '.')
-      : normalized.replace(/,/g, '')
-  } else if (normalized.includes(',')) {
-    normalized = normalized.replace(/\./g, '').replace(',', '.')
-  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(normalized)) {
-    normalized = normalized.replace(/\./g, '')
-  }
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : Number.NaN
-}
-const normalizeImportProductRow = (row = {}, ui = {}) => {
-  const pick = (...keys) => keys.map((key) => row[key]).find((value) => value != null && String(value).trim() !== '') ?? ''
-  const name = String(pick('nombre', 'name', 'producto')).trim()
-  const providedSku = String(pick('sku', 'codigo', 'codigo_interno')).trim()
-  const sku = providedSku || generatedImportSku(name, row.__rowNumber)
-  const barcode = String(pick('codigo_barras', 'codigo_de_barras', 'barcode', 'ean')).trim()
-  const category = String(pick('categoria', 'category')).trim() || 'General'
-  const salePrice = toImportNumber(pick('salePrice', 'precio_venta', 'precio', 'sale_price'))
-  const costPrice = toImportNumber(pick('costPrice', 'costo', 'cost_price'))
-  const stock = toImportNumber(pick('stock', 'cantidad'))
-  const minStock = toImportNumber(pick('minStock', 'stock_minimo', 'min_stock'))
-  const trackRaw = String(pick('trackStock', 'controla_stock', 'track_stock')).trim().toLowerCase()
-  const trackStock = trackRaw ? !['0', 'false', 'no', 'n'].includes(trackRaw) : category.toLowerCase() !== 'servicio'
-  const existing = ui.snapshot.products.find((product) => (
-    (sku && String(product.sku || '').trim().toLowerCase() === sku.toLowerCase())
-    || (barcode && String(product.barcode || '').trim().toLowerCase() === barcode.toLowerCase())
-  )) || null
-  const errors = []
-  if (!name) errors.push('Falta nombre')
-  if (Number.isNaN(salePrice)) errors.push('Precio invalido')
-  if (Number.isNaN(costPrice)) errors.push('Costo invalido')
-  if (Number.isNaN(stock)) errors.push('Stock invalido')
-  if (Number.isNaN(minStock)) errors.push('Stock minimo invalido')
-  return {
-    rowNumber: Number(row.__rowNumber || 0),
-    name,
-    sku,
-    skuGenerated: !providedSku,
-    barcode,
-    category,
-    salePrice: Number.isNaN(salePrice) ? 0 : salePrice,
-    costPrice: Number.isNaN(costPrice) ? 0 : costPrice,
-    stock: Number.isNaN(stock) ? 0 : stock,
-    minStock: Number.isNaN(minStock) ? 0 : minStock,
-    trackStock,
-    existingId: existing?.id || '',
-    existingName: existing?.name || '',
-    action: existing ? 'update' : 'create',
-    errors,
-  }
-}
-const buildProductImportPreview = (rows = [], ui = {}) => {
-  const normalizedRows = rows.map((row) => normalizeImportProductRow(row, ui))
-  const duplicatedSku = new Set()
-  const duplicatedBarcode = new Set()
-  const seenSku = new Map()
-  const seenBarcode = new Map()
-  for (const row of normalizedRows) {
-    if (row.sku) {
-      const key = row.sku.toLowerCase()
-      if (seenSku.has(key)) duplicatedSku.add(key)
-      seenSku.set(key, row.rowNumber)
-    }
-    if (row.barcode) {
-      const key = row.barcode.toLowerCase()
-      if (seenBarcode.has(key)) duplicatedBarcode.add(key)
-      seenBarcode.set(key, row.rowNumber)
-    }
-  }
-  for (const row of normalizedRows) {
-    if (row.sku && duplicatedSku.has(row.sku.toLowerCase())) row.errors.push('SKU repetido en archivo')
-    if (row.barcode && duplicatedBarcode.has(row.barcode.toLowerCase())) row.errors.push('Codigo repetido en archivo')
-  }
-  const validRows = normalizedRows.filter((row) => !row.errors.length)
-  return {
-    rows: normalizedRows,
-    validRows,
-    summary: {
-      total: normalizedRows.length,
-      valid: validRows.length,
-      rejected: normalizedRows.length - validRows.length,
-      creates: validRows.filter((row) => row.action === 'create').length,
-      updates: validRows.filter((row) => row.action === 'update').length,
-    },
-  }
-}
-const buildMappedProductImportPreview = (sourceRows = [], mapping = {}, ui = {}) => (
-  buildProductImportPreview(applyProductImportMapping(sourceRows, mapping), ui)
-)
-const readProductsImportFile = async (file, ui) => {
-  const fileName = String(file?.name || '').trim()
-  const lowerName = fileName.toLowerCase()
-  let rows = []
-  if (lowerName.endsWith('.csv')) {
-    rows = parseCsvRows(await file.text())
-  } else if (lowerName.endsWith('.xlsx')) {
-    const readExcel = window.readXlsxFile
-    if (!readExcel) throw new Error('No se pudo iniciar el lector de Excel. Recarga la pagina e intenta nuevamente.')
-    const sheets = await readExcel(file)
-    const matrix = Array.isArray(sheets?.[0]?.data) ? sheets[0].data : sheets
-    rows = spreadsheetRowsToObjects(Array.isArray(matrix) ? matrix : [])
-  } else {
-    throw new Error('Formato no compatible. Guarda el archivo como Excel .xlsx o CSV.')
-  }
-  const headers = [...new Set(rows.flatMap((row) => Object.keys(row).filter((key) => key !== '__rowNumber')))]
-  const mapping = suggestProductImportMapping(headers)
-  return {
-    ...buildMappedProductImportPreview(rows, mapping, ui),
-    sourceRows: rows,
-    headers,
-    mapping,
-  }
 }
 const saleActionButtons = (sale) => `
   <div class="inline-action-group sale-actions-compact">
@@ -1807,47 +1578,14 @@ const productsView = (ui) => `
           </div>
           <div class="settings-actions dual-actions dual-actions-quad">
             ${createToggleButton('product', productFormOpen, 'Agregar producto')}
-            <button type="button" class="${productImportPreview ? 'ghost-action' : 'primary-action'}" data-action="${productImportPreview ? 'cancel-product-import' : 'open-product-import'}">${productImportPreview ? 'Cerrar importacion' : 'Importar Excel/CSV'}</button>
             ${createToggleButton('stock-adjustment', stockAdjustmentFormOpen, 'Ajuste de stock')}
             ${createToggleButton('stock-transfer', stockTransferFormOpen, 'Transferencia')}
+            <button type="button" class="ghost-action" data-action="request-bulk-import">Carga masiva asistida</button>
           </div>
-          <input type="file" class="hidden-file-input" data-action="import-products-file" accept=".csv,.xlsx" hidden />
-          ${productImportPreview ? `<article class="panel import-preview-panel">
-            <div class="panel-head"><div><h3>Vista previa de importacion</h3><p>${escapeHtml(productImportFileName || 'Archivo cargado')}</p></div><div class="panel-inline-stats section-inline-stats">
-              <span class="panel-inline-stat"><strong>${productImportPreview.summary.total}</strong><span>Filas</span></span>
-              <span class="panel-inline-stat"><strong>${productImportPreview.summary.creates}</strong><span>Nuevos</span></span>
-              <span class="panel-inline-stat"><strong>${productImportPreview.summary.updates}</strong><span>Actualiza</span></span>
-              <span class="panel-inline-stat"><strong>${productImportPreview.summary.rejected}</strong><span>Rechazados</span></span>
-            </div></div>
-            ${productImportError ? `<div class="feedback-banner is-error">${escapeHtml(productImportError)}</div>` : ''}
-            <div class="import-mapping-panel">
-              <div class="panel-note"><strong>Confirma las columnas</strong><span>Las relacionamos automaticamente. Cambia solo lo que no coincida con tu archivo.</span></div>
-              <div class="import-mapping-grid">
-                ${productImportFields.slice(0, 5).map(renderProductImportMappingField).join('')}
-              </div>
-              <details class="import-advanced-mapping">
-                <summary>Otras columnas opcionales</summary>
-                <div class="import-mapping-grid">${productImportFields.slice(5).map(renderProductImportMappingField).join('')}</div>
-              </details>
-              ${productImportMapping.name ? '<p class="import-help">Si no hay SKU, PCLAF Control genera uno automaticamente. Precio y stock pueden comenzar en cero.</p>' : '<p class="import-help is-error">Indica que columna contiene el nombre del producto para continuar.</p>'}
-            </div>
-            <div class="settings-actions dual-actions">
-              <button type="button" class="primary-action" data-action="confirm-product-import-create" ${productImportBusy || !productImportMapping.name ? 'disabled' : ''}>Importar nuevos</button>
-              <button type="button" class="primary-action" data-action="confirm-product-import-upsert" ${productImportBusy || !productImportMapping.name ? 'disabled' : ''}>Crear y actualizar</button>
-              <button type="button" class="ghost-action" data-action="cancel-product-import" ${productImportBusy ? 'disabled' : ''}>Cancelar</button>
-            </div>
-            <div class="data-table import-preview-table">
-              <div class="data-head"><span>Fila</span><span>Nombre</span><span>SKU</span><span>Barcode</span><span>Accion</span><span>Estado</span></div>
-              ${productImportPreview.rows.map((row) => `<div class="data-row ${row.errors.length ? 'is-error' : ''}">
-                <span>${row.rowNumber || '-'}</span>
-                <span>${escapeHtml(row.name || '-')}</span>
-                <span>${escapeHtml(row.sku || '-')}${row.skuGenerated ? '<small>Generado</small>' : ''}</span>
-                <span>${escapeHtml(row.barcode || '-')}</span>
-                <span>${row.action === 'update' ? `Actualiza ${escapeHtml(row.existingName || '')}` : 'Crea nuevo'}</span>
-                <span>${row.errors.length ? escapeHtml(row.errors.join(' · ')) : 'OK'}</span>
-              </div>`).join('') || '<div class="data-empty">No encontramos filas para importar.</div>'}
-            </div>
-          </article>` : ''}
+          <div class="assisted-import-note">
+            <div><strong>¿Ya tienes tus productos en Excel?</strong><span>Envíanos la planilla. Revisamos las columnas y hacemos una carga controlada para no duplicar productos ni alterar precios o stock.</span></div>
+            <button type="button" class="inline-action" data-action="request-bulk-import">Hablar con soporte</button>
+          </div>
           ${inventoryTable(ui.scopedProducts.map((product) => `
             <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
               <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
@@ -3640,91 +3378,6 @@ const bindEvents = () => {
   if (focusProductBarcodeButton) focusProductBarcodeButton.addEventListener('click', () => {
     focusScannerInput('products')
   })
-  const importProductsTrigger = document.querySelector('[data-action="open-product-import"]')
-  const importProductsInput = document.querySelector('[data-action="import-products-file"]')
-  if (importProductsTrigger && importProductsInput) {
-    importProductsTrigger.addEventListener('click', () => {
-      importProductsInput.click()
-    })
-    importProductsInput.addEventListener('change', async () => {
-      const [file] = [...(importProductsInput.files || [])]
-      if (!file) return
-      productImportBusy = true
-      productImportError = ''
-      try {
-        const importSession = await readProductsImportFile(file, getUiState())
-        productImportSourceRows = importSession.sourceRows
-        productImportHeaders = importSession.headers
-        productImportMapping = importSession.mapping
-        productImportPreview = importSession
-        productImportFileName = file.name || ''
-        feedbackMessage = 'Archivo analizado. Revisa la vista previa antes de importar.'
-      } catch (error) {
-        productImportPreview = null
-        productImportSourceRows = []
-        productImportHeaders = []
-        productImportMapping = {}
-        productImportFileName = ''
-        productImportError = mapPublicAuthError(error.message, 'signup')
-        feedbackMessage = ''
-      } finally {
-        productImportBusy = false
-        importProductsInput.value = ''
-        render()
-      }
-    })
-  }
-  for (const mappingSelect of document.querySelectorAll('[data-import-map]')) {
-    mappingSelect.addEventListener('change', () => {
-      productImportMapping[mappingSelect.dataset.importMap] = mappingSelect.value
-      productImportPreview = {
-        ...buildMappedProductImportPreview(productImportSourceRows, productImportMapping, getUiState()),
-        sourceRows: productImportSourceRows,
-        headers: productImportHeaders,
-        mapping: productImportMapping,
-      }
-      productImportError = ''
-      render()
-    })
-  }
-  for (const cancelImportButton of document.querySelectorAll('[data-action="cancel-product-import"]')) {
-    cancelImportButton.addEventListener('click', () => {
-      productImportPreview = null
-      productImportSourceRows = []
-      productImportHeaders = []
-      productImportMapping = {}
-      productImportError = ''
-      productImportFileName = ''
-      render()
-    })
-  }
-  for (const confirmImportButton of document.querySelectorAll('[data-action="confirm-product-import-create"], [data-action="confirm-product-import-upsert"]')) {
-    confirmImportButton.addEventListener('click', async () => {
-      if (!productImportPreview?.validRows?.length) {
-        productImportError = 'No hay filas validas para importar.'
-        render()
-        return
-      }
-      productImportBusy = true
-      render()
-      try {
-        const mode = confirmImportButton.dataset.action === 'confirm-product-import-create' ? 'create-only' : 'upsert'
-        const result = await store.importProducts(productImportPreview.validRows, mode)
-        feedbackMessage = result.message || 'Importacion completada.'
-        productImportPreview = null
-        productImportSourceRows = []
-        productImportHeaders = []
-        productImportMapping = {}
-        productImportError = ''
-        productImportFileName = ''
-      } catch (error) {
-        productImportError = error.message || 'No se pudo importar el archivo.'
-      } finally {
-        productImportBusy = false
-        render()
-      }
-    })
-  }
   for (const button of document.querySelectorAll('[data-module-toggle]')) {
     button.addEventListener('click', async () => {
       const result = await store.setModuleEnabled(button.dataset.moduleToggle, button.dataset.enabled !== 'true')
@@ -3973,6 +3626,11 @@ const bindEvents = () => {
   for (const supportButton of document.querySelectorAll('[data-action="open-support"]')) {
     supportButton.addEventListener('click', () => {
       window.open(supportUrl, '_blank', 'noopener,noreferrer')
+    })
+  }
+  for (const importSupportButton of document.querySelectorAll('[data-action="request-bulk-import"]')) {
+    importSupportButton.addEventListener('click', () => {
+      window.open(bulkImportSupportUrl, '_blank', 'noopener,noreferrer')
     })
   }
   document.addEventListener('click', (event) => {
