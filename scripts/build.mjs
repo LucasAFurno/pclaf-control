@@ -9,7 +9,7 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260722b'
+const assetVersion = '20260722c'
 const siteOrigin = 'https://www.pclafcontrol.com.ar'
 const appPath = '/app/'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20quiero%20informacion%20de%20PCLAF%20Control.'

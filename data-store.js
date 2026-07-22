@@ -197,13 +197,26 @@ const inferRolePermissions = (roleId) => roles.find((role) => role.id === roleId
 const inferUserPermissionSet = (entry) => {
   const basePermissions = inferRolePermissions(entry?.roleId)
   const blocked = new Set(normalizeStringList(entry?.blockedPermissions, validPermissionKeys))
-  return basePermissions.filter((permission) => !blocked.has(permission))
+  const permissions = basePermissions.filter((permission) => !blocked.has(permission))
+  const roleKey = roleKeysById[entry?.roleId]
+  if (entry?.isPlatformAdmin || entry?.isOwner || roleKey === 'admin') {
+    if (!permissions.includes(permissionCatalog.dashboard)) permissions.push(permissionCatalog.dashboard)
+    if (!permissions.includes(permissionCatalog.settings)) permissions.push(permissionCatalog.settings)
+  }
+  return permissions
 }
 const inferUserModules = (entry, enabledModules = []) => {
   const availableModules = Array.isArray(enabledModules) ? enabledModules.filter((moduleKey) => validModuleKeys.has(moduleKey)) : []
   const overrides = normalizeStringList(entry?.allowedModules, validModuleKeys)
-  if (!overrides.length) return availableModules
-  return availableModules.filter((moduleKey) => overrides.includes(moduleKey))
+  const roleKey = roleKeysById[entry?.roleId]
+  const isAdministrator = Boolean(entry?.isPlatformAdmin || entry?.isOwner || roleKey === 'admin')
+  const scopedModules = overrides.length
+    ? availableModules.filter((moduleKey) => overrides.includes(moduleKey))
+    : [...availableModules]
+  if (!isAdministrator) return scopedModules.filter((moduleKey) => moduleKey !== 'settings')
+  if (!scopedModules.includes('dashboard')) scopedModules.unshift('dashboard')
+  if (!scopedModules.includes('settings')) scopedModules.push('settings')
+  return scopedModules
 }
 
 const seedData = {
@@ -1335,6 +1348,7 @@ export const createBrowserDataStore = (options = {}) => {
     const denied = ensurePermission(actionPermissions.settingsManage)
     if (denied) return denied
     if (!moduleCatalog[moduleKey]) return { ok: false, message: 'Modulo no encontrado.' }
+    if (moduleKey === 'dashboard' || moduleKey === 'settings') return { ok: false, message: 'Inicio y Ajustes son accesos fijos para administradores.' }
     const current = new Set(state.business.enabledModules || modulePresets.full)
     if (enabled) current.add(moduleKey)
     else current.delete(moduleKey)

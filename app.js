@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.22-b'
+const appVersion = 'v2026.07.22-c'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const bulkImportSupportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20cargar%20productos%20desde%20una%20planilla%20en%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
@@ -348,18 +348,34 @@ const modulePermissionMap = {
   settings: 'settings:view',
 }
 
+const isAdministratorAccount = (snapshot, entry = {}, fallbackRoleId = '') => {
+  const roleId = entry.roleId || fallbackRoleId
+  const roleKey = snapshot.roles.find((role) => role.id === roleId)?.key
+  return Boolean(entry.isPlatformAdmin || entry.isOwner || roleKey === 'admin')
+}
+
 const normalizeUserModuleScope = (snapshot, entry = {}, fallbackRoleId = '') => {
-  const businessModules = Array.isArray(snapshot.business?.enabledModules) ? snapshot.business.enabledModules : []
+  const isAdministrator = isAdministratorAccount(snapshot, entry, fallbackRoleId)
+  const businessModules = Array.isArray(snapshot.business?.enabledModules) ? [...snapshot.business.enabledModules] : []
+  if (isAdministrator) {
+    if (!businessModules.includes('dashboard')) businessModules.unshift('dashboard')
+    if (!businessModules.includes('settings')) businessModules.push('settings')
+  }
   const overrides = Array.isArray(entry.allowedModules) ? entry.allowedModules.filter(Boolean) : []
   if (overrides.length) {
     const scopedModules = businessModules.filter((moduleKey) => overrides.includes(moduleKey))
-    if (scopedModules.length) return scopedModules
+    if (isAdministrator) {
+      if (!scopedModules.includes('dashboard')) scopedModules.unshift('dashboard')
+      if (!scopedModules.includes('settings')) scopedModules.push('settings')
+    }
+    if (scopedModules.length) return isAdministrator ? scopedModules : scopedModules.filter((moduleKey) => moduleKey !== 'settings')
   }
   const roleId = entry.roleId || fallbackRoleId
-  if (!roleId) return businessModules
+  if (!roleId) return isAdministrator ? businessModules : businessModules.filter((moduleKey) => moduleKey !== 'settings')
   const rolePermissions = snapshot.roles.find((role) => role.id === roleId)?.permissions || []
   const roleModules = businessModules.filter((moduleKey) => rolePermissions.includes(modulePermissionMap[moduleKey]))
-  return roleModules.length ? roleModules : businessModules
+  const effectiveModules = roleModules.length ? roleModules : businessModules
+  return isAdministrator ? effectiveModules : effectiveModules.filter((moduleKey) => moduleKey !== 'settings')
 }
 
 const permissionLabelMap = {
@@ -380,13 +396,18 @@ const permissionLabelMap = {
 
 const renderUserScopeSelector = (ui, editingUser, canManageUsers) => {
   const fallbackRoleId = editingUser?.roleId || userDraftRoleId || 'role-cashier'
+  const isAdministrator = isAdministratorAccount(ui.snapshot, editingUser || {}, fallbackRoleId)
   const selectedModules = new Set(normalizeUserModuleScope(ui.snapshot, editingUser, fallbackRoleId))
   const blockedPermissions = new Set(Array.isArray(editingUser?.blockedPermissions) ? editingUser.blockedPermissions : [])
+  const configurableModules = Object.values(ui.moduleCatalog).filter((module) => (
+    module.key !== 'settings' && (!isAdministrator || module.key !== 'dashboard')
+  ))
   return `
     <div class="full-span">
       <div class="panel-note"><span>Modulos visibles para esta cuenta</span><span>Si no marcas nada extra, usa lo habilitado en el comercio.</span></div>
+      ${isAdministrator ? '<div class="info-strip"><strong>Accesos fijos</strong><span>Inicio y Ajustes siempre estan disponibles para administradores.</span></div>' : ''}
       <div class="chip-grid">
-        ${Object.values(ui.moduleCatalog).map((module) => `<label class="module-chip ${selectedModules.has(module.key) ? 'is-active' : ''}"><input type="checkbox" name="allowedModules" value="${module.key}" ${selectedModules.has(module.key) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span>${module.name}</span></label>`).join('')}
+        ${configurableModules.map((module) => `<label class="module-chip ${selectedModules.has(module.key) ? 'is-active' : ''}"><input type="checkbox" name="allowedModules" value="${module.key}" ${selectedModules.has(module.key) ? 'checked' : ''} ${canManageUsers ? '' : 'disabled'} /><span>${module.name}</span></label>`).join('')}
       </div>
     </div>
     <div class="full-span">
@@ -2304,13 +2325,12 @@ const settingsViewV2 = (ui) => `
           ? 'Pendiente'
           : ui.snapshot.meta.syncStatus || 'Sin conexion'
     return `
-  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Cuenta y configuracion</h2></div></div>
+  <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Cuenta y configuracion</h2></div><div class="panel-inline-stats section-inline-stats">
+      <span class="panel-inline-stat"><strong>${ui.user.fullName}</strong><span>${ui.role.name}</span></span>
+      <span class="panel-inline-stat"><strong>${syncLabel}</strong><span>Base</span></span>
+      <span class="panel-inline-stat"><strong>${ui.snapshot.business.enabledModules.length}</strong><span>Modulos</span></span>
+    </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
-    <section class="module-summary-grid">
-      <article class="metric-card compact"><span>Sesion</span><strong>${ui.user.fullName}</strong><p>${ui.role.name}</p></article>
-      <article class="metric-card compact"><span>Base</span><strong>${syncLabel}</strong><p>Datos del comercio</p></article>
-      <article class="metric-card compact"><span>Modulos</span><strong>${ui.snapshot.business.enabledModules.length}</strong><p>Visibles para este cliente</p></article>
-    </section>
     <section class="stacked-section settings-stack">
       <article class="panel"><div class="panel-head"><div><h3>Cuenta activa</h3><p>Sesion, rol y acceso del negocio</p></div></div>
         <div class="priority-list">
@@ -2357,14 +2377,16 @@ const settingsViewV2 = (ui) => `
         </form>
         <div class="compact-form-grid settings-overview-grid">
           <div class="timeline-list compact-timeline">
-            ${Object.values(ui.moduleCatalog).map((module) => `
+            ${Object.values(ui.moduleCatalog).map((module) => {
+              const isFixedModule = module.key === 'dashboard' || module.key === 'settings'
+              return `
               <div class="timeline-item">
                 <strong>${module.name}</strong>
                 <p>${module.description}</p>
-                <span>${ui.snapshot.business.enabledModules.includes(module.key) ? 'Habilitado' : 'Oculto'}</span>
-                <div class="settings-actions"><button type="button" class="inline-action" data-module-toggle="${module.key}" data-enabled="${ui.snapshot.business.enabledModules.includes(module.key) ? 'true' : 'false'}">${ui.snapshot.business.enabledModules.includes(module.key) ? 'Deshabilitar' : 'Habilitar'}</button></div>
+                <span>${isFixedModule ? 'Siempre activo para administradores' : (ui.snapshot.business.enabledModules.includes(module.key) ? 'Habilitado' : 'Oculto')}</span>
+                ${isFixedModule ? '' : `<div class="settings-actions"><button type="button" class="inline-action" data-module-toggle="${module.key}" data-enabled="${ui.snapshot.business.enabledModules.includes(module.key) ? 'true' : 'false'}">${ui.snapshot.business.enabledModules.includes(module.key) ? 'Deshabilitar' : 'Habilitar'}</button></div>`}
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
           <div class="timeline-list compact-timeline">${ui.enrichedAudit.map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('')}</div>
         </div>
