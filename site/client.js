@@ -4,7 +4,7 @@ import { createCloudAuthManager } from './cloud-auth.js?v=20260720l'
 const currency = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 const today = new Date().toISOString().slice(0, 10)
 const productName = 'PCLAF Control'
-const appVersion = 'v2026.07.21-c'
+const appVersion = 'v2026.07.21-d'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20necesito%20soporte%20de%20PCLAF%20Control.'
 const publicSiteUrl = 'https://www.pclafcontrol.com.ar'
 const themeStorageKey = 'pclaf-control-theme'
@@ -1516,11 +1516,14 @@ const cashView = (ui) => `
 const salesViewV2 = (ui) => `
   ${(() => {
     const editingSale = ui.snapshot.sales.find((sale) => sale.id === saleEditingId)
-    const showSaleForm = saleFormOpen || Boolean(editingSale)
+    const showSaleForm = true
     if (editingSale && !Object.keys(saleDraftQuantities).length) {
       saleDraftQuantities = Object.fromEntries((editingSale.items || []).map((item) => [item.productId, item.quantity]))
     }
     const quantities = new Map(Object.entries(Object.keys(saleDraftQuantities).length ? saleDraftQuantities : Object.fromEntries((editingSale?.items || []).map((item) => [item.productId, item.quantity]))))
+    const selectedProducts = ui.scopedProducts.filter((product) => Number(quantities.get(product.id) || 0) > 0)
+    const cartUnits = selectedProducts.reduce((sum, product) => sum + Number(quantities.get(product.id) || 0), 0)
+    const cartSubtotal = selectedProducts.reduce((sum, product) => sum + (Number(quantities.get(product.id) || 0) * Number(product.salePrice || 0)), 0)
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ventas</p><h2>Venta multi-item</h2></div><div class="panel-inline-stats section-inline-stats">
       <span class="panel-inline-stat"><strong>${ui.enrichedSales.length}</strong><span>Ventas</span></span>
@@ -1529,64 +1532,52 @@ const salesViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      ${showSaleForm ? `<article class="panel">
-        <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Nueva venta'}</h3><p>${editingSale ? 'Actualiza stock, cobro y comprobantes' : 'Carga rapida para mostrador o venta asistida'}</p></div></div>
-        <form class="form-grid sales-form" data-form="sale">
+      ${showSaleForm ? `<article class="panel pos-sale-panel">
+        <div class="panel-head"><div><h3>${editingSale ? 'Editar venta' : 'Punto de venta'}</h3><p>${editingSale ? 'Actualiza los articulos y el cobro' : 'Busca un articulo o escanea su codigo para comenzar'}</p></div><span class="pos-cash-badge ${ui.openCashSession ? 'is-open' : 'is-closed'}">Caja ${ui.openCashSession ? 'abierta' : 'cerrada'}</span></div>
+        <form class="form-grid sales-form pos-sale-form" data-form="sale">
           <input type="hidden" name="saleId" value="${editingSale?.id || ''}" />
-          <label>Cliente<select name="customerId"><option value="">Mostrador</option>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingSale?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
-          <label>Canal<select name="channel"><option ${editingSale?.channel === 'Mostrador' ? 'selected' : ''}>Mostrador</option><option ${editingSale?.channel === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option><option ${editingSale?.channel === 'Transferencia' ? 'selected' : ''}>Transferencia</option><option ${editingSale?.channel === 'Mercado Libre' ? 'selected' : ''}>Mercado Libre</option></select></label>
-          <label>Pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option><option value="mixed" ${editingSale?.paymentMethod === 'mixed' ? 'selected' : ''}>Mixto</option></select></label>
-          <div class="toggle-grid full-span">
-            <label class="checkbox-row compact-toggle"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} /><span>Cobrado</span></label>
-            <label class="checkbox-row compact-toggle"><input type="checkbox" name="autoInvoice" /><span>Generar factura</span></label>
+          <div class="full-span pos-product-search">
+            <span class="pos-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span>
+            <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" list="sale-product-options" autocomplete="off" placeholder="Buscar articulo, SKU o escanear codigo de barras" aria-label="Buscar articulo" />
+            <datalist id="sale-product-options">${ui.scopedProducts.map((product) => `<option value="${escapeHtml(product.name)}">${escapeHtml(product.sku || product.barcode || '')}</option>`).join('')}</datalist>
+            <button type="button" class="primary-action" data-action="quick-add-sale">Agregar</button>
+            <span class="pos-search-help">Enter</span>
           </div>
-          <label>Descuento<input type="number" min="0" name="discountAmount" value="${editingSale?.discountAmount || 0}" /></label>
-          <label>Monto cobrado<input type="number" min="0" name="amountPaid" value="${editingSale?.amountPaid || 0}" /></label>
-          <details class="sales-payment-detail full-span">
-            <summary>Desglose de pago mixto</summary>
-            <div class="payment-split-grid">
-              <label>Efectivo<input type="number" min="0" name="cashAmount" value="${editingSale?.paymentBreakdown?.cash || 0}" /></label>
-              <label>Transferencia<input type="number" min="0" name="transferAmount" value="${editingSale?.paymentBreakdown?.transfer || 0}" /></label>
-              <label>Mercado Pago<input type="number" min="0" name="mercadoPagoAmount" value="${editingSale?.paymentBreakdown?.mercadoPago || 0}" /></label>
-              <label>Cuenta corriente<input type="number" min="0" name="accountAmount" value="${editingSale?.paymentBreakdown?.account || 0}" /></label>
-            </div>
-          </details>
-          <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Detalle interno, referencia o condicion comercial" /></label>
-          <div class="summary-mini-row full-span">
-            <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
-            <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession?.registerId ? (ui.enrichedRegisters.find((register) => register.id === ui.openCashSession.registerId)?.name || 'Caja activa') : (ui.currentRegister?.name || 'Sin caja seleccionada')}</span></div>
-            <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Caja lista para vender' : 'Solo cobros sin efectivo'}</span></div>
+          <div class="full-span pos-checkout-layout">
+            <section class="pos-cart">
+              <div class="pos-cart-head"><div><strong>Articulos</strong><span>${cartUnits} unidades</span></div><output class="pos-total" data-sale-total>${money(Math.max(0, cartSubtotal - Number(editingSale?.discountAmount || 0)))}</output></div>
+              <div class="cart-builder">
+                ${selectedProducts.length ? selectedProducts.map((product) => `
+                  <div class="cart-line ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
+                    <div><strong>${product.name}</strong><p>${money(product.salePrice)} c/u · stock ${product.scopedStock}</p></div>
+                    <label class="cart-quantity"><span>Cantidad</span><input type="number" min="0" max="${product.trackStock ? product.scopedStock : 999999}" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" data-sale-price="${Number(product.salePrice || 0)}" /></label>
+                    <strong class="cart-line-total">${money(Number(quantities.get(product.id) || 0) * Number(product.salePrice || 0))}</strong>
+                  </div>`).join('') : '<div class="pos-cart-empty"><strong>Venta vacia</strong><span>Busca o escanea el primer articulo.</span></div>'}
+              </div>
+            </section>
+            <aside class="pos-payment-panel">
+              <label>Cliente<select name="customerId"><option value="">Mostrador</option>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingSale?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
+              <label>Medio de pago<select name="paymentMethod"><option value="cash" ${editingSale?.paymentMethod === 'cash' ? 'selected' : ''}>Efectivo</option><option value="transfer" ${editingSale?.paymentMethod === 'transfer' ? 'selected' : ''}>Transferencia</option><option value="mercado_pago" ${editingSale?.paymentMethod === 'mercado_pago' ? 'selected' : ''}>Mercado Pago</option><option value="account" ${editingSale?.paymentMethod === 'account' ? 'selected' : ''}>Cuenta corriente</option><option value="mixed" ${editingSale?.paymentMethod === 'mixed' ? 'selected' : ''}>Pago mixto</option></select></label>
+              <div class="toggle-grid">
+                <label class="checkbox-row compact-toggle"><input type="checkbox" name="isPaid" ${editingSale ? (editingSale.status === 'completed' ? 'checked' : '') : 'checked'} /><span>Cobrado</span></label>
+                <label class="checkbox-row compact-toggle"><input type="checkbox" name="autoInvoice" /><span>Facturar</span></label>
+              </div>
+              <label>Descuento<input type="number" min="0" name="discountAmount" value="${editingSale?.discountAmount || 0}" /></label>
+              <details class="sales-payment-detail"><summary>Mas opciones</summary><div class="payment-split-grid">
+                <label>Canal<select name="channel"><option ${editingSale?.channel === 'Mostrador' ? 'selected' : ''}>Mostrador</option><option ${editingSale?.channel === 'WhatsApp' ? 'selected' : ''}>WhatsApp</option><option ${editingSale?.channel === 'Transferencia' ? 'selected' : ''}>Transferencia</option><option ${editingSale?.channel === 'Mercado Libre' ? 'selected' : ''}>Mercado Libre</option></select></label>
+                <label>Monto cobrado<input type="number" min="0" name="amountPaid" value="${editingSale?.amountPaid || 0}" /></label>
+                <label>Efectivo<input type="number" min="0" name="cashAmount" value="${editingSale?.paymentBreakdown?.cash || 0}" /></label>
+                <label>Transferencia<input type="number" min="0" name="transferAmount" value="${editingSale?.paymentBreakdown?.transfer || 0}" /></label>
+                <label>Mercado Pago<input type="number" min="0" name="mercadoPagoAmount" value="${editingSale?.paymentBreakdown?.mercadoPago || 0}" /></label>
+                <label>Cuenta corriente<input type="number" min="0" name="accountAmount" value="${editingSale?.paymentBreakdown?.account || 0}" /></label>
+                <label class="full-span">Observaciones<input type="text" name="note" value="${editingSale?.note || ''}" placeholder="Opcional" /></label>
+              </div></details>
+              <button type="submit" class="pos-charge-button" ${selectedProducts.length ? '' : 'disabled'}>${editingSale ? 'Guardar cambios' : `Cobrar ${money(cartSubtotal)}`}</button>
+              ${editingSale ? '<button type="button" class="danger-action" data-action="cancel-sale-edit">Cancelar edicion</button>' : ''}
+            </aside>
           </div>
-          <div class="full-span sales-scanner-box">
-            <div class="panel-head"><div><h3>Lector rapido</h3><p>Compatible con lector USB tipo teclado o ingreso manual</p></div></div>
-            <div class="inline-action-group scanner-row">
-              <input type="text" class="scanner-input" name="quickAddCode" value="${saleQuickAddCode}" placeholder="Escanea o escribe codigo de barras / SKU" />
-              <button type="button" class="primary-action" data-action="quick-add-sale">Agregar</button>
-              <button type="button" class="inline-action" data-action="focus-sale-scanner">Activar lector</button>
-            </div>
-            <p class="form-note scanner-note">Tip: si el lector USB esta conectado, apunta al producto y el sistema lo agrega a la venta con Enter.</p>
-          </div>
-          <p class="form-note full-span">Las ventas en efectivo solo se pueden registrar con una caja abierta. Los reportes toman sucursal y caja actual.</p>
-          <div class="full-span cart-builder">
-            ${ui.scopedProducts.map((product) => `
-              <div class="cart-line ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
-                <div><strong>${product.name}</strong><p>${money(product.salePrice)} / stock ${product.scopedStock} / cod. ${product.barcode || '-'}</p></div>
-                <input type="number" min="0" value="${quantities.get(product.id) || 0}" name="qty_${product.id}" />
-              </div>`).join('')}
-          </div>
-          <button type="submit">${editingSale ? 'Guardar cambios' : 'Registrar venta'}</button>
-          ${!editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cancelar</button>' : ''}
-          ${editingSale ? '<button type="button" class="danger-action" data-action="cancel-sale-edit">Cancelar edicion</button>' : ''}
         </form>
       </article>` : ''}
-      <article class="panel">
-        <div class="panel-head"><div><h3>Operacion rapida</h3><p>Resumen de la sesion actual</p></div><div class="settings-actions">${editingSale ? '<button type="button" class="ghost-action" data-action="close-sale-form">Cerrar</button>' : createToggleButton('sale', showSaleForm, 'Agregar venta')}</div></div>
-        <div class="summary-mini-row">
-          <div class="summary-mini-card"><strong>Caja</strong><span>${ui.openCashSession ? 'Abierta y ligada a ventas' : 'Cerrada para efectivo'}</span></div>
-          <div class="summary-mini-card"><strong>Canal sugerido</strong><span>${editingSale?.channel || 'Mostrador'}</span></div>
-          <div class="summary-mini-card"><strong>Cliente</strong><span>${editingSale?.customerId ? (ui.snapshot.customers.find((customer) => customer.id === editingSale.customerId)?.fullName || 'Cliente') : 'Mostrador'}</span></div>
-        </div>
-      </article>
       <article class="panel"><div class="panel-head"><div><h3>Historial</h3><p>Ventas recientes y acciones rapidas</p></div></div>
         <div class="sales-table">${dataTable(['Cliente', 'Detalle', 'Cobro', 'Acciones'], ui.enrichedSales.map((sale) => `<div class="data-row sales-history-row"><span>${sale.customerName}<br /><small>${sale.status === 'completed' ? 'Cobrada' : sale.status === 'partial' ? 'Pago parcial' : sale.status === 'cancelled' ? 'Anulada' : sale.status === 'returned' ? 'Devuelta' : 'Pendiente'}</small></span><span>${sale.itemSummary}${sale.note ? `<br /><small>${sale.note}</small>` : ''}<br /><small>${sale.branchName} / ${sale.registerName} / ${sale.paymentSummary}</small></span><span>${money(sale.amountPaid)} / ${money(sale.totalAmount)}${sale.discountAmount ? `<br /><small>Desc. ${money(sale.discountAmount)}</small>` : ''}</span><span>${saleActionButtons(sale)}</span></div>`))}</div>
       </article>
@@ -2663,7 +2654,7 @@ const renderApp = (ui) => {
               <button class="account-card compact-meta ${accountAlertsOpen ? 'is-open' : ''}" type="button" data-action="toggle-account-alerts" aria-label="Abrir menu de cuenta" aria-expanded="${accountAlertsOpen ? 'true' : 'false'}">
                 <span class="account-avatar">${userInitials}</span>
                 <span class="account-copy"><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}</span></span>
-                <span class="account-cash-state ${ui.openCashSession ? 'is-open' : 'is-closed'}"><span class="status-led" aria-hidden="true"></span><span>Caja ${statusTitle.toLowerCase()}</span></span>
+                <span class="account-cash-state ${ui.openCashSession ? 'is-open' : 'is-closed'}"><span class="status-led" aria-hidden="true"></span><span>${statusTitle}</span></span>
                 ${notificationCount ? `<span class="account-alert-count" aria-label="${notificationCount} alertas">${notificationCount}</span>` : ''}
                 <span class="account-menu-chevron" aria-hidden="true">⌄</span>
               </button>
@@ -3261,20 +3252,45 @@ const bindEvents = () => {
   }
   bindHardwareScanner()
   for (const form of document.querySelectorAll('form[data-form]')) form.addEventListener('submit', handleSubmit)
+  const updateSaleTotals = () => {
+    let subtotal = 0
+    for (const input of document.querySelectorAll('input[name^="qty_"]')) {
+      const quantity = Math.max(0, Number(input.value || 0))
+      const price = Math.max(0, Number(input.dataset.salePrice || 0))
+      subtotal += quantity * price
+      const lineTotal = input.closest('.cart-line')?.querySelector('.cart-line-total')
+      if (lineTotal) lineTotal.textContent = money(quantity * price)
+    }
+    const discount = Math.max(0, Number(document.querySelector('input[name="discountAmount"]')?.value || 0))
+    const total = Math.max(0, subtotal - discount)
+    const totalOutput = document.querySelector('[data-sale-total]')
+    if (totalOutput) totalOutput.textContent = money(total)
+    const chargeButton = document.querySelector('.pos-charge-button')
+    if (chargeButton) {
+      chargeButton.disabled = subtotal <= 0
+      if (!saleEditingId) chargeButton.textContent = `Cobrar ${money(total)}`
+    }
+  }
   for (const input of document.querySelectorAll('input[name^="qty_"]')) {
     input.addEventListener('input', () => {
       const productId = input.name.replace('qty_', '')
       const quantity = Number(input.value || 0)
       if (quantity > 0) saleDraftQuantities[productId] = quantity
       else delete saleDraftQuantities[productId]
+      updateSaleTotals()
     })
   }
+  const saleDiscountInput = document.querySelector('input[name="discountAmount"]')
+  if (saleDiscountInput) saleDiscountInput.addEventListener('input', updateSaleTotals)
   const quickAddInput = document.querySelector('input[name="quickAddCode"]')
   const runQuickAdd = () => {
     const currentCode = String(quickAddInput?.value || '').trim()
-    const product = store.findProductByCode(currentCode)
+    const normalizedCode = currentCode.toLowerCase()
+    const scopedMatches = getUiState().scopedProducts.filter((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedCode)))
+    const product = store.findProductByCode(currentCode) || (scopedMatches.length === 1 ? scopedMatches[0] : null)
     if (!product) {
-      feedbackMessage = 'No encontre un producto con ese codigo.'
+      feedbackMessage = currentCode ? 'Selecciona un articulo de la lista o revisa el codigo.' : 'Escribe o escanea un articulo.'
       render()
       return
     }
@@ -3285,12 +3301,16 @@ const bindEvents = () => {
   }
   if (quickAddInput) {
     quickAddInput.addEventListener('input', () => { saleQuickAddCode = quickAddInput.value })
+    quickAddInput.addEventListener('change', () => {
+      if (String(quickAddInput.value || '').trim()) runQuickAdd()
+    })
     quickAddInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault()
         runQuickAdd()
       }
     })
+    if (activeSection === 'ventas') window.requestAnimationFrame(() => quickAddInput.focus({ preventScroll: true }))
   }
   const quickSearchInput = document.querySelector('.quick-search input[name="query"]')
   const jumpToSearchMatch = (value) => {

@@ -1272,7 +1272,7 @@ input, select { outline: none; }
 
 .account-card {
   display: grid;
-  grid-template-columns: auto minmax(110px, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(80px, 1fr) auto auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
@@ -1319,7 +1319,7 @@ input, select { outline: none; }
 }
 
 .topbar-right.is-account-only .account-card {
-  min-width: 310px;
+  min-width: 250px;
 }
 
 .account-cash-state {
@@ -2292,9 +2292,13 @@ input, select { outline: none; }
 .feedback-banner {
   position: fixed;
   top: 18px;
-  right: 18px;
+  left: 50%;
   z-index: 120;
-  width: min(420px, calc(100vw - 36px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: min(480px, calc(100vw - 36px));
   border: 1px solid rgba(214, 16, 16, 0.18);
   background: color-mix(in srgb, var(--accent) 11%, var(--panel));
   color: var(--text);
@@ -2302,6 +2306,30 @@ input, select { outline: none; }
   padding: 13px 15px;
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  animation: feedback-arrive 220ms ease-out both;
+}
+
+.feedback-banner::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 34%, transparent);
+  animation: feedback-pulse 900ms ease-out 2;
+}
+
+@keyframes feedback-arrive {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes feedback-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); }
+  70% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 .inline-action,
@@ -2530,6 +2558,183 @@ input, select { outline: none; }
   padding: 10px 12px;
 }
 
+.pos-sale-panel {
+  padding: 20px;
+}
+
+.pos-sale-form {
+  grid-template-columns: 1fr;
+}
+
+.pos-sale-form > .full-span {
+  grid-column: 1;
+}
+
+.pos-cash-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.pos-cash-badge.is-open {
+  border-color: color-mix(in srgb, var(--ok) 32%, var(--line));
+  color: var(--ok);
+}
+
+.pos-product-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.pos-product-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent), 0 14px 34px rgba(0, 0, 0, 0.16);
+}
+
+.pos-product-search .scanner-input {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  font-size: 1rem;
+}
+
+.pos-search-icon {
+  display: grid;
+  color: var(--muted);
+}
+
+.pos-search-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pos-search-help {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.pos-checkout-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.65fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.pos-cart,
+.pos-payment-panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+}
+
+.pos-cart {
+  min-height: 310px;
+  overflow: hidden;
+}
+
+.pos-cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pos-cart-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.pos-cart-head span,
+.pos-cart-empty span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.pos-total {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.pos-cart .cart-builder {
+  padding: 12px;
+}
+
+.pos-cart .cart-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 100px;
+  padding: 12px 14px;
+}
+
+.cart-quantity {
+  gap: 4px !important;
+}
+
+.cart-quantity span {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.cart-line-total {
+  text-align: right;
+}
+
+.pos-cart-empty {
+  min-height: 220px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.pos-payment-panel {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+  position: sticky;
+  top: 16px;
+}
+
+.pos-payment-panel label {
+  display: grid;
+  gap: 7px;
+}
+
+.pos-payment-panel .payment-split-grid {
+  margin-top: 12px;
+}
+
+.pos-charge-button {
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+.pos-charge-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
 .list-row,
 .priority-item,
 .top-row,
@@ -2682,6 +2887,14 @@ input, select { outline: none; }
   .topbar-right.is-compact .topbar-controls {
     grid-column: auto;
     grid-row: auto;
+  }
+
+  .pos-checkout-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-payment-panel {
+    position: static;
   }
 }
 
@@ -3089,9 +3302,38 @@ input, select { outline: none; }
 
   .feedback-banner {
     top: 12px;
-    right: 12px;
-    width: calc(100vw - 24px);
+    right: auto;
+    width: fit-content;
+    max-width: calc(100vw - 24px);
     font-size: 0.9rem;
+  }
+
+  .pos-sale-panel {
+    padding: 14px;
+  }
+
+  .pos-product-search {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 7px 8px 7px 11px;
+  }
+
+  .pos-product-search .primary-action {
+    width: auto;
+    min-width: 76px;
+    padding-inline: 11px;
+  }
+
+  .pos-search-help {
+    display: none;
+  }
+
+  .pos-cart .cart-line {
+    grid-template-columns: 1fr 86px;
+  }
+
+  .cart-line-total {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 
   .topbar-right.is-account-only {
