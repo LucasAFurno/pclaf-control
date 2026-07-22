@@ -30,9 +30,9 @@
 :root[data-theme='dark'] {
   --panel: #111111;
   --panel-soft: #171717;
-  --workspace: #0b0b0b;
-  --shell: #111111;
-  --shell-soft: #171717;
+  --workspace: #161616;
+  --shell: #0d0d0d;
+  --shell-soft: #121212;
   --line: rgba(255, 255, 255, 0.08);
   --text: #f3f4f6;
   --muted: #9ca3af;
@@ -43,7 +43,7 @@
   --shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
   --bg:
     radial-gradient(circle at top right, rgba(255, 59, 48, 0.1), transparent 16%),
-    linear-gradient(180deg, #050505 0%, #0b0b0b 100%);
+    linear-gradient(180deg, #121212 0%, #181818 100%);
 }
 
 * { box-sizing: border-box; }
