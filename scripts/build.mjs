@@ -1440,6 +1440,33 @@ const marketingStyles = `
       .marketing-footer-actions a:hover {
         color: #d51d22;
       }
+      .marketing-card h2,
+      .marketing-faq h2,
+      .marketing-faq summary,
+      .marketing-compare-copy h2,
+      .marketing-compare-table strong {
+        color: #181818;
+      }
+      .marketing-card p,
+      .marketing-faq p,
+      .marketing-compare-row,
+      .marketing-compare-copy p {
+        color: #625e57;
+      }
+      body:not([data-page="home"]) .marketing-grid .marketing-card,
+      body:not([data-page="home"]) .marketing-faq,
+      body:not([data-page="home"]) .marketing-compare-copy,
+      body:not([data-page="home"]) .marketing-compare-table {
+        border: 1px solid #ded9d0;
+        background: rgba(255, 255, 255, 0.56);
+      }
+      .marketing-compare-head {
+        color: #777169;
+        border-bottom-color: #ded9d0;
+      }
+      .marketing-compare-row {
+        border-bottom-color: #e6e1d9;
+      }
       .marketing-floating-whatsapp {
         padding: 13px 17px;
         border: 0;
