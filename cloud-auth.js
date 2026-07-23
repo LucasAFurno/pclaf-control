@@ -39,7 +39,10 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   const readPersistedSession = () => {
     try {
       const raw = globalThis.localStorage?.getItem(sessionStorageKey)
-      return raw ? normalizeSessionPayload(JSON.parse(raw)) : null
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      if (parsed?.sessionToken && parsed?.profile) return parsed
+      return normalizeSessionPayload(parsed)
     } catch {
       return null
     }

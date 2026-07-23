@@ -1661,7 +1661,7 @@ const productsView = (ui) => `
         </article>` : ''}
         ${stockAdjustmentFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-adjustment-form">Cerrar</button></div></div>
           <form class="form-grid compact-form" data-form="stock-adjustment">
-            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label class="stock-adjustment-product">Producto<div class="stock-adjustment-search"><span class="pos-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span><input type="search" name="productSearch" list="stock-adjustment-product-options" autocomplete="off" placeholder="Buscar producto, SKU o codigo de barras" aria-label="Buscar producto" required /><datalist id="stock-adjustment-product-options">${ui.scopedProducts.map((product) => `<option value="${escapeHtml(product.name)}">${escapeHtml(product.sku || product.barcode || '')} · stock ${product.scopedStock}</option>`).join('')}</datalist></div></label>
             <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
             <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
             <button type="submit">Aplicar ajuste</button>
@@ -1669,7 +1669,7 @@ const productsView = (ui) => `
         </article>` : ''}
         ${stockTransferFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-transfer-form">Cerrar</button></div></div>
           <form class="form-grid compact-form" data-form="stock-transfer">
-            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label class="stock-adjustment-product">Producto<div class="stock-adjustment-search"><span class="pos-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span><input type="search" name="productSearch" list="stock-transfer-product-options" autocomplete="off" placeholder="Buscar producto, SKU o codigo de barras" aria-label="Buscar producto" required /><datalist id="stock-transfer-product-options">${ui.scopedProducts.map((product) => `<option value="${escapeHtml(product.name)}">${escapeHtml(product.sku || product.barcode || '')} · stock ${product.scopedStock}</option>`).join('')}</datalist></div></label>
             <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
             <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
             <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
@@ -2634,11 +2634,101 @@ const render = () => {
   app.innerHTML = ui.cloudConnection.required && !ui.cloudConnection.enabled
     ? cloudActivationView(ui)
     : (ui.isAuthenticated ? renderApp(ui) : loginView(ui))
+  applyFieldGuidance()
   markBootComplete()
   bindEvents()
   clearFeedbackSoon()
   flushScrollTop()
   flushPendingScrollTarget()
+}
+
+const fieldExamples = {
+  identifier: 'Ej.: juan@comercio.com',
+  pin: 'Ej.: 123456 (minimo 6 caracteres)',
+  password: 'Ej.: 123456 (minimo 6 caracteres)',
+  passwordConfirm: 'Ej.: Repite la clave anterior',
+  commerceName: 'Ej.: Kiosco El Sol',
+  ownerName: 'Ej.: Juan Perez',
+  ownerEmail: 'Ej.: juan@kiosco.com',
+  fullName: 'Ej.: Juan Perez',
+  phone: 'Ej.: 11 4567-8901',
+  email: 'Ej.: cliente@correo.com',
+  balance: 'Ej.: 25000',
+  tag: 'Ej.: Mayorista, taller o mostrador',
+  sku: 'Ej.: BEB-500-001',
+  barcode: 'Ej.: 7791234567890',
+  stock: 'Ej.: 24',
+  salePrice: 'Ej.: 1500',
+  costPrice: 'Ej.: 900',
+  minStock: 'Ej.: 5',
+  category: 'Ej.: Bebidas',
+  quickAddCode: 'Ej.: Coca-Cola, SKU o codigo de barras',
+  discountAmount: 'Ej.: 500',
+  amountPaid: 'Ej.: 10000',
+  cashAmount: 'Ej.: 5000',
+  transferAmount: 'Ej.: 5000',
+  mercadoPagoAmount: 'Ej.: 5000',
+  accountAmount: 'Ej.: 5000',
+  openingAmount: 'Ej.: 20000',
+  countedAmount: 'Ej.: 18500',
+  amount: 'Ej.: 2500',
+  note: 'Ej.: Pago de flete, reposicion o referencia',
+  documentNumber: 'Ej.: FAC-000123',
+  quantity: 'Ej.: 12',
+  unitCost: 'Ej.: 850',
+  lastDelivery: 'Ej.: 23/07/2026',
+  contact: 'Ej.: Maria Gonzalez',
+  device: 'Ej.: Notebook Lenovo IdeaPad 3',
+  issue: 'Ej.: No enciende y requiere revisar el cargador',
+  number: 'Ej.: FAC-000123 o TCK-000045',
+  totalAmount: 'Ej.: 18500',
+  dueDate: 'Ej.: 30/07/2026',
+  legalName: 'Ej.: Juan Perez Servicios',
+  name: 'Ej.: Nombre del registro',
+  code: 'Ej.: CASA-01',
+  address: 'Ej.: Av. Corrientes 1234, CABA',
+  contactEmail: 'Ej.: contacto@proveedor.com',
+  supportOwner: 'Ej.: Lucas',
+  internalTag: 'Ej.: Kiosco, demo o referido',
+  commercialNote: 'Ej.: Llamar el viernes para ofrecer el plan Mostrador',
+  billingNote: 'Ej.: Abona del 1 al 5 de cada mes',
+  url: 'Ej.: https://xxxxx.supabase.co',
+  anonKey: 'Ej.: sb_publishable_xxx',
+  instanceKey: 'Ej.: mi-comercio',
+}
+
+const getFieldExample = (field, form) => {
+  const name = field.name || ''
+  if (name === 'name') {
+    const formType = form?.dataset.form || ''
+    if (formType === 'product') return 'Ej.: Coca-Cola 500 ml'
+    if (formType === 'supplier') return 'Ej.: Distribuidora Norte'
+    if (formType === 'branch') return 'Ej.: Casa Central'
+    if (formType === 'register') return 'Ej.: Caja mostrador 1'
+    if (formType === 'commerce-profile') return 'Ej.: Kiosco El Sol'
+  }
+  if (name === 'code') {
+    const formType = form?.dataset.form || ''
+    if (formType === 'register') return 'Ej.: CAJA-01'
+    if (formType === 'branch') return 'Ej.: CASA-01'
+  }
+  return fieldExamples[name] || ''
+}
+
+const applyFieldGuidance = () => {
+  for (const form of document.querySelectorAll('form[data-form]')) {
+    for (const field of form.querySelectorAll('input:not([type="hidden"]), textarea')) {
+      if (field.disabled) continue
+      const example = getFieldExample(field, form)
+      if (example && !field.value) field.placeholder = example
+      const label = field.closest('label')
+      if (!label || field.required || label.textContent.includes('(opcional)')) continue
+      const type = field.type || 'text'
+      if (['checkbox', 'radio', 'file'].includes(type)) continue
+      const textNode = [...label.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+      if (textNode) textNode.textContent = `${textNode.textContent.trim()} (opcional) `
+    }
+  }
 }
 
 const readSiteCloudConfig = async () => {
@@ -3095,11 +3185,37 @@ const handleSubmit = async (event) => {
     productFormOpen = false
   }
   if (kind === 'stock-adjustment') {
-    const result = store.createStockAdjustment({ productId: formData.get('productId'), quantity: formData.get('quantity'), note: formData.get('note') })
+    const search = String(formData.get('productSearch') || '').trim()
+    const normalizedSearch = search.toLowerCase()
+    const scopedProducts = getUiState().scopedProducts
+    const exactProduct = scopedProducts.find((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase() === normalizedSearch))
+    const matches = scopedProducts.filter((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearch)))
+    const product = exactProduct || (matches.length === 1 ? matches[0] : null)
+    if (!product) {
+      feedbackMessage = search ? 'Selecciona un producto de la lista o revisa la busqueda.' : 'Busca el producto que queres ajustar.'
+      render()
+      return
+    }
+    const result = store.createStockAdjustment({ productId: product.id, quantity: formData.get('quantity'), note: formData.get('note') })
     feedbackMessage = result.message || ''
   }
   if (kind === 'stock-transfer') {
-    const result = store.transferStock({ productId: formData.get('productId'), quantity: formData.get('quantity'), fromBranchId: formData.get('fromBranchId'), toBranchId: formData.get('toBranchId'), note: formData.get('note') })
+    const search = String(formData.get('productSearch') || '').trim()
+    const normalizedSearch = search.toLowerCase()
+    const scopedProducts = getUiState().scopedProducts
+    const exactProduct = scopedProducts.find((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase() === normalizedSearch))
+    const matches = scopedProducts.filter((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearch)))
+    const product = exactProduct || (matches.length === 1 ? matches[0] : null)
+    if (!product) {
+      feedbackMessage = search ? 'Selecciona un producto de la lista o revisa la busqueda.' : 'Busca el producto que queres transferir.'
+      render()
+      return
+    }
+    const result = store.transferStock({ productId: product.id, quantity: formData.get('quantity'), fromBranchId: formData.get('fromBranchId'), toBranchId: formData.get('toBranchId'), note: formData.get('note') })
     feedbackMessage = result.message || ''
   }
   if (kind === 'supplier') {

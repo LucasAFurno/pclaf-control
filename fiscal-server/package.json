@@ -7,9 +7,16 @@
   "scripts": {
     "dev": "node --env-file=.env --watch src/server.mjs",
     "start": "node --env-file=.env src/server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "test:notifications": "node scripts/notify-discord.mjs",
+    "notify:deploy": "node scripts/notify-deploy.mjs",
+    "backup:postgres": "node scripts/backup-postgres.mjs",
+    "notify:summary": "node scripts/notify-summary.mjs"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "7.21.0"
   }
 }

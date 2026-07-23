@@ -1,7 +1,8 @@
 import { createServer } from 'node:http'
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { config } from './config.mjs'
-import { audit, sendAlert } from './audit.mjs'
+import { audit } from './audit.mjs'
+import { notifyEvent } from './notifications.mjs'
 import { EncryptedFiscalStore } from './encrypted-store.mjs'
 import { SupabaseEncryptedFiscalStore } from './supabase-encrypted-store.mjs'
 import { createCsr } from './openssl.mjs'
@@ -76,6 +77,7 @@ const idempotencyKey = (value) => {
 }
 
 const requestHash = (value) => createHash('sha256').update(String(value || ''), 'utf8').digest('hex')
+const fiscalEvent = (destination, type, severity, title, details = {}) => notifyEvent({ destination, type, severity, title, source: 'fiscal-server', ...details })
 
 const fiscalRequestXml = (value) => {
   if (typeof value !== 'string' || value.length < 20 || value.length > 256 * 1024 || !value.includes('<FeCAEReq>')) {
@@ -131,6 +133,7 @@ const handle = async (request, response) => {
       const csrPem = await createCsr({ openSslBin: config.openSslBin, privateKeyPem: record.privateKeyPem, subject })
       await store.update(route.tenantId, (current) => ({ ...current, csrCreatedAt: new Date().toISOString() }))
       audit('certificate_request_created', { tenantId: route.tenantId })
+      fiscalEvent('arca', 'CERTIFICATE_REQUEST_CREATED', 'info', 'Solicitud de certificado creada', { entityId: route.tenantId })
       return json(response, 201, { tenantId: route.tenantId, csrPem, status: 'certificate_requested' })
     }
     if (route.action === 'certificate') {
@@ -138,12 +141,15 @@ const handle = async (request, response) => {
       if (!certificatePem.includes('BEGIN CERTIFICATE') || certificatePem.length > 32_000) throw new Error('A PEM certificate is required')
       const record = await store.update(route.tenantId, (current) => ({ ...current, certificatePem, status: 'certificate_uploaded' }))
       audit('certificate_uploaded', { tenantId: route.tenantId })
+      fiscalEvent('arca', 'CERTIFICATE_UPLOADED', 'info', 'Certificado cargado', { entityId: route.tenantId })
+      fiscalEvent('seguridad', 'FISCAL_CERTIFICATE_REPLACED', 'warning', 'Certificado fiscal reemplazado', { entityId: route.tenantId })
       return json(response, 200, publicTenant(record))
     }
     if (route.action === 'verify') {
       const result = await arca.verify({ tenantId: route.tenantId, cuit: cuit(body.cuit), pointOfSale: pointOfSale(body.pointOfSale) })
       const record = await store.update(route.tenantId, (current) => ({ ...current, status: 'active', fiscal: { cuit: cuit(body.cuit), pointOfSale: pointOfSale(body.pointOfSale) }, lastVerification: { status: 'connected', checkedAt: new Date().toISOString(), ...result } }))
       audit('arca_connection_verified', { tenantId: route.tenantId, pointOfSale: result.pointOfSale })
+      fiscalEvent('arca', 'ARCA_CONNECTION_VERIFIED', 'info', 'Autenticación WSAA y conexión WSFEv1 exitosa', { entityId: route.tenantId, metadata: { puntoDeVenta: result.pointOfSale } })
       return json(response, 200, publicTenant(record))
     }
     if (route.action === 'invoices') {
@@ -176,6 +182,7 @@ const handle = async (request, response) => {
         }
         if (reconciled.status === 'rejected') {
           await store.transitionInvoice({ invoiceId: claim.id, targetState: 'rejected', encryptedResponse: store.encrypt({ responseXml: reconciled.responseXml }), errorCode: 'arca_rejected_reconciled', arcaLastNumber: reconciled.lastNumber || null })
+          fiscalEvent('arca', 'CAE_REJECTED', 'warning', 'CAE rechazado', { entityId: claim.id, metadata: { comercio: route.tenantId.slice(0, 8), tipoComprobante: context.receiptType, puntoDeVenta: context.pointOfSale, numeroComprobante: context.receiptNumber, motivo: 'Rechazado durante conciliación' } })
           return json(response, 422, { error: 'arca_rejected', invoiceId: claim.id, reconciled: true })
         }
         if (claim.state === 'pending') await store.transitionInvoice({ invoiceId: claim.id, targetState: 'uncertain', errorCode: 'pending_reconciliation', arcaLastNumber: reconciled.lastNumber || null })
@@ -187,12 +194,16 @@ const handle = async (request, response) => {
         const responseXml = await arca.requestCae({ tenantId: route.tenantId, cuit: record.fiscal.cuit, requestXml: xml })
         if (String(readXmlTag(responseXml, 'Resultado') || '').toUpperCase() !== 'A') {
           await store.transitionInvoice({ invoiceId: claim.id, targetState: 'rejected', encryptedResponse: store.encrypt({ responseXml }), errorCode: 'arca_rejected' })
+          fiscalEvent('arca', 'CAE_REJECTED', 'warning', 'CAE rechazado', { entityId: claim.id, metadata: { comercio: route.tenantId.slice(0, 8), tipoComprobante: context.receiptType, puntoDeVenta: context.pointOfSale, numeroComprobante: context.receiptNumber } })
           return json(response, 422, { error: 'arca_rejected', invoiceId: claim.id })
         }
         await store.transitionInvoice({ invoiceId: claim.id, targetState: 'authorized', encryptedResponse: store.encrypt({ responseXml }) })
         audit('invoice_authorization_requested', { tenantId: route.tenantId })
+        fiscalEvent('arca', 'CAE_APPROVED', 'info', 'CAE aprobado', { entityId: claim.id, metadata: { comercio: route.tenantId.slice(0, 8), tipoComprobante: context.receiptType, puntoDeVenta: context.pointOfSale, numeroComprobante: context.receiptNumber } })
         return json(response, 200, { responseXml, replayed: false })
-      } catch {
+      } catch (error) {
+        fiscalEvent('arca', 'ARCA_TRANSPORT_FAILED', 'critical', 'ARCA no respondió al solicitar CAE', { entityId: claim.id, metadata: { comercio: route.tenantId.slice(0, 8), detalle: error.message } })
+        fiscalEvent('alertas', 'FISCAL_BACKEND_UNAVAILABLE', 'critical', 'Backend fiscal requiere intervención', { entityId: claim.id, metadata: { detalle: 'No se pudo confirmar la autorización ARCA' } })
         const reconciled = await arca.reconcileAuthorization({ tenantId: route.tenantId, cuit: record.fiscal.cuit, pointOfSale: context.pointOfSale, receiptType: context.receiptType, receiptNumber: context.receiptNumber }).catch(() => ({ status: 'unknown' }))
         if (reconciled.status === 'authorized') {
           await store.transitionInvoice({ invoiceId: claim.id, targetState: 'authorized', encryptedResponse: store.encrypt({ responseXml: reconciled.responseXml }) })
@@ -205,13 +216,13 @@ const handle = async (request, response) => {
     return json(response, 404, { error: 'not_found' })
   } catch (error) {
     audit('fiscal_request_failed', { tenantId: route.tenantId, action: route.action, message: error.message })
-    await sendAlert(config.alertWebhookUrl, 'fiscal_request_failed', { tenantId: route.tenantId, action: route.action })
+    fiscalEvent(route.action === 'invoices' || route.action === 'verify' ? 'arca' : 'logs', 'FISCAL_REQUEST_FAILED', 'warning', 'Error fiscal controlado', { entityId: route.tenantId, metadata: { accion: route.action, detalle: error.message } })
     return json(response, 422, { error: 'fiscal_request_failed', message: error.message })
   }
 }
 
-const server = createServer((request, response) => { handle(request, response).catch((error) => { audit('unhandled_request_error', { message: error.message }); json(response, 500, { error: 'internal_error' }) }) })
-server.listen(config.port, config.host, () => audit('server_started', { port: config.port, host: config.host, environment: config.environment }))
+const server = createServer((request, response) => { handle(request, response).catch((error) => { audit('unhandled_request_error', { message: error.message }); fiscalEvent('alertas', 'UNHANDLED_REQUEST_ERROR', 'critical', 'Error interno no controlado', { metadata: { detalle: error.message } }); json(response, 500, { error: 'internal_error' }) }) })
+server.listen(config.port, config.host, () => { audit('server_started', { port: config.port, host: config.host, environment: config.environment }); fiscalEvent('general', 'SERVICE_STARTED', 'info', 'Servicio fiscal iniciado') })
 
 const shutdown = (signal) => server.close(() => {
   audit('server_stopped', { signal })
