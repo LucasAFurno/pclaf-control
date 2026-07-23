@@ -1,0 +1,16 @@
+services:
+  fiscal-service:
+    build: .
+    env_file: .env
+    environment:
+      FISCAL_HOST: 0.0.0.0
+      FISCAL_DATA_DIR: /var/lib/pclaf-fiscal
+    ports:
+      # Solo para desarrollo local. En produccion usar red privada/API gateway interno.
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - fiscal_data:/var/lib/pclaf-fiscal
+    restart: unless-stopped
+
+volumes:
+  fiscal_data:

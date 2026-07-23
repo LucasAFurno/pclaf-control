@@ -1,0 +1,5 @@
+.env
+.fiscal-data
+node_modules
+test
+README.md

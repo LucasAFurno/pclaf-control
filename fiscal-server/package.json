@@ -1,0 +1,15 @@
+{
+  "name": "pclaf-fiscal-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Servicio privado de facturacion ARCA para PCLAF Control.",
+  "scripts": {
+    "dev": "node --env-file=.env --watch src/server.mjs",
+    "start": "node --env-file=.env src/server.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
