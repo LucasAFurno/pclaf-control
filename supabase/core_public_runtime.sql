@@ -30,6 +30,19 @@ create table if not exists public.control_user_sessions (
 create index if not exists idx_control_user_sessions_user_id on public.control_user_sessions(user_id);
 create index if not exists idx_control_user_sessions_commerce_id on public.control_user_sessions(commerce_id);
 
+-- Los intentos se guardan en el servidor para que el limite no pueda evitarse
+-- borrando los datos locales o usando otro navegador.
+create table if not exists public.control_user_login_attempts (
+  user_id uuid primary key references public.control_users(id) on delete cascade,
+  failed_attempts smallint not null default 0 check (failed_attempts between 0 and 3),
+  last_failed_at timestamptz not null default now(),
+  locked_until timestamptz
+);
+
+create index if not exists idx_control_user_login_attempts_locked_until
+  on public.control_user_login_attempts(locked_until)
+  where locked_until is not null;
+
 create table if not exists public.control_user_password_reset_requests (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.control_users(id) on delete cascade,
@@ -439,6 +452,7 @@ declare
   v_match_user_id uuid;
   v_match_membership_id uuid;
   v_token uuid;
+  v_login_attempt public.control_user_login_attempts;
 begin
   if v_identifier = '' then
     raise exception 'identifier_required';
@@ -515,9 +529,52 @@ begin
     raise exception 'user_inactive';
   end if;
 
-  if v_user.pin_hash is null or extensions.crypt(coalesce(p_pin, ''), v_user.pin_hash) <> v_user.pin_hash then
-    raise exception 'invalid_pin';
+  select *
+  into v_login_attempt
+  from public.control_user_login_attempts
+  where user_id = v_user.id
+  for update;
+
+  if v_login_attempt.locked_until > now() then
+    return jsonb_build_object('ok', false, 'error', 'login_locked');
   end if;
+
+  -- Al terminar el bloqueo, el usuario vuelve a contar desde cero.
+  if v_login_attempt.locked_until is not null then
+    update public.control_user_login_attempts
+    set failed_attempts = 0, locked_until = null
+    where user_id = v_user.id;
+  end if;
+
+  if v_user.pin_hash is null or extensions.crypt(coalesce(p_pin, ''), v_user.pin_hash) <> v_user.pin_hash then
+    insert into public.control_user_login_attempts as attempt (
+      user_id,
+      failed_attempts,
+      last_failed_at,
+      locked_until
+    )
+    values (v_user.id, 1, now(), null)
+    on conflict (user_id) do update
+    set
+      failed_attempts = attempt.failed_attempts + 1,
+      last_failed_at = now(),
+      locked_until = case
+        when attempt.failed_attempts + 1 >= 3 then now() + interval '15 minutes'
+        else null
+      end
+    returning * into v_login_attempt;
+
+    if v_login_attempt.locked_until is not null then
+      return jsonb_build_object('ok', false, 'error', 'login_locked');
+    end if;
+
+    return jsonb_build_object(
+      'ok', false,
+      'error', format('invalid_pin_attempts_remaining_%s', 3 - v_login_attempt.failed_attempts)
+    );
+  end if;
+
+  delete from public.control_user_login_attempts where user_id = v_user.id;
 
   insert into public.control_user_sessions (
     token,
@@ -1436,6 +1493,7 @@ end;
 $$;
 
 revoke all on public.control_user_sessions from public;
+revoke all on public.control_user_login_attempts from public, anon, authenticated;
 
 revoke all on function public.app_build_public_session_payload(uuid, uuid, uuid) from public;
 revoke all on function public.app_get_setup_status(text) from public;

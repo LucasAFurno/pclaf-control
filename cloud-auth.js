@@ -132,12 +132,17 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   }
 
   const signIn = async ({ instanceKey: requestedInstanceKey, identifier, pin }) => {
-    const payload = await rpc('app_public_sign_in', {
-      p_instance_key: normalizeOptionalInstanceKey(requestedInstanceKey),
-      p_identifier: identifier,
-      p_pin: pin,
-    })
-    return setSession(payload)
+    let deviceId = globalThis.localStorage?.getItem('pclaf-control-device-id')
+    if (!deviceId) { deviceId = crypto.randomUUID(); globalThis.localStorage?.setItem('pclaf-control-device-id', deviceId) }
+    const widget = globalThis.turnstile
+    const turnstileToken = widget?.getResponse?.('.cf-turnstile') || ''
+    const response = await fetch(`${baseUrl}/functions/v1/auth-gateway`, { method: 'POST', headers: buildHeaders(publishableKey), body: JSON.stringify({ instanceKey: normalizeOptionalInstanceKey(requestedInstanceKey), identifier, pin, deviceId, turnstileToken }) })
+    const payload = await safeJson(response)
+    if (!response.ok) throw new Error(payload?.error || 'invalid_credentials')
+    if (payload?.error) throw new Error(payload.error)
+    const nextSession = setSession(payload)
+    if (!nextSession) throw new Error('signin_failed')
+    return nextSession
   }
 
   const restoreSession = async () => {
@@ -174,15 +179,9 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
 
   const sendRecoveryMagicLink = async ({ email, redirectTo }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase()
-    await requestPasswordReset({ email: normalizedEmail })
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: {
-        emailRedirectTo: redirectTo,
-        shouldCreateUser: true,
-      },
-    })
-    if (error) throw error
+    const token = globalThis.turnstile?.getResponse?.('.cf-turnstile') || ''
+    const response = await fetch(`${baseUrl}/functions/v1/auth-gateway`, { method: 'POST', headers: buildHeaders(publishableKey), body: JSON.stringify({ mode: 'recovery', email: normalizedEmail, redirectTo, turnstileToken: token }) })
+    if (!response.ok) throw new Error('access_denied')
     persistRecovery({ email: normalizedEmail, requestedAt: new Date().toISOString() })
     return {
       ok: true,

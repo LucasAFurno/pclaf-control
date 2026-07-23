@@ -1,0 +1,36 @@
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } })
+const cors = (request: Request) => ({ 'access-control-allow-origin': request.headers.get('origin') || '*', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, apikey, authorization' })
+const digest = async (value: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))).map((byte) => byte.toString(16).padStart(2, '0')).join('')
+
+Deno.serve(async (request) => {
+  const headers = cors(request)
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+  if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, headers)
+  try {
+    const body = await request.json()
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    const secret = Deno.env.get('TURNSTILE_SECRET_KEY') || ''
+    const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (!supabaseUrl || !serviceKey || !secret) return json({ error: 'security_not_configured' }, 503, headers)
+    const verify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ secret, response: String(body.turnstileToken || ''), remoteip: ip }) }).then((response) => response.json())
+    if (!verify.success || verify.action !== 'login') return json({ error: 'access_denied' }, 403, headers)
+    const key = await digest(`${Deno.env.get('AUTH_RATE_LIMIT_PEPPER') || ''}:${ip}`)
+    const rpc = async (name: string, payload: object) => fetch(`${supabaseUrl}/rest/v1/rpc/${name}`, { method: 'POST', headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}`, 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    const mode = body.mode === 'recovery' ? 'recovery' : 'login'
+    const limited = await rpc('app_auth_rate_limit', { p_key: key, p_action: mode }).then((response) => response.json())
+    if (!limited?.allowed) return json({ error: 'access_denied' }, 429, headers)
+    if (mode === 'recovery') {
+      const email = String(body.email || '').trim().toLowerCase()
+      if (email) await fetch(`${supabaseUrl}/auth/v1/otp`, { method: 'POST', headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}`, 'content-type': 'application/json' }, body: JSON.stringify({ email, create_user: false, options: { email_redirect_to: String(body.redirectTo || '') } }) })
+      return json({ ok: true, message: 'Si existe una cuenta con ese correo, te enviamos un enlace para recuperar el acceso.' }, 200, headers)
+    }
+    const deviceHash = await digest(String(body.deviceId || 'unknown-device'))
+    const login = await rpc('app_public_sign_in', { p_instance_key: body.instanceKey || '', p_identifier: body.identifier || '', p_pin: body.pin || '', p_device_hash: deviceHash }).then((response) => response.json())
+    if (!login?.session_token) return json({ error: 'invalid_credentials' }, 401, headers)
+    if (login.new_device && Deno.env.get('RESEND_API_KEY')) {
+      await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`, 'content-type': 'application/json' }, body: JSON.stringify({ from: Deno.env.get('SECURITY_EMAIL_FROM') || 'PCLAF Control <security@pclaf.com>', to: [login.profile?.email], subject: 'Nuevo inicio de sesión en PCLAF Control', text: `Detectamos un nuevo dispositivo iniciando sesión en tu cuenta el ${new Date().toLocaleString('es-AR')}. Si no fuiste vos, recuperá tu clave inmediatamente.` }) })
+    }
+    return json(login, 200, headers)
+  } catch { return json({ error: 'access_denied' }, 400, headers) }
+})

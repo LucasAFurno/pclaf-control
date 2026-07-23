@@ -253,8 +253,11 @@ const mapPublicAuthError = (message, context = 'login') => {
   const normalized = String(message || '').trim().toLowerCase()
   if (!normalized) return context === 'signup' ? 'No se pudo crear la cuenta.' : 'No se pudo iniciar sesion.'
   const messages = {
-    user_not_found: 'No encontramos una cuenta con ese correo.',
+    user_not_found: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
+    invalid_credentials: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
+    access_denied: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
     invalid_pin: 'La clave no coincide. Pruebala de nuevo o recupera el acceso.',
+    login_locked: 'Bloqueamos el acceso por 15 minutos tras 3 claves incorrectas. Luego puedes volver a intentarlo o recuperar tu clave.',
     owner_email_already_exists: 'Ya existe una cuenta con ese correo. Puedes entrar o recuperar la clave.',
     login_name_already_exists: 'Ese acceso ya existe. Prueba con otro correo o inicia sesion.',
     instance_already_initialized: 'Ese comercio ya existe. Inicia sesion con la cuenta principal.',
@@ -278,6 +281,11 @@ const mapPublicAuthError = (message, context = 'login') => {
     'duplicate key value violates unique constraint "documents_commerce_id_document_number_key"': 'Ese numero de comprobante ya existe. Usa otro o dejalo vacio para autogenerarlo.',
     'column "status" of relation "branches" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
     'column "status" of relation "registers" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
+  }
+  const remainingMatch = normalized.match(/^invalid_pin_attempts_remaining_(\d+)$/)
+  if (remainingMatch) {
+    const remaining = Number(remainingMatch[1])
+    return `La clave no coincide. ${remaining} intento${remaining === 1 ? '' : 's'} restante${remaining === 1 ? '' : 's'} antes del bloqueo temporal.`
   }
   return messages[normalized] || message
 }
@@ -866,6 +874,7 @@ const standaloneAuthView = (ui) => `
           <form class="login-form" data-form="login" autocomplete="on">
             <label>Email<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
+            <div class="cf-turnstile" data-sitekey="${window.__pclafTurnstileSiteKey || ''}" data-action="login" data-size="flexible"></div>
             ${loginMessage ? `<p class="login-error" role="alert">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
@@ -2743,6 +2752,7 @@ const readSiteCloudConfig = async () => {
 
 const bootstrap = async () => {
   const initialCloudConfig = await readSiteCloudConfig()
+  window.__pclafTurnstileSiteKey = String(initialCloudConfig?.turnstileSiteKey || '')
   authViewMode = getRequestedPublicView() || (window.__pclafAppEntry ? 'login' : authViewMode)
   if (!window.pclafDesktop) {
     safeStorage.removeItem(dataStorageKey)
