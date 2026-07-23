@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rm, writeFile, copyFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -9,7 +10,6 @@ const serverDir = path.join(dist, 'server')
 const buildTarget = (process.argv[2] || process.env.PCLAF_ENV || 'prod').toLowerCase()
 const isDevBuild = buildTarget === 'dev'
 const selectedCloudConfigFile = isDevBuild ? 'cloud-config.dev.json' : 'cloud-config.prod.json'
-const assetVersion = '20260723a'
 const siteOrigin = 'https://www.pclafcontrol.com.ar'
 const appPath = '/app/'
 const supportUrl = 'https://wa.me/5491135708345?text=Hola%20PCLAF%2C%20quiero%20informacion%20de%20PCLAF%20Control.'
@@ -22,6 +22,7 @@ const cloudAuthJs = await readFile(path.join(root, 'site', 'cloud-auth.js'), 'ut
 const cloudCoreJs = await readFile(path.join(root, 'site', 'cloud-core.js'), 'utf8')
 const stylesCss = await readFile(path.join(root, 'site', 'styles.css'), 'utf8')
 const cloudConfigJson = await readFile(path.join(root, 'site', selectedCloudConfigFile), 'utf8')
+const assetVersion = createHash('sha256').update(`${clientJs}${cloudAuthJs}${stylesCss}${cloudConfigJson}`).digest('hex').slice(0, 12)
 const faviconSvg = await readFile(path.join(root, 'public', 'favicon.svg'), 'utf8')
 const cnameFile = await readFile(path.join(root, 'public', 'CNAME'), 'utf8')
 
