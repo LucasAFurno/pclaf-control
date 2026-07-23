@@ -113,7 +113,14 @@ let hardwareScanListenerBound = false
 let feedbackTimer = null
 let pendingScrollTop = false
 let accountAlertsOpen = false
+let supportMenuOpen = false
 let settingsPanelOpen = ''
+let arcaSetupStep = 1
+let arcaCsrGenerated = false
+let arcaCertificateName = ''
+let arcaVerificationState = 'idle'
+let arcaConnectionStatus = 'attention'
+let arcaFiscal = { cuit: '', legalName: '', pointOfSale: '', csrPem: '', certificatePem: '' }
 let platformCommerceSelectedId = ''
 let platformCommerceFilter = 'all'
 let platformSupportFilter = 'all'
@@ -121,6 +128,21 @@ let platformSearchQuery = ''
 let pendingScrollSelector = ''
 let userDraftRoleId = 'role-cashier'
 const pageSizeOptions = [10, 20, 50, 100, 1000]
+
+const arcaTenantId = () => `arca-${String(commerceContext?.commerce_id || '').toLowerCase()}`
+const callArca = async (action, payload = {}) => {
+  const session = authManager?.getSession()
+  const cloud = store?.getCloudConnection()
+  if (!session?.sessionToken || !cloud?.url || !commerceContext?.commerce_id) throw new Error('Inicia sesion como propietario para configurar ARCA.')
+  const response = await fetch(`${String(cloud.url).replace(/\/$/, '')}/functions/v1/fiscal-gateway`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-pclaf-session': session.sessionToken },
+    body: JSON.stringify({ action, tenantId: arcaTenantId(), ...payload }),
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(result?.message || result?.error || `ARCA no respondio (${response.status})`)
+  return result
+}
 const listPagination = {
   clientes: { page: 1, pageSize: 20 },
   ventas: { page: 1, pageSize: 20 },
@@ -2385,6 +2407,7 @@ const settingsViewV2 = (ui) => `
         : ui.snapshot.meta.syncStatus === 'pending'
           ? 'Pendiente'
           : ui.snapshot.meta.syncStatus || 'Sin conexion'
+    const arcaConnected = arcaConnectionStatus === 'connected'
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Ajustes</p><h2>Cuenta y configuracion</h2></div><div class="panel-inline-stats section-inline-stats">
       <span class="panel-inline-stat"><strong>${ui.user.fullName}</strong><span>${ui.role.name}</span></span>
@@ -2406,6 +2429,7 @@ const settingsViewV2 = (ui) => `
         <button type="button" class="settings-section-trigger ${settingsPanelOpen === 'commerce' ? 'is-active' : ''}" data-settings-panel="commerce" aria-expanded="${settingsPanelOpen === 'commerce' ? 'true' : 'false'}"><strong>Datos del comercio</strong><span>Nombre, razon social y propietario</span></button>
         <button type="button" class="settings-section-trigger ${settingsPanelOpen === 'users' ? 'is-active' : ''}" data-settings-panel="users" aria-expanded="${settingsPanelOpen === 'users' ? 'true' : 'false'}"><strong>Usuarios y permisos</strong><span>${ui.enrichedUsers.length} cuentas del negocio</span></button>
         <button type="button" class="settings-section-trigger ${settingsPanelOpen === 'modules' ? 'is-active' : ''}" data-settings-panel="modules" aria-expanded="${settingsPanelOpen === 'modules' ? 'true' : 'false'}"><strong>Plan y modulos</strong><span>${ui.snapshot.business.enabledModules.length} modulos activos</span></button>
+        <button type="button" class="settings-section-trigger arca-status-trigger ${arcaConnected ? 'is-connected' : 'is-attention'} ${settingsPanelOpen === 'arca' ? 'is-active' : ''}" data-settings-panel="arca" aria-expanded="${settingsPanelOpen === 'arca' ? 'true' : 'false'}"><strong>Facturacion ARCA <i class="arca-status-dot" aria-hidden="true"></i></strong><span>${arcaConnected ? 'Conexion fiscal activa' : 'Requiere configuracion o verificacion'}</span></button>
       </nav>
       ${settingsPanelOpen === 'commerce' ? `<article class="panel settings-expand-panel" data-settings-content="commerce">
         <div class="panel-head"><div><h3>Comercio activo</h3><p>Datos principales del negocio y acceso general</p></div></div>
@@ -2456,6 +2480,15 @@ const settingsViewV2 = (ui) => `
           </div>
           <div class="settings-audit-column"><div class="panel-note"><strong>Actividad reciente</strong><span>Ultimos cambios del comercio.</span></div><div class="timeline-list compact-timeline">${ui.enrichedAudit.slice(0, 8).map((log) => `<div class="timeline-item"><strong>${log.action}</strong><p>${log.actorName} - ${log.entityType}${log.entityId ? ` #${String(log.entityId).slice(0, 8)}` : ''}</p><span>${log.createdAt.slice(0, 16).replace('T', ' ')}</span></div>`).join('') || '<p class="empty-state">Todavia no hay actividad registrada.</p>'}</div></div>
         </div>
+      </article>` : ''}
+      ${settingsPanelOpen === 'arca' ? `<article class="panel settings-expand-panel" data-settings-content="arca"><div class="panel-head"><div><h3>${arcaConnected ? 'Facturacion ARCA activa' : 'Activar facturacion ARCA'}</h3><p>Configuracion guiada y segura para emitir comprobantes electronicos</p></div><span class="badge ${arcaConnected ? 'is-success' : 'is-warning'}">${arcaConnected ? 'Conexion activa' : 'Demo visual'}</span></div>
+        <div class="info-strip ${arcaConnected ? 'is-success' : 'is-warning'}"><strong>${arcaConnected ? 'ARCA conectada y lista para facturar' : 'Configuracion fiscal pendiente'}</strong><span>${arcaConnected ? 'Certificado, WSAA y punto de venta validados. PCLAF puede emitir comprobantes con CAE.' : 'Los datos se envian al servicio fiscal privado de PCLAF. Tu Clave Fiscal nunca se solicita.'}</span></div>
+        <div class="arca-steps" aria-label="Progreso de activacion">${['Datos fiscales', 'Certificado', 'Cuenta ARCA', 'Verificacion'].map((label, index) => `<span class="${arcaSetupStep === index + 1 ? 'is-active' : arcaSetupStep > index + 1 ? 'is-complete' : ''}"><i>${arcaSetupStep > index + 1 ? '✓' : index + 1}</i>${label}</span>`).join('')}</div>
+        ${arcaSetupStep === 1 ? `<div class="arca-step-content"><div class="panel-head"><div><h3>Datos fiscales del comercio</h3><p>Se usan para crear el certificado y verificar el punto de venta.</p></div></div><div class="form-grid compact-form settings-wide-form"><label>CUIT<input name="arca-cuit" inputmode="numeric" value="${arcaFiscal.cuit}" placeholder="20-12345678-9" /></label><label class="full-span">Razon social<input name="arca-legal-name" value="${arcaFiscal.legalName || ui.snapshot.business.organization || ui.commerceContext?.legal_name || ui.commerceContext?.commerce_name || ''}" placeholder="Nombre fiscal del comercio" /></label><label>Punto de venta Web Services<input name="arca-point-sale" inputmode="numeric" value="${arcaFiscal.pointOfSale}" placeholder="Ej. 0002" /></label></div><div class="settings-actions"><button type="button" class="primary-action" data-action="arca-save-fiscal">Continuar con certificado</button></div></div>` : ''}
+        ${arcaSetupStep === 2 ? `<div class="arca-step-content"><div class="panel-head"><div><h3>Certificado tecnico</h3><p>PCLAF genera y guarda la clave privada cifrada; solo descargás la solicitud CSR.</p></div></div><div class="timeline-list compact-timeline"><div class="timeline-item"><strong>Solicitud de certificado (CSR)</strong><p>${arcaCsrGenerated ? 'Lista para descargar y presentar en ARCA.' : 'Generala para asociarla al servicio de Facturacion Electronica.'}</p></div></div><div class="settings-actions">${arcaCsrGenerated ? '<button type="button" class="primary-action" data-action="arca-download-csr">Descargar solicitud CSR</button><button type="button" class="ghost-action" data-action="arca-next-step">Continuar a ARCA</button>' : '<button type="button" class="primary-action" data-action="arca-generate-csr">Generar solicitud de certificado</button>'}<button type="button" class="ghost-action" data-action="arca-previous-step">Volver</button></div></div>` : ''}
+        ${arcaSetupStep === 3 ? `<div class="arca-step-content"><div class="panel-head"><div><h3>Completa la autorizacion en ARCA</h3><p>Este es el unico paso que debe realizar el titular o contador del comercio.</p></div></div><div class="timeline-list compact-timeline"><div class="timeline-item"><strong>1. Habilita el punto de venta</strong><p>Crea un punto de venta exclusivo para Web Services.</p></div><div class="timeline-item"><strong>2. Autoriza el certificado</strong><p>Asocialo al servicio Facturacion Electronica desde tu cuenta ARCA.</p></div><div class="timeline-item"><strong>3. Volve a PCLAF</strong><p>Subi el certificado emitido por ARCA. No subas claves ni compartas tu Clave Fiscal.</p></div></div><label class="arca-upload">Certificado de ARCA (.crt/.pem)<input type="file" accept=".crt,.cer,.pem" data-arca-certificate /><span>${arcaCertificateName || 'Seleccionar certificado'}</span></label><div class="settings-actions"><button type="button" class="primary-action" data-action="open-arca-guide">Abrir guia oficial de ARCA</button><button type="button" class="ghost-action" data-action="arca-next-step" ${arcaCertificateName ? '' : 'disabled'}>Continuar a verificacion</button><button type="button" class="ghost-action" data-action="arca-previous-step">Volver</button></div></div>` : ''}
+        ${arcaSetupStep === 4 ? `<div class="arca-step-content"><div class="panel-head"><div><h3>Verificar y activar</h3><p>PCLAF comprueba certificado, WSAA y el punto de venta en homologacion.</p></div></div><div class="arca-verification ${arcaVerificationState}"><strong>${arcaVerificationState === 'verified' ? 'Conexion lista para facturar' : arcaVerificationState === 'checking' ? 'Verificando configuracion…' : 'Listo para verificar'}</strong><span>${arcaVerificationState === 'verified' ? 'La facturacion ARCA de homologacion esta activa.' : 'La verificacion consulta ARCA; no emite ninguna factura.'}</span></div><div class="settings-actions"><button type="button" class="primary-action ${arcaVerificationState === 'verified' ? 'is-success' : ''}" data-action="arca-verify">${arcaVerificationState === 'verified' ? 'Conexion ARCA activa' : 'Verificar y activar'}</button><button type="button" class="ghost-action" data-action="arca-previous-step">Volver</button></div></div>` : ''}
+        <div class="panel-note"><strong>Activacion autoservicio</strong><span>Completa los cuatro pasos de esta pantalla. El soporte general de PCLAF queda disponible por separado en el menu Soporte.</span></div>
       </article>` : ''}
     </section>
   </section>
@@ -2543,7 +2576,7 @@ const renderApp = (ui) => {
           <img class="brand-logo" src="/pclaf-logo.png" alt="PCLAF" />
         </div>
         <nav class="sidebar-nav">${allowedNav.map((item) => `<button class="nav-square ${activeSection === item.id ? 'is-active' : ''}" type="button" data-section="${item.id}" title="${item.label}" aria-label="${item.label}"><span class="nav-icon">${item.icon}</span><span class="nav-label">${item.label}</span></button>`).join('')}</nav>
-        <div class="sidebar-support"><button class="nav-square support-square" type="button" data-action="open-support" title="Soporte" aria-label="Soporte"><span class="nav-icon">${icon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8.5 9h7"/><path d="M8.5 13h4"/>')}</span><span class="nav-label">Soporte</span></button></div>
+        <div class="sidebar-support"><div class="support-menu-wrap"><button class="nav-square support-square ${supportMenuOpen ? 'is-active' : ''}" type="button" data-action="toggle-support-menu" title="Soporte" aria-label="Abrir opciones de soporte" aria-expanded="${supportMenuOpen}"><span class="nav-icon">${icon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8.5 9h7"/><path d="M8.5 13h4"/>')}</span><span class="nav-label">Soporte</span></button>${supportMenuOpen ? `<div class="support-menu" role="menu"><button type="button" data-action="open-arca-setup" role="menuitem"><strong>Facturacion ARCA</strong><span>Configura la conexion fiscal</span></button><button type="button" data-action="open-support" role="menuitem"><strong>Soporte general</strong><span>Habla con PCLAF por WhatsApp</span></button></div>` : ''}</div></div>
       </aside>
       <div class="workspace">
         <header class="topbar">
@@ -3757,9 +3790,55 @@ const bindEvents = () => {
   }
   for (const supportButton of document.querySelectorAll('[data-action="open-support"]')) {
     supportButton.addEventListener('click', () => {
+      supportMenuOpen = false
       window.open(supportUrl, '_blank', 'noopener,noreferrer')
     })
   }
+  for (const supportMenuButton of document.querySelectorAll('[data-action="toggle-support-menu"]')) {
+    supportMenuButton.addEventListener('click', () => { supportMenuOpen = !supportMenuOpen; render() })
+  }
+  for (const arcaSetupButton of document.querySelectorAll('[data-action="open-arca-setup"]')) {
+    arcaSetupButton.addEventListener('click', () => {
+      supportMenuOpen = false
+      activeSection = 'ajustes'
+      settingsPanelOpen = 'arca'
+      requestScrollTop()
+      render()
+    })
+  }
+  for (const arcaGuideButton of document.querySelectorAll('[data-action="open-arca-guide"]')) {
+    arcaGuideButton.addEventListener('click', () => {
+      window.open('https://www.arca.gob.ar/fe/ayuda/documentos/AccionesarealizarparaconsumirunWebservicedeFacturaElectr.pdf', '_blank', 'noopener,noreferrer')
+    })
+  }
+  for (const button of document.querySelectorAll('[data-action="arca-previous-step"]')) button.addEventListener('click', () => { arcaSetupStep = Math.max(1, arcaSetupStep - 1); render() })
+  for (const button of document.querySelectorAll('[data-action="arca-save-fiscal"]')) button.addEventListener('click', () => {
+    arcaFiscal.cuit = String(document.querySelector('[name="arca-cuit"]')?.value || '').replace(/\D/g, '')
+    arcaFiscal.legalName = String(document.querySelector('[name="arca-legal-name"]')?.value || '').trim()
+    arcaFiscal.pointOfSale = String(document.querySelector('[name="arca-point-sale"]')?.value || '').trim()
+    if (!/^\d{11}$/.test(arcaFiscal.cuit) || !arcaFiscal.legalName || !/^\d{1,5}$/.test(arcaFiscal.pointOfSale)) { feedbackMessage = 'Completa CUIT, razon social y punto de venta validos.'; render(); return }
+    arcaSetupStep = 2; render()
+  })
+  for (const button of document.querySelectorAll('[data-action="arca-generate-csr"]')) button.addEventListener('click', async () => {
+    try { const legal = arcaFiscal.legalName.replace(/[\/\r\n]/g, ' ').slice(0, 100); const result = await callArca('certificate-request', { subject: `/C=AR/O=${legal}/CN=${legal}/serialNumber=${arcaFiscal.cuit}` }); arcaFiscal.csrPem = result.csrPem; arcaCsrGenerated = true; feedbackMessage = 'Solicitud CSR generada.' } catch (error) { feedbackMessage = error.message } render()
+  })
+  for (const button of document.querySelectorAll('[data-action="arca-download-csr"]')) button.addEventListener('click', () => {
+    const blob = new Blob([arcaFiscal.csrPem], { type: 'application/pkcs10' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'pclaf-arca-solicitud.csr'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  })
+  for (const input of document.querySelectorAll('[data-arca-certificate]')) input.addEventListener('change', async () => { const file = input.files?.[0]; arcaCertificateName = file?.name || ''; if (file) arcaFiscal.certificatePem = await file.text(); render() })
+  for (const button of document.querySelectorAll('[data-action="arca-next-step"]')) button.addEventListener('click', async () => { if (arcaSetupStep === 3 && arcaFiscal.certificatePem) { try { await callArca('certificate', { certificatePem: arcaFiscal.certificatePem }); feedbackMessage = 'Certificado cargado.' } catch (error) { feedbackMessage = error.message; render(); return } } arcaSetupStep = Math.min(4, arcaSetupStep + 1); render() })
+  for (const button of document.querySelectorAll('[data-action="arca-verify"]')) button.addEventListener('click', async () => {
+    if (arcaVerificationState === 'verified') return
+    arcaVerificationState = 'checking'
+    render()
+    try { await callArca('verify', { cuit: arcaFiscal.cuit, pointOfSale: Number(arcaFiscal.pointOfSale) }); arcaVerificationState = 'verified'; arcaConnectionStatus = 'connected'; feedbackMessage = 'Conexion ARCA de homologacion activa.' } catch (error) { arcaVerificationState = 'idle'; feedbackMessage = error.message } render()
+  })
   for (const importSupportButton of document.querySelectorAll('[data-action="request-bulk-import"]')) {
     importSupportButton.addEventListener('click', () => {
       window.open(bulkImportSupportUrl, '_blank', 'noopener,noreferrer')

@@ -62,9 +62,10 @@ const sessionContext = async (sessionToken: string) => {
 }
 
 const corsHeaders = (request: Request) => {
-  const allowedOrigin = Deno.env.get('FISCAL_ALLOWED_ORIGIN') || ''
-  return request.headers.get('origin') === allowedOrigin && allowedOrigin
-    ? { 'access-control-allow-origin': allowedOrigin, vary: 'Origin' }
+  const origin = request.headers.get('origin') || ''
+  const allowedOrigins = (Deno.env.get('FISCAL_ALLOWED_ORIGIN') || '').split(',').map((value) => value.trim()).filter(Boolean)
+  return allowedOrigins.includes(origin)
+    ? { 'access-control-allow-origin': origin, vary: 'Origin' }
     : {}
 }
 
