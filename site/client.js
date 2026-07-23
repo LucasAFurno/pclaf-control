@@ -1661,7 +1661,7 @@ const productsView = (ui) => `
         </article>` : ''}
         ${stockAdjustmentFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Ajuste de stock</h3><p>Ingreso o salida manual por diferencia</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-adjustment-form">Cerrar</button></div></div>
           <form class="form-grid compact-form" data-form="stock-adjustment">
-            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label class="stock-adjustment-product">Producto<div class="stock-adjustment-search"><span class="pos-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span><input type="search" name="productSearch" list="stock-adjustment-product-options" autocomplete="off" placeholder="Buscar producto, SKU o codigo de barras" aria-label="Buscar producto" required /><datalist id="stock-adjustment-product-options">${ui.scopedProducts.map((product) => `<option value="${escapeHtml(product.name)}">${escapeHtml(product.sku || product.barcode || '')} · stock ${product.scopedStock}</option>`).join('')}</datalist></div></label>
             <label>Cantidad (+/-)<input type="number" name="quantity" required /></label>
             <label class="full-span">Motivo<input type="text" name="note" placeholder="Conteo, rotura, merma o correccion" required /></label>
             <button type="submit">Aplicar ajuste</button>
@@ -3185,7 +3185,20 @@ const handleSubmit = async (event) => {
     productFormOpen = false
   }
   if (kind === 'stock-adjustment') {
-    const result = store.createStockAdjustment({ productId: formData.get('productId'), quantity: formData.get('quantity'), note: formData.get('note') })
+    const search = String(formData.get('productSearch') || '').trim()
+    const normalizedSearch = search.toLowerCase()
+    const scopedProducts = getUiState().scopedProducts
+    const exactProduct = scopedProducts.find((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase() === normalizedSearch))
+    const matches = scopedProducts.filter((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearch)))
+    const product = exactProduct || (matches.length === 1 ? matches[0] : null)
+    if (!product) {
+      feedbackMessage = search ? 'Selecciona un producto de la lista o revisa la busqueda.' : 'Busca el producto que queres ajustar.'
+      render()
+      return
+    }
+    const result = store.createStockAdjustment({ productId: product.id, quantity: formData.get('quantity'), note: formData.get('note') })
     feedbackMessage = result.message || ''
   }
   if (kind === 'stock-transfer') {
