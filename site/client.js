@@ -258,7 +258,7 @@ const mapPublicAuthError = (message, context = 'login') => {
     access_denied: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
     turnstile_required: 'Completa la verificacion de seguridad antes de continuar.',
     invalid_pin: 'La clave no coincide. Pruebala de nuevo o recupera el acceso.',
-    login_locked: 'Bloqueamos el acceso por 15 minutos tras 3 claves incorrectas. Luego puedes volver a intentarlo o recuperar tu clave.',
+    login_locked: 'Por seguridad bloqueamos el acceso durante 15 minutos después de 3 claves incorrectas. Puedes esperar y volver a intentarlo, o recuperar tu clave ahora.',
     owner_email_already_exists: 'Ya existe una cuenta con ese correo. Puedes entrar o recuperar la clave.',
     login_name_already_exists: 'Ese acceso ya existe. Prueba con otro correo o inicia sesion.',
     instance_already_initialized: 'Ese comercio ya existe. Inicia sesion con la cuenta principal.',
@@ -286,7 +286,7 @@ const mapPublicAuthError = (message, context = 'login') => {
   const remainingMatch = normalized.match(/^invalid_pin_attempts_remaining_(\d+)$/)
   if (remainingMatch) {
     const remaining = Number(remainingMatch[1])
-    return `La clave no coincide. ${remaining} intento${remaining === 1 ? '' : 's'} restante${remaining === 1 ? '' : 's'} antes del bloqueo temporal.`
+    return `La clave no coincide. Te queda${remaining === 1 ? '' : 'n'} ${remaining} intento${remaining === 1 ? '' : 's'} antes del bloqueo temporal. Si no la recuerdas, puedes recuperar tu clave.`
   }
   return messages[normalized] || message
 }
@@ -877,10 +877,11 @@ const standaloneAuthView = (ui) => `
             <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
             ${window.__pclafTurnstileSiteKey ? `<div class="cf-turnstile" data-sitekey="${window.__pclafTurnstileSiteKey}" data-action="login" data-size="flexible"></div>` : ''}
             ${loginMessage ? `<p class="login-error" role="alert">${loginMessage}</p>` : ''}
+            ${loginMessage?.includes('15 minutos') ? '<button type="button" class="auth-text-action" data-action="recover-password">Recuperar mi clave ahora</button>' : ''}
             <button type="submit">Ingresar</button>
           </form>
           <div class="auth-secondary-actions">
-            <button type="button" class="auth-text-action" data-action="recover-password">Olvide mi clave</button>
+            <button type="button" class="auth-text-action" data-action="recover-password">No recuerdo mi clave</button>
             <span>No tienes cuenta? <button type="button" class="auth-text-action" data-action="show-signup">Crear cuenta</button></span>
           </div>
         ` : `
