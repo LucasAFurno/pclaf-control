@@ -30,12 +30,22 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   const baseUrl = normalizeUrl(url)
   const publishableKey = String(anonKey || '').trim()
   const currentInstanceKey = String(instanceKey || 'pclaf-dev').trim().toLowerCase()
+  const sessionStorageKey = `pclaf-control-cloud-session:${baseUrl}`
 
   if (!baseUrl || !publishableKey) {
     return null
   }
 
-  let session = null
+  const readPersistedSession = () => {
+    try {
+      const raw = globalThis.localStorage?.getItem(sessionStorageKey)
+      return raw ? normalizeSessionPayload(JSON.parse(raw)) : null
+    } catch {
+      return null
+    }
+  }
+
+  let session = readPersistedSession()
   const supabase = createClient(baseUrl, publishableKey, {
     auth: {
       persistSession: false,
@@ -45,7 +55,14 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   })
 
   let recoveryState = null
-  const persistSession = () => {}
+  const persistSession = () => {
+    try {
+      if (session?.sessionToken) globalThis.localStorage?.setItem(sessionStorageKey, JSON.stringify(session))
+      else globalThis.localStorage?.removeItem(sessionStorageKey)
+    } catch {
+      // La sesión sigue funcionando durante la pestaña aunque el navegador bloquee storage.
+    }
+  }
   const readSession = () => session
   const persistRecovery = (payload) => {
     recoveryState = payload || null
