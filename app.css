@@ -3186,6 +3186,35 @@ input, select { outline: none; }
   font-size: 1rem;
 }
 
+.stock-adjustment-product {
+  min-width: 0;
+}
+
+.stock-adjustment-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.stock-adjustment-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.stock-adjustment-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: 0;
+}
+
 .pos-search-icon {
   display: grid;
   color: var(--muted);
