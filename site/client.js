@@ -1669,7 +1669,7 @@ const productsView = (ui) => `
         </article>` : ''}
         ${stockTransferFormOpen ? `<article class="panel"><div class="panel-head"><div><h3>Transferencia</h3><p>Movimiento entre sucursales</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-stock-transfer-form">Cerrar</button></div></div>
           <form class="form-grid compact-form" data-form="stock-transfer">
-            <label>Producto<select name="productId" required>${ui.scopedProducts.map((product) => `<option value="${product.id}">${product.name} (${product.scopedStock})</option>`).join('')}</select></label>
+            <label class="stock-adjustment-product">Producto<div class="stock-adjustment-search"><span class="pos-search-icon" aria-hidden="true">${icon('<circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/>')}</span><input type="search" name="productSearch" list="stock-transfer-product-options" autocomplete="off" placeholder="Buscar producto, SKU o codigo de barras" aria-label="Buscar producto" required /><datalist id="stock-transfer-product-options">${ui.scopedProducts.map((product) => `<option value="${escapeHtml(product.name)}">${escapeHtml(product.sku || product.barcode || '')} · stock ${product.scopedStock}</option>`).join('')}</datalist></div></label>
             <label>Cantidad<input type="number" min="1" name="quantity" required /></label>
             <label>Desde<select name="fromBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}" ${ui.currentBranch?.id === branch.id ? 'selected' : ''}>${branch.name}</option>`).join('')}</select></label>
             <label>Hacia<select name="toBranchId" required>${ui.snapshot.branches.map((branch) => `<option value="${branch.id}">${branch.name}</option>`).join('')}</select></label>
@@ -3202,7 +3202,20 @@ const handleSubmit = async (event) => {
     feedbackMessage = result.message || ''
   }
   if (kind === 'stock-transfer') {
-    const result = store.transferStock({ productId: formData.get('productId'), quantity: formData.get('quantity'), fromBranchId: formData.get('fromBranchId'), toBranchId: formData.get('toBranchId'), note: formData.get('note') })
+    const search = String(formData.get('productSearch') || '').trim()
+    const normalizedSearch = search.toLowerCase()
+    const scopedProducts = getUiState().scopedProducts
+    const exactProduct = scopedProducts.find((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase() === normalizedSearch))
+    const matches = scopedProducts.filter((item) => [item.name, item.sku, item.barcode]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearch)))
+    const product = exactProduct || (matches.length === 1 ? matches[0] : null)
+    if (!product) {
+      feedbackMessage = search ? 'Selecciona un producto de la lista o revisa la busqueda.' : 'Busca el producto que queres transferir.'
+      render()
+      return
+    }
+    const result = store.transferStock({ productId: product.id, quantity: formData.get('quantity'), fromBranchId: formData.get('fromBranchId'), toBranchId: formData.get('toBranchId'), note: formData.get('note') })
     feedbackMessage = result.message || ''
   }
   if (kind === 'supplier') {
