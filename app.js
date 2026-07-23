@@ -875,7 +875,7 @@ const standaloneAuthView = (ui) => `
           <form class="login-form" data-form="login" autocomplete="on">
             <label>Email<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
-            ${window.__pclafTurnstileSiteKey ? `<div class="cf-turnstile" data-sitekey="${window.__pclafTurnstileSiteKey}" data-action="login" data-size="flexible"></div>` : '<p class="login-error">La verificacion de seguridad todavia no esta configurada. Contacta a soporte.</p>'}
+            ${window.__pclafTurnstileSiteKey ? `<div class="cf-turnstile" data-sitekey="${window.__pclafTurnstileSiteKey}" data-action="login" data-size="flexible"></div>` : ''}
             ${loginMessage ? `<p class="login-error" role="alert">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>
@@ -2773,7 +2773,7 @@ const bootstrap = async () => {
   }
   store = createBrowserDataStore(storeOptions)
   authManager = initialCloudConfig?.url && initialCloudConfig?.anonKey
-    ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey, instanceKey: initialCloudConfig.instanceKey })
+    ? createCloudAuthManager({ url: initialCloudConfig.url, anonKey: initialCloudConfig.anonKey, instanceKey: initialCloudConfig.instanceKey, turnstileSiteKey: initialCloudConfig.turnstileSiteKey })
     : null
   try {
     if (authManager) {

@@ -28,10 +28,11 @@ const normalizeSessionPayload = (payload) => {
 
 const readTurnstileToken = () => String(globalThis.document?.querySelector('input[name="cf-turnstile-response"]')?.value || '')
 
-export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev' }) => {
+export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev', turnstileSiteKey = '' }) => {
   const baseUrl = normalizeUrl(url)
   const publishableKey = String(anonKey || '').trim()
   const currentInstanceKey = String(instanceKey || 'pclaf-dev').trim().toLowerCase()
+  const turnstileEnabled = Boolean(String(turnstileSiteKey || '').trim())
   const sessionStorageKey = `pclaf-control-cloud-session:${baseUrl}`
 
   if (!baseUrl || !publishableKey) {
@@ -134,6 +135,13 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   }
 
   const signIn = async ({ instanceKey: requestedInstanceKey, identifier, pin }) => {
+    if (!turnstileEnabled) {
+      const payload = await rpc('app_public_sign_in', { p_instance_key: normalizeOptionalInstanceKey(requestedInstanceKey), p_identifier: identifier, p_pin: pin })
+      if (payload?.error) throw new Error(payload.error)
+      const nextSession = setSession(payload)
+      if (!nextSession) throw new Error('signin_failed')
+      return nextSession
+    }
     let deviceId = globalThis.localStorage?.getItem('pclaf-control-device-id')
     if (!deviceId) { deviceId = crypto.randomUUID(); globalThis.localStorage?.setItem('pclaf-control-device-id', deviceId) }
     const turnstileToken = readTurnstileToken()
@@ -181,6 +189,13 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
 
   const sendRecoveryMagicLink = async ({ email, redirectTo }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!turnstileEnabled) {
+      await requestPasswordReset({ email: normalizedEmail })
+      const { error } = await supabase.auth.signInWithOtp({ email: normalizedEmail, options: { emailRedirectTo: redirectTo, shouldCreateUser: true } })
+      if (error) throw error
+      persistRecovery({ email: normalizedEmail, requestedAt: new Date().toISOString() })
+      return { ok: true, message: 'Te enviamos un enlace para recuperar el acceso. Revisa tu correo y luego define una clave nueva.' }
+    }
     const token = readTurnstileToken()
     if (!token) throw new Error('turnstile_required')
     const response = await fetch(`${baseUrl}/functions/v1/auth-gateway`, { method: 'POST', headers: buildHeaders(publishableKey), body: JSON.stringify({ mode: 'recovery', email: normalizedEmail, redirectTo, turnstileToken: token }) })
