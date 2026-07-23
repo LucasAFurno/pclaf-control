@@ -106,7 +106,8 @@ Deno.serve(async (request) => {
     const responseBody = await fiscalResponse.text()
     return new Response(responseBody, { status: fiscalResponse.status, headers: { ...cors, 'content-type': fiscalResponse.headers.get('content-type') || 'application/json; charset=utf-8', 'cache-control': 'no-store' } })
   } catch (error) {
-    console.error(JSON.stringify({ event: 'fiscal_gateway_failed', message: error instanceof Error ? error.message : 'unknown_error' }))
-    return json({ error: 'fiscal_gateway_failed' }, 502, cors)
+    const message = error instanceof Error ? error.message : 'unknown_error'
+    console.error(JSON.stringify({ event: 'fiscal_gateway_failed', message }))
+    return json({ error: 'fiscal_gateway_failed', message }, 502, cors)
   }
 })
