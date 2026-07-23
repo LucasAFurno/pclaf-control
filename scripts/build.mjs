@@ -846,7 +846,9 @@ const marketingStyles = `
       }
       .marketing-hero-helper a {
         color: #ffffff;
-        text-decoration: none;
+        text-decoration: underline;
+        text-decoration-thickness: 0.1em;
+        text-underline-offset: 0.14em;
       }
       .marketing-hero-stats {
         display: grid;
@@ -1285,7 +1287,7 @@ const marketingStyles = `
         padding: 0;
       }
       .marketing-kicker {
-        color: #d51d22;
+        color: #b91c1c;
         font-weight: 800;
         letter-spacing: 0.16em;
       }
@@ -1410,6 +1412,9 @@ const marketingStyles = `
         max-width: 18ch;
         font-size: clamp(2rem, 3.5vw, 3.5rem);
         letter-spacing: -0.04em;
+      }
+      .marketing-home-cta .marketing-kicker {
+        color: #ffaaa5;
       }
       .marketing-home-cta p:not(.marketing-kicker) {
         max-width: 55ch;
@@ -1671,7 +1676,7 @@ const renderMarketingPage = (page) => {
             <div class="marketing-cta-row">
               <a class="is-primary" data-analytics="hero_start_trial" href="${page.primaryCta?.href || `${appPath}?view=signup`}">${escapeHtml(page.primaryCta?.label || 'Probar gratis')}</a>
             </div>
-            <p class="marketing-hero-helper">Si ya tienes cuenta, <a data-analytics="hero_login_inline" href="${page.secondaryCta?.href || `${appPath}?view=login`}">entra aqui</a>.</p>`}
+            <p class="marketing-hero-helper">Si ya tienes cuenta, <a data-analytics="hero_login_inline" href="${page.secondaryCta?.href || `${appPath}?view=login`}">entra aquí</a>.</p>`}
           </div>
           <aside class="marketing-hero-media">
             <img src="${page.image}" alt="${escapeHtml(page.imageAlt || page.h1)}" width="1200" height="630" loading="eager" />
