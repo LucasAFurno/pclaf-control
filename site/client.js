@@ -966,6 +966,7 @@ const paginatedCardList = (items, listKey, rowTemplate) => {
 }
 
 const loginView = (ui) => {
+  if (window.__pclafAppEntry && authViewMode === 'landing') authViewMode = 'login'
   if (recoveryState) {
     return `
   <div class="login-shell login-shell-home">
