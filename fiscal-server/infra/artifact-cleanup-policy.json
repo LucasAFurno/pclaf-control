@@ -1,0 +1,19 @@
+[
+  {
+    "name": "delete-fiscal-images-older-than-30-days",
+    "action": { "type": "Delete" },
+    "condition": {
+      "tagState": "any",
+      "packageNamePrefixes": ["pclaf-fiscal"],
+      "olderThan": "30d"
+    }
+  },
+  {
+    "name": "keep-ten-most-recent-fiscal-images",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": {
+      "packageNamePrefixes": ["pclaf-fiscal"],
+      "keepCount": 10
+    }
+  }
+]
