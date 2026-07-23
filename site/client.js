@@ -249,6 +249,8 @@ const getRequestedPublicView = () => {
     return ''
   }
 }
+
+const isStandaloneAppRoute = () => /^\/app(?:\/|$)/i.test(window.location.pathname || '')
 const mapPublicAuthError = (message, context = 'login') => {
   const normalized = String(message || '').trim().toLowerCase()
   if (!normalized) return context === 'signup' ? 'No se pudo crear la cuenta.' : 'No se pudo iniciar sesion.'
@@ -966,7 +968,7 @@ const paginatedCardList = (items, listKey, rowTemplate) => {
 }
 
 const loginView = (ui) => {
-  if (window.__pclafAppEntry && authViewMode === 'landing') authViewMode = 'login'
+  if ((window.__pclafAppEntry || isStandaloneAppRoute()) && authViewMode === 'landing') authViewMode = 'login'
   if (recoveryState) {
     return `
   <div class="login-shell login-shell-home">
@@ -3878,7 +3880,7 @@ const bindEvents = () => {
     store.signOut()
     store.clearCloudAuthSession()
     commerceContext = null
-    authViewMode = window.__pclafAppEntry ? 'login' : 'landing'
+    authViewMode = (window.__pclafAppEntry || isStandaloneAppRoute()) ? 'login' : 'landing'
     loginMessage = ''
     signupMessage = ''
     feedbackMessage = ''
