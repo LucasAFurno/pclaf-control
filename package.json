@@ -12,6 +12,10 @@
     "build:prod": "node scripts/build.mjs prod",
     "build:dev": "node scripts/build.mjs dev",
     "preview": "vite preview",
+    "test:notifications": "node fiscal-server/scripts/notify-discord.mjs",
+    "notify:deploy": "node fiscal-server/scripts/notify-deploy.mjs",
+    "backup:postgres": "node fiscal-server/scripts/backup-postgres.mjs",
+    "notify:summary": "node fiscal-server/scripts/notify-summary.mjs",
     "desktop:start": "npm run build && electron desktop/main.mjs",
     "desktop:pack": "npm run build && electron-builder --dir",
     "desktop:dist": "npm run build && electron-builder"

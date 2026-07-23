@@ -13,6 +13,9 @@ dist-ssr
 *.local
 release
 .env
+fiscal-server/.fiscal-data/
+fiscal-server/.env
+backups/
 tmp-screens/
 
 # Editor directories and files

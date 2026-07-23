@@ -1,0 +1,35 @@
+name: Notify Daily Summary
+
+on:
+  schedule:
+    - cron: '15 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: fiscal-server/package-lock.json
+      - name: Install fiscal dependencies
+        working-directory: fiscal-server
+        run: npm ci
+      - name: Send summary
+        working-directory: fiscal-server
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PCLAF_CONTROL_DISCORD_ENABLED: ${{ vars.PCLAF_CONTROL_DISCORD_ENABLED }}
+          PCLAF_CONTROL_DISCORD_RESUMEN_WEBHOOK_URL: ${{ secrets.PCLAF_CONTROL_DISCORD_RESUMEN_WEBHOOK_URL }}
+          PCLAF_CONTROL_TELEGRAM_ENABLED: ${{ vars.PCLAF_CONTROL_TELEGRAM_ENABLED }}
+          PCLAF_CONTROL_TELEGRAM_BOT_TOKEN: ${{ secrets.PCLAF_CONTROL_TELEGRAM_BOT_TOKEN }}
+          PCLAF_CONTROL_TELEGRAM_CHAT_ID: ${{ secrets.PCLAF_CONTROL_TELEGRAM_CHAT_ID }}
+          NOTIFICATIONS_ENVIRONMENT: ${{ vars.NOTIFICATIONS_ENVIRONMENT }}
+        run: npm run notify:summary
