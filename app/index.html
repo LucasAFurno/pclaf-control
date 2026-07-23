@@ -7,7 +7,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), interest-cohort=()" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rfwsnqmjkclxhbmidbkm.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rfwsnqmjkclxhbmidbkm.supabase.co; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
     <link rel="canonical" href="https://www.pclafcontrol.com.ar/app/" />
     <link rel="icon" type="image/png" href="/pclaf-logo.png" />
     <link rel="apple-touch-icon" href="/pclaf-logo.png" />
@@ -101,6 +101,7 @@
         shell.innerHTML = '<div class="boot-card is-error"><strong>No se pudo iniciar</strong><p>' + message + '</p><p>Si sigue igual, avisame y reviso el error puntual.</p></div>';
       }, 4000);
     </script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script type="module" src="/app.js?v=20260723a"></script>
   </body>
 </html>
