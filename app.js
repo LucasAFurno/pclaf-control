@@ -256,6 +256,7 @@ const mapPublicAuthError = (message, context = 'login') => {
     user_not_found: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
     invalid_credentials: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
     access_denied: 'No pudimos iniciar sesion. Revisa tus datos o recupera el acceso.',
+    turnstile_required: 'Completa la verificacion de seguridad antes de continuar.',
     invalid_pin: 'La clave no coincide. Pruebala de nuevo o recupera el acceso.',
     login_locked: 'Bloqueamos el acceso por 15 minutos tras 3 claves incorrectas. Luego puedes volver a intentarlo o recuperar tu clave.',
     owner_email_already_exists: 'Ya existe una cuenta con ese correo. Puedes entrar o recuperar la clave.',
@@ -874,7 +875,7 @@ const standaloneAuthView = (ui) => `
           <form class="login-form" data-form="login" autocomplete="on">
             <label>Email<input type="email" name="identifier" value="" placeholder="tu@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required /></label>
             <label>Clave<input type="password" name="pin" value="" placeholder="Tu clave" autocomplete="current-password" required /></label>
-            <div class="cf-turnstile" data-sitekey="${window.__pclafTurnstileSiteKey || ''}" data-action="login" data-size="flexible"></div>
+            ${window.__pclafTurnstileSiteKey ? `<div class="cf-turnstile" data-sitekey="${window.__pclafTurnstileSiteKey}" data-action="login" data-size="flexible"></div>` : '<p class="login-error">La verificacion de seguridad todavia no esta configurada. Contacta a soporte.</p>'}
             ${loginMessage ? `<p class="login-error" role="alert">${loginMessage}</p>` : ''}
             <button type="submit">Ingresar</button>
           </form>

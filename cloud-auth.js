@@ -26,6 +26,8 @@ const normalizeSessionPayload = (payload) => {
   }
 }
 
+const readTurnstileToken = () => String(globalThis.document?.querySelector('input[name="cf-turnstile-response"]')?.value || '')
+
 export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev' }) => {
   const baseUrl = normalizeUrl(url)
   const publishableKey = String(anonKey || '').trim()
@@ -134,8 +136,8 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
   const signIn = async ({ instanceKey: requestedInstanceKey, identifier, pin }) => {
     let deviceId = globalThis.localStorage?.getItem('pclaf-control-device-id')
     if (!deviceId) { deviceId = crypto.randomUUID(); globalThis.localStorage?.setItem('pclaf-control-device-id', deviceId) }
-    const widget = globalThis.turnstile
-    const turnstileToken = widget?.getResponse?.('.cf-turnstile') || ''
+    const turnstileToken = readTurnstileToken()
+    if (!turnstileToken) throw new Error('turnstile_required')
     const response = await fetch(`${baseUrl}/functions/v1/auth-gateway`, { method: 'POST', headers: buildHeaders(publishableKey), body: JSON.stringify({ instanceKey: normalizeOptionalInstanceKey(requestedInstanceKey), identifier, pin, deviceId, turnstileToken }) })
     const payload = await safeJson(response)
     if (!response.ok) throw new Error(payload?.error || 'invalid_credentials')
@@ -179,7 +181,8 @@ export const createCloudAuthManager = ({ url, anonKey, instanceKey = 'pclaf-dev'
 
   const sendRecoveryMagicLink = async ({ email, redirectTo }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase()
-    const token = globalThis.turnstile?.getResponse?.('.cf-turnstile') || ''
+    const token = readTurnstileToken()
+    if (!token) throw new Error('turnstile_required')
     const response = await fetch(`${baseUrl}/functions/v1/auth-gateway`, { method: 'POST', headers: buildHeaders(publishableKey), body: JSON.stringify({ mode: 'recovery', email: normalizedEmail, redirectTo, turnstileToken: token }) })
     if (!response.ok) throw new Error('access_denied')
     persistRecovery({ email: normalizedEmail, requestedAt: new Date().toISOString() })
