@@ -120,6 +120,10 @@ const handle = async (request, response) => {
     if (request.method === 'GET' && route.action === 'status') return json(response, 200, publicTenant(await store.read(route.tenantId)))
     if (request.method !== 'POST') return json(response, 405, { error: 'method_not_allowed' })
     const body = await readBody(request)
+    if (config.storeType === 'supabase' && route.action !== 'certificate-request') {
+      const record = await store.read(route.tenantId)
+      if (!record || record.commerceId !== uuid(body.commerceId, 'commerce id')) throw new Error('Commerce does not match fiscal tenant')
+    }
     if (route.action === 'certificate-request') {
       const subject = String(body.subject || '').trim()
       if (!/^\/[^\n\r]{4,240}$/.test(subject)) throw new Error('A valid X.509 subject is required')

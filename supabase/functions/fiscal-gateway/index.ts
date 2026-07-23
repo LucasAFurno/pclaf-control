@@ -80,6 +80,8 @@ Deno.serve(async (request) => {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'invalid_request' }, 422, cors)
     const tenantId = String(body.tenantId || '').trim().toLowerCase()
     if (!/^[a-z0-9][a-z0-9_-]{2,80}$/.test(tenantId)) return json({ error: 'invalid_tenant' }, 422, cors)
+    const action = String(body.action || 'invoices').trim().toLowerCase()
+    if (!['certificate-request', 'certificate', 'verify', 'invoices'].includes(action)) return json({ error: 'invalid_fiscal_action' }, 422, cors)
     const context = await sessionContext(sessionToken)
     if (!context.session_is_owner && context.session_role_key !== 'admin') return json({ error: 'fiscal_permission_denied' }, 403, cors)
     if (body.commerceId && String(body.commerceId).toLowerCase() !== String(context.session_commerce_id).toLowerCase()) return json({ error: 'commerce_mismatch' }, 403, cors)
@@ -90,7 +92,7 @@ Deno.serve(async (request) => {
     const serviceAccount = Deno.env.get('PCLAF_GCP_INVOKER_SERVICE_ACCOUNT_JSON') || ''
     if (!runUrl || !audience || !serviceToken || !serviceAccount) throw new Error('Fiscal gateway is not configured')
     const idToken = await mintGoogleIdToken(audience, serviceAccount)
-    const fiscalResponse = await fetch(`${runUrl}/v1/tenants/${encodeURIComponent(tenantId)}/invoices`, {
+    const fiscalResponse = await fetch(`${runUrl}/v1/tenants/${encodeURIComponent(tenantId)}/${action}`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${serviceToken}`,
