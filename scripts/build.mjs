@@ -518,7 +518,7 @@ const buildOrganizationJsonLd = () => ({
   '@type': 'Organization',
   name: 'PCLAF Control',
   url: siteOrigin,
-  logo: `${siteOrigin}/favicon.svg`,
+  logo: `${siteOrigin}/pclaf-logo.png`,
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'sales',
@@ -546,7 +546,7 @@ const buildFaqJsonLd = (page) => {
 const renderTopbar = () => `
   <header class="marketing-topbar">
     <a class="marketing-brand" href="/">
-      <img src="/favicon.svg" alt="PCLAF Control" width="48" height="46" />
+      <img src="/pclaf-logo.png" alt="PCLAF Control" width="48" height="46" />
       <div>
         <strong>PCLAF Control</strong>
         <p>Ventas, caja y stock en una sola web</p>
