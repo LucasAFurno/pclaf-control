@@ -281,6 +281,7 @@ const mapPublicAuthError = (message, context = 'login') => {
     'sale item required': 'Agrega al menos un producto antes de registrar la venta.',
     sale_item_required: 'Agrega al menos un producto antes de registrar la venta.',
     sale_items_required: 'Agrega al menos un producto antes de registrar la venta.',
+    cash_session_required: 'Caja cerrada. Abri una caja para poder registrar la venta.',
     'duplicate key value violates unique constraint "products_commerce_id_sku_key"': 'Ya existe un producto con ese SKU en este comercio.',
     'duplicate key value violates unique constraint "documents_commerce_id_document_number_key"': 'Ese numero de comprobante ya existe. Usa otro o dejalo vacio para autogenerarlo.',
     'column "status" of relation "branches" does not exist': 'Estamos terminando una actualizacion interna del alta. Escribe a soporte y lo habilitamos enseguida.',
