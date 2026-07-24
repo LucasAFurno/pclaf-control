@@ -59,7 +59,11 @@ export const notifyTelegram = async (event) => {
       body: JSON.stringify({ chat_id: config.telegram.chatId, text: `PCLAF Control | ${sanitize(event.title || event.type)}\n${eventText(event)}` }),
       signal: AbortSignal.timeout(8_000),
     })
-    return response.ok
+    if (!response.ok) {
+      process.stdout.write(`${JSON.stringify({ timestamp: new Date().toISOString(), service: 'fiscal', event: 'telegram_delivery_failed', status: response.status })}\n`)
+      return false
+    }
+    return true
   } catch {
     process.stdout.write(`${JSON.stringify({ timestamp: new Date().toISOString(), service: 'fiscal', event: 'telegram_delivery_failed' })}\n`)
     return false
