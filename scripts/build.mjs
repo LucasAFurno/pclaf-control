@@ -1641,7 +1641,8 @@ const renderMarketingPage = (page) => {
     <meta name="twitter:title" content="${escapeHtml(page.seoTitle)}" />
     <meta name="twitter:description" content="${escapeHtml(page.description)}" />
     <meta name="twitter:image" content="${siteOrigin}/og-pclaf-control.svg" />
-    <link rel="icon" type="image/png" href="/favicon.png?v=${assetVersion}" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=pclaf-logo-20260724" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=pclaf-logo-20260724" />
     <title>${escapeHtml(page.seoTitle)}</title>
     <style>${marketingStyles}</style>
     ${gaMeasurementId ? `
@@ -1746,7 +1747,8 @@ const appHtml = `<!doctype html>
     <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), interest-cohort=()" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rfwsnqmjkclxhbmidbkm.supabase.co; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
     <link rel="canonical" href="${siteOrigin}${appPath}" />
-    <link rel="icon" type="image/png" href="/favicon.png?v=${assetVersion}" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=pclaf-logo-20260724" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=pclaf-logo-20260724" />
     <link rel="stylesheet" href="/app.css?v=${assetVersion}" />
     <title>Acceso al sistema | PCLAF Control</title>
     <style>
