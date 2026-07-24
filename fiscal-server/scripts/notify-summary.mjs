@@ -9,7 +9,13 @@ if (required.length) {
   // The summary itself needs no fiscal credentials.
   const { notifyDiscord, notifyTelegram } = await loadNotifications()
   const { config } = await import('../src/config.mjs')
-  const today = new Date().toISOString().slice(0, 10)
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date()).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {})
+  const today = `${dateParts.year}-${dateParts.month}-${dateParts.day}`
+  // Argentina is UTC-3; use its local midnight so daily activity is not mixed with
+  // the previous local evening when the workflow runs in UTC.
+  const dayStart = `${today}T03:00:00.000Z`
   const headers = { apikey: config.supabaseServiceRoleKey, authorization: `Bearer ${config.supabaseServiceRoleKey}`, prefer: 'count=exact' }
   const count = async (table, filter = '', schema = 'public', optional = false) => {
     try {
@@ -27,12 +33,14 @@ if (required.length) {
   const entries = await Promise.all([
     ['Comercios totales', count('commerce_accounts')],
     ['Comercios activos', count('commerce_accounts', '&status=eq.active')],
-    ['Comercios nuevos', count('commerce_accounts', `&created_at=gte.${today}`)],
+    ['Comercios nuevos', count('commerce_accounts', `&created_at=gte.${dayStart}`)],
     ['Usuarios totales', count('control_users')],
-    ['Usuarios nuevos', count('control_users', `&created_at=gte.${today}`)],
-    ['Facturas emitidas', count('documents', `&kind=eq.factura&issued_at=gte.${today}`)],
-    ['CAE aprobados', count('fiscal_invoices', `&state=eq.authorized&updated_at=gte.${today}`, 'private', true)],
-    ['CAE rechazados', count('fiscal_invoices', `&state=eq.rejected&updated_at=gte.${today}`, 'private', true)],
+    ['Usuarios nuevos', count('control_users', `&created_at=gte.${dayStart}`)],
+    ['Clientes nuevos', count('customers', `&created_at=gte.${dayStart}`)],
+    ['Ventas registradas', count('sales', `&sold_at=gte.${dayStart}`)],
+    ['Facturas emitidas', count('documents', `&kind=eq.factura&issued_at=gte.${dayStart}`)],
+    ['CAE aprobados', count('fiscal_invoices', `&state=eq.authorized&updated_at=gte.${dayStart}`, 'private', true)],
+    ['CAE rechazados', count('fiscal_invoices', `&state=eq.rejected&updated_at=gte.${dayStart}`, 'private', true)],
   ].map(async ([label, value]) => [label, await value]))
   const metrics = Object.fromEntries(entries.filter(([, value]) => value !== null))
   const backupBucket = String(process.env.BACKUP_GCS_BUCKET || '').trim()
