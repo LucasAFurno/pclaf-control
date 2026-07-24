@@ -1410,6 +1410,7 @@ const marketingStyles = `
       }
       .marketing-home-cta h2 {
         max-width: 18ch;
+        color: #ffffff;
         font-size: clamp(2rem, 3.5vw, 3.5rem);
         letter-spacing: -0.04em;
       }
