@@ -19,10 +19,17 @@ if (required.length) {
     return [key, parts.join('=')]
   }))
   const title = { started: 'Deploy iniciado', success: 'Deploy exitoso', failed: 'Deploy fallido', rollback: 'Rollback iniciado' }[status]
+  const message = {
+    started: 'El despliegue del servicio fiscal comenzó. Se avisará el resultado final.',
+    success: 'El servicio fiscal quedó desplegado correctamente.',
+    failed: 'El despliegue no se completó. Abrí el enlace del pipeline para ver el paso que falló.',
+    rollback: 'Se inició un rollback del servicio fiscal. Revisar el pipeline para confirmar el resultado.',
+  }[status]
   const sent = await notifyDiscord('deploys', {
     type: `DEPLOY_${status.toUpperCase()}`,
     severity: status === 'failed' ? 'critical' : status === 'rollback' ? 'warning' : 'info',
     title,
+    message,
     source: 'ci-cd',
     environment: input.environment || process.env.NODE_ENV || 'production',
     metadata: { version: input.version, commit: input.commit, rama: input.branch, autor: input.author, pipeline: input.pipeline, detalle: input.detail },
@@ -31,6 +38,7 @@ if (required.length) {
     type: `DEPLOY_${status.toUpperCase()}`,
     severity: status === 'failed' ? 'critical' : status === 'rollback' ? 'warning' : 'info',
     title,
+    message,
     source: 'ci-cd',
     environment: input.environment || process.env.NODE_ENV || 'production',
     metadata: { version: input.version, commit: input.commit, rama: input.branch, autor: input.author, pipeline: input.pipeline, detalle: input.detail },

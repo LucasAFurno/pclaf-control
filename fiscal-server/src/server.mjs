@@ -223,12 +223,9 @@ const handle = async (request, response) => {
 
 const server = createServer((request, response) => { handle(request, response).catch((error) => { audit('unhandled_request_error', { message: error.message }); fiscalEvent('alertas', 'UNHANDLED_REQUEST_ERROR', 'critical', 'Error interno no controlado', { metadata: { detalle: error.message } }); json(response, 500, { error: 'internal_error' }) }) })
 server.listen(config.port, config.host, () => {
+  // Kept in Cloud Logging for diagnosis, but not sent to operators: Cloud Run starts
+  // instances for normal deploys and cold starts, so an alert here is not actionable.
   audit('server_started', { port: config.port, host: config.host, environment: config.environment })
-  fiscalEvent('general', 'SERVICE_STARTED', 'info', 'Servicio fiscal iniciado', {
-    message: 'Cloud Run inició una instancia del servicio. Es normal después de un deploy, un reinicio de infraestructura o la primera solicitud tras estar inactivo. No requiere acción. Si se repite sin deploys ni solicitudes, revisar los logs de Cloud Run.',
-    sendToTelegram: true,
-    metadata: { motivo: 'Nueva instancia de Cloud Run; el motivo exacto se confirma en Cloud Logging.' },
-  })
 })
 
 const shutdown = (signal) => server.close(() => {

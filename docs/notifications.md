@@ -4,9 +4,11 @@ Los webhooks, tokens y credenciales se configuran exclusivamente en procesos ser
 
 ## Eventos y procesos activos
 
-- **Deploys:** inicio, exito, fallo y rollback mediante `npm run notify:deploy` y el workflow de Cloud Run.
-- **Resumen:** metricas disponibles de Supabase mediante `npm run notify:summary` y **Notify Daily Summary**, a las 12:15 UTC. Telegram recibe el mismo resumen solo cuando esta habilitado.
+- **Deploys:** inicio, exito, fallo y rollback mediante `npm run notify:deploy` y el workflow de Cloud Run. El fallo se notifica desde un job independiente para que llegue aun cuando falle el job de despliegue.
+- **Resumen:** actividad diaria de comercios, usuarios, clientes nuevos, ventas registradas y metricas fiscales mediante `npm run notify:summary` y **Notify Daily Summary**, a las 12:15 UTC. Discord y Telegram reciben el mismo resumen cuando estan habilitados.
 - **Seguridad:** reemplazo de certificado fiscal sin certificado, clave, token ni CUIT completo.
+
+El inicio normal de una instancia fiscal queda solo en Cloud Logging: ocurre en deploys y cold starts de Cloud Run, por lo que no es una alerta accionable.
 
 ## Backups
 
