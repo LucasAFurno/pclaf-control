@@ -527,8 +527,9 @@ const purchaseActionButtons = (receipt) => `
   </div>
 `
 const invoiceActionButtons = (invoice) => `
-  <div class="inline-action-group">
-    <button type="button" class="inline-action" data-invoice-action="edit" data-id="${invoice.id}">Editar</button>
+  <div class="inline-action-group invoice-actions">
+    <button type="button" class="inline-action" data-invoice-action="view" data-id="${invoice.id}">Ver</button>
+    <button type="button" class="inline-action" data-invoice-action="print" data-id="${invoice.id}">Imprimir</button>
     <button type="button" class="inline-action danger" data-delete="invoice" data-id="${invoice.id}">Eliminar</button>
   </div>
 `
@@ -1917,8 +1918,7 @@ const invoicesView = (ui) => `
 
 const invoicesViewV2 = (ui) => `
   ${(() => {
-    const editingInvoice = ui.snapshot.invoices.find((invoice) => invoice.id === invoiceEditingId)
-    const showInvoiceForm = invoiceFormOpen || Boolean(editingInvoice)
+    const showInvoiceForm = invoiceFormOpen
     return `
   <section class="view-section"><div class="section-header"><div><p class="kicker">Facturacion</p><h2>Comprobantes</h2></div><div class="panel-inline-stats section-inline-stats">
       <span class="panel-inline-stat"><strong>${ui.enrichedInvoices.length}</strong><span>Comprobantes</span></span>
@@ -1927,25 +1927,23 @@ const invoicesViewV2 = (ui) => `
     </div></div>
     ${feedbackMessage ? `<div class="feedback-banner">${feedbackMessage}</div>` : ''}
     <section class="stacked-section">
-      ${showInvoiceForm ? `<article class="panel"><div class="panel-head"><div><h3>${editingInvoice ? 'Editar factura' : 'Nueva factura'}</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
+      ${showInvoiceForm ? `<article class="panel"><div class="panel-head"><div><h3>Nueva factura</h3><p>Numeracion real por sucursal</p></div><div class="settings-actions"><button type="button" class="ghost-action" data-action="close-invoice-form">Cerrar</button></div></div>
         <form class="form-grid" data-form="invoice">
-          <input type="hidden" name="invoiceId" value="${editingInvoice?.id || ''}" />
-          <label>Numero<input type="text" name="number" value="${editingInvoice?.number || ''}" placeholder="Se autogenera si lo dejas vacio" /></label>
-          <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}" ${editingInvoice?.customerId === customer.id ? 'selected' : ''}>${customer.fullName}</option>`).join('')}</select></label>
-          <label>Clase<select name="kind"><option ${editingInvoice?.kind === 'Factura' || !editingInvoice ? 'selected' : ''}>Factura</option><option ${editingInvoice?.kind === 'Ticket' ? 'selected' : ''}>Ticket</option><option ${editingInvoice?.kind === 'Presupuesto' ? 'selected' : ''}>Presupuesto</option><option ${editingInvoice?.kind === 'Remito' ? 'selected' : ''}>Remito</option><option ${editingInvoice?.kind === 'Nota de credito' ? 'selected' : ''}>Nota de credito</option></select></label>
-          <label>Total<input type="number" min="1" name="totalAmount" value="${editingInvoice?.totalAmount || ''}" required /></label>
-          <label>Tipo<select name="type"><option ${editingInvoice?.type === 'A' ? 'selected' : ''}>A</option><option ${editingInvoice?.type === 'B' || !editingInvoice ? 'selected' : ''}>B</option><option ${editingInvoice?.type === 'C' ? 'selected' : ''}>C</option></select></label>
-          <label>Vencimiento<input type="date" name="dueDate" value="${editingInvoice?.dueDate || today}" required /></label>
-          <label>Estado<select name="status"><option ${editingInvoice?.status === 'Emitida' || !editingInvoice ? 'selected' : ''}>Emitida</option><option ${editingInvoice?.status === 'En revision' ? 'selected' : ''}>En revision</option><option ${editingInvoice?.status === 'Cobrada' ? 'selected' : ''}>Cobrada</option></select></label>
-          <label>Estado fiscal<select name="fiscalStatus"><option ${editingInvoice?.fiscalStatus === 'Pendiente' || !editingInvoice ? 'selected' : ''}>Pendiente</option><option ${editingInvoice?.fiscalStatus === 'Listo para enviar' ? 'selected' : ''}>Listo para enviar</option><option ${editingInvoice?.fiscalStatus === 'Aprobado' ? 'selected' : ''}>Aprobado</option><option ${editingInvoice?.fiscalStatus === 'Rechazado' ? 'selected' : ''}>Rechazado</option><option ${editingInvoice?.fiscalStatus === 'Anulado' ? 'selected' : ''}>Anulado</option></select></label>
-          <button type="submit">${editingInvoice ? 'Guardar cambios' : 'Guardar factura'}</button>
-          ${!editingInvoice ? '<button type="button" class="ghost-action" data-action="close-invoice-form">Cancelar</button>' : ''}
-          ${editingInvoice ? '<button type="button" class="danger-action" data-action="cancel-invoice-edit">Cancelar edicion</button>' : ''}
+          <label>Numero<input type="text" name="number" placeholder="Se autogenera si lo dejas vacio" /></label>
+          <label>Cliente<select name="customerId" required>${ui.snapshot.customers.map((customer) => `<option value="${customer.id}">${customer.fullName}</option>`).join('')}</select></label>
+          <label>Clase<select name="kind"><option selected>Factura</option><option>Ticket</option><option>Presupuesto</option><option>Remito</option><option>Nota de credito</option></select></label>
+          <label>Total<input type="number" min="1" name="totalAmount" required /></label>
+          <label>Tipo<select name="type"><option>A</option><option selected>B</option><option>C</option></select></label>
+          <label>Vencimiento<input type="date" name="dueDate" value="${today}" required /></label>
+          <label>Estado<select name="status"><option selected>Emitida</option><option>En revision</option><option>Cobrada</option></select></label>
+          <label>Estado fiscal<select name="fiscalStatus"><option selected>Pendiente</option><option>Listo para enviar</option><option>Aprobado</option><option>Rechazado</option><option>Anulado</option></select></label>
+          <button type="submit">Guardar factura</button>
+          <button type="button" class="ghost-action" data-action="close-invoice-form">Cancelar</button>
         </form>
       </article>` : ''}
       <article class="panel">
-        <div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${editingInvoice ? '' : createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
-        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`))}
+        <div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y numeracion</p></div><div class="settings-actions">${createToggleButton('invoice', showInvoiceForm, 'Agregar comprobante')}</div></div>
+        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Acciones'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`), 'invoices-table invoice-compact-table')}
       </article>
     </section>
   </section>
@@ -2868,6 +2866,42 @@ const getReceiptDocument = (saleId) => {
   @media print { body{margin:0} .ticket{width:auto} }
   </style></head><body><div class="ticket"><div class="brand"><h1>PCLAF</h1><p>${branch?.name || 'Sucursal'}<br />${branch?.address || ''}</p></div><div class="meta"><div><strong>Cliente:</strong> ${customer?.fullName || 'Mostrador'}</div><div><strong>Fecha:</strong> ${sale.soldAt.slice(0, 16).replace('T', ' ')}</div><div><strong>Canal:</strong> ${sale.channel}</div><div><strong>Pago:</strong> ${sale.paymentMethod}</div><div><strong>Caja:</strong> ${register?.name || 'Sin caja'}</div><div><strong>Venta:</strong> ${sale.id.slice(0, 8)}</div></div><table><thead><tr><th>Item</th><th>Cant.</th><th>Total</th></tr></thead><tbody>${sale.items.map((item) => { const product = ui.snapshot.products.find((entry) => entry.id === item.productId); return `<tr><td>${product?.name || 'Articulo'}</td><td>${item.quantity}</td><td>${money(item.lineTotal)}</td></tr>` }).join('')}</tbody></table><p class="total">TOTAL ${money(sale.totalAmount)}</p><p class="footer">Comprobante interno generado por PCLAF Control.</p></div></body></html>`
   return { html, filename: `comprobante-${sale.id}.pdf`, fallbackFilename: `comprobante-${sale.id}.html` }
+}
+
+const getInvoiceDocument = (invoiceId) => {
+  const ui = getUiState()
+  const invoice = ui.snapshot.invoices.find((entry) => entry.id === invoiceId)
+  if (!invoice) return null
+  const customer = ui.snapshot.customers.find((entry) => entry.id === invoice.customerId)
+  const branch = ui.snapshot.branches.find((entry) => entry.id === invoice.branchId) || ui.currentBranch
+  const sale = ui.snapshot.sales.find((entry) => entry.id === invoice.saleId)
+  const issuedAt = String(invoice.issuedAt || invoice.dueDate || '').slice(0, 10) || today
+  const items = sale?.items?.length
+    ? sale.items.map((item) => {
+      const product = ui.snapshot.products.find((entry) => entry.id === item.productId)
+      return `<tr><td>${escapeHtml(product?.name || 'Articulo')}</td><td>${escapeHtml(item.quantity)}</td><td>${money(item.unitPrice)}</td><td>${money(item.lineTotal)}</td></tr>`
+    }).join('')
+    : `<tr><td>${escapeHtml(invoice.kind || 'Factura')} ${escapeHtml(invoice.number)}</td><td>1</td><td>${money(invoice.totalAmount)}</td><td>${money(invoice.totalAmount)}</td></tr>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8" /><title>Factura ${escapeHtml(invoice.number)}</title><style>
+    *{box-sizing:border-box} body{font-family:Arial,sans-serif;background:#f5f5f5;color:#172033;margin:0;padding:32px}
+    .invoice{max-width:800px;margin:0 auto;background:#fff;border:1px solid #d7dce5;padding:46px 52px;min-height:1000px}
+    .header{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #172033;padding-bottom:24px}.brand h1{margin:0;font-size:28px}.brand p,.meta,.muted{color:#536071;font-size:13px;line-height:1.5}.doc-type{text-align:right}.doc-type strong{display:block;font-size:24px}.doc-type span{font-size:14px}
+    .parties{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:30px 0}.party{border:1px solid #d7dce5;padding:16px}.party h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#536071;margin:0 0 10px}.party strong{display:block;font-size:16px;margin-bottom:5px}
+    table{width:100%;border-collapse:collapse;margin-top:24px}th{background:#172033;color:#fff;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:11px}td{border-bottom:1px solid #d7dce5;padding:12px 11px;font-size:14px}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.total{margin-left:auto;width:280px;margin-top:26px;border-top:2px solid #172033;padding-top:12px;display:flex;justify-content:space-between;font-size:21px;font-weight:700}.footer{border-top:1px solid #d7dce5;margin-top:48px;padding-top:16px;font-size:12px;color:#536071}@media print{body{background:#fff;padding:0}.invoice{border:0;max-width:none;min-height:0;padding:18mm 16mm}}
+  </style></head><body><main class="invoice"><header class="header"><div class="brand"><h1>PCLAF Control</h1><p>${escapeHtml(branch?.name || 'Sucursal')}<br />${escapeHtml(branch?.address || '')}</p></div><div class="doc-type"><strong>${escapeHtml(invoice.kind || 'Factura')}</strong><span>${escapeHtml(invoice.type || 'B')} · N° ${escapeHtml(invoice.number)}</span><div class="meta">Emision: ${escapeHtml(issuedAt)}</div></div></header><section class="parties"><div class="party"><h2>Cliente</h2><strong>${escapeHtml(customer?.fullName || 'Consumidor final')}</strong><span class="muted">Comprobante ${escapeHtml(invoice.status || 'Emitida')}</span></div><div class="party"><h2>Datos fiscales</h2><strong>${escapeHtml(invoice.fiscalStatus || 'Pendiente')}</strong><span class="muted">Vencimiento: ${escapeHtml(String(invoice.dueDate || issuedAt).slice(0, 10))}</span></div></section><table><thead><tr><th>Descripcion</th><th>Cant.</th><th>Precio unit.</th><th>Importe</th></tr></thead><tbody>${items}</tbody></table><div class="total"><span>Total</span><span>${money(invoice.totalAmount)}</span></div><footer class="footer">Comprobante generado por PCLAF Control · ${escapeHtml(invoice.number)}</footer></main></body></html>`
+  return { html, title: `${invoice.kind || 'Factura'} ${invoice.number}` }
+}
+
+const openInvoiceDocument = (invoiceId, shouldPrint = false) => {
+  const doc = getInvoiceDocument(invoiceId)
+  if (!doc) return false
+  const win = window.open('', '_blank', 'width=960,height=800')
+  if (!win) return false
+  win.document.write(doc.html)
+  win.document.close()
+  win.focus()
+  if (shouldPrint) window.setTimeout(() => win.print(), 250)
+  return true
 }
 
 const printReceipt = (saleId) => {
@@ -3810,14 +3844,13 @@ const bindEvents = () => {
   }
   for (const button of document.querySelectorAll('[data-invoice-action]')) {
     button.addEventListener('click', () => {
-      if (button.dataset.invoiceAction === 'edit') {
-        closeDocumentUtilityForms()
-        invoiceEditingId = button.dataset.id
-        invoiceFormOpen = true
-        queueScrollToSelector('form[data-form="invoice"]')
-        feedbackMessage = 'Factura cargada para edicion.'
-        render()
-      }
+      const action = button.dataset.invoiceAction
+      const completed = action === 'print'
+        ? openInvoiceDocument(button.dataset.id, true)
+        : action === 'view' && openInvoiceDocument(button.dataset.id)
+      if (completed) feedbackMessage = action === 'print' ? 'Factura lista para imprimir.' : 'Factura abierta en una nueva pestaña.'
+      if (!completed) feedbackMessage = 'No se pudo abrir la factura. Revisa que el navegador permita ventanas emergentes.'
+      render()
     })
   }
   for (const button of document.querySelectorAll('[data-ticket-action]')) {
