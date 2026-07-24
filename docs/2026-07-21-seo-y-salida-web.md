@@ -74,7 +74,7 @@ Fecha: 2026-07-21
 
 ## Riesgos o puntos a vigilar
 
-- GitHub Pages sirve para la web publica, pero si despues se necesita mas control de redirects, headers o subdominios de app, puede convenir Cloudflare Pages o un reverse proxy delante.
+- GitHub Pages sirve para la web publica, pero no permite configurar `Cache-Control` por archivo. Para superar la auditoria de TTL de PageSpeed (y definir una caché larga para recursos estáticos) se necesita un CDN/proxy configurable, como Cloudflare delante de Pages, Cloudflare Pages o un hosting equivalente.
 - La parte SEO/comercial ya puede salir bien desde HTML estatico, pero conversiones y posicionamiento reales dependen de Search Console, Analytics, velocidad real y contenido vivo.
 - No conviene prometer funcionalidades publicas que aun no esten estables dentro de la aplicacion.
 

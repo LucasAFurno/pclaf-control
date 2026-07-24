@@ -77,7 +77,7 @@ const buildArticleJsonLd = (page) => {
       name: 'PCLAF Control',
       logo: {
         '@type': 'ImageObject',
-        url: `${siteOrigin}/pclaf-logo.png`,
+        url: `${siteOrigin}/favicon.svg`,
       },
     },
     author: {
@@ -518,7 +518,7 @@ const buildOrganizationJsonLd = () => ({
   '@type': 'Organization',
   name: 'PCLAF Control',
   url: siteOrigin,
-  logo: `${siteOrigin}/pclaf-logo.png`,
+  logo: `${siteOrigin}/favicon.svg`,
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'sales',
@@ -546,7 +546,7 @@ const buildFaqJsonLd = (page) => {
 const renderTopbar = () => `
   <header class="marketing-topbar">
     <a class="marketing-brand" href="/">
-      <img src="/pclaf-logo.png" alt="PCLAF Control" width="88" height="88" />
+      <img src="/favicon.svg" alt="PCLAF Control" width="48" height="46" />
       <div>
         <strong>PCLAF Control</strong>
         <p>Ventas, caja y stock en una sola web</p>
@@ -1641,8 +1641,7 @@ const renderMarketingPage = (page) => {
     <meta name="twitter:title" content="${escapeHtml(page.seoTitle)}" />
     <meta name="twitter:description" content="${escapeHtml(page.description)}" />
     <meta name="twitter:image" content="${siteOrigin}/og-pclaf-control.svg" />
-    <link rel="icon" type="image/png" href="/pclaf-logo.png" />
-    <link rel="apple-touch-icon" href="/pclaf-logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>${escapeHtml(page.seoTitle)}</title>
     <style>${marketingStyles}</style>
     ${gaMeasurementId ? `
@@ -1683,7 +1682,7 @@ const renderMarketingPage = (page) => {
             <p class="marketing-hero-helper">Si ya tienes cuenta, <a data-analytics="hero_login_inline" href="${page.secondaryCta?.href || `${appPath}?view=login`}">entra aquí</a>.</p>`}
           </div>
           <aside class="marketing-hero-media">
-            <img src="${page.image}" alt="${escapeHtml(page.imageAlt || page.h1)}" width="1200" height="630" loading="eager" />
+            <img src="${page.image}" alt="${escapeHtml(page.imageAlt || page.h1)}" width="1200" height="630" loading="eager" fetchpriority="high" />
             <p class="marketing-image-caption">${escapeHtml(page.imageCaption || 'Vista real del sistema con ventas, stock, caja y control comercial desde una sola web.')}</p>
             ${!page.slug ? renderHeroStats(page.stats || []) : ''}
           </aside>
@@ -1747,8 +1746,7 @@ const appHtml = `<!doctype html>
     <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), interest-cohort=()" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://rfwsnqmjkclxhbmidbkm.supabase.co; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
     <link rel="canonical" href="${siteOrigin}${appPath}" />
-    <link rel="icon" type="image/png" href="/pclaf-logo.png" />
-    <link rel="apple-touch-icon" href="/pclaf-logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/app.css?v=${assetVersion}" />
     <title>Acceso al sistema | PCLAF Control</title>
     <style>
