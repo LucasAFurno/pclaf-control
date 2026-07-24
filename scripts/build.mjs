@@ -1401,6 +1401,9 @@ const marketingStyles = `
         font-size: 1.08rem;
         line-height: 1.75;
       }
+      .marketing-story .marketing-kicker {
+        color: #171717;
+      }
       .marketing-home-cta {
         margin-top: 0;
         padding: clamp(54px, 7vw, 86px);
