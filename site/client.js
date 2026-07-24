@@ -113,6 +113,7 @@ let hardwareScanListenerBound = false
 let feedbackTimer = null
 let pendingScrollTop = false
 let accountAlertsOpen = false
+let dismissedAccountAlertIds = new Set()
 let supportMenuOpen = false
 let settingsPanelOpen = ''
 let arcaSetupStep = 1
@@ -1606,7 +1607,7 @@ const cashViewV2 = (ui) => `
     </div></div>
     <section class="stacked-section">
       <article class="panel">
-        <div class="panel-head"><div><h3>Operacion de caja</h3><p>Primero ves el estado y operas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
+        <div class="panel-head" data-cash-operation><div><h3>Operacion de caja</h3><p>Primero ves el estado y operas solo si hace falta</p></div><div class="settings-actions">${createToggleButton('cash', showCashForm, ui.openCashSession ? 'Operar caja' : 'Abrir caja')}</div></div>
         <div class="summary-mini-row">
           <div class="summary-mini-card"><strong>Estado</strong><span>${ui.openCashSession ? 'Abierta' : 'Cerrada'}</span></div>
           <div class="summary-mini-card"><strong>Sucursal</strong><span>${ui.currentBranch?.name || '-'}</span></div>
@@ -1705,7 +1706,7 @@ const productsView = (ui) => `
             <button type="button" class="inline-action" data-action="request-bulk-import">Hablar con soporte</button>
           </div>
           ${paginatedInventoryTable(ui.scopedProducts, 'productos', (product) => `
-            <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}">
+            <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}" data-product-id="${product.id}">
               <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
               <span>${product.barcode || '-'}</span>
               <span><span class="stock-pill">${product.scopedStock}</span></span>
@@ -1895,7 +1896,7 @@ const invoicesView = (ui) => `
         </form>
       </article>
       <article class="panel"><div class="panel-head"><div><h3>Comprobantes</h3><p>Seguimiento comercial y fiscal</p></div></div>
-        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`), 'is-stable invoices-table')}
+        ${dataTable(['Numero', 'Cliente', 'Sucursal', 'Total', 'Accion'], ui.enrichedInvoices.map((invoice) => `<div class="data-row" data-invoice-id="${invoice.id}"><span>${invoice.number}</span><span>${invoice.customerName}<br /><small>${invoice.kind || 'Factura'} / ${invoice.fiscalStatus || 'Pendiente'}</small></span><span>${invoice.branchName}<br /><small>${invoice.status}</small></span><span>${money(invoice.totalAmount)}</span><span>${invoiceActionButtons(invoice)}</span></div>`), 'is-stable invoices-table')}
       </article>
     </section>
   </section>
@@ -2565,22 +2566,25 @@ const renderApp = (ui) => {
   const searchOptions = buildQuickSearchTargets(ui).slice(0, 40).map((item) => `<option value="${item.label}"></option>`).join('')
   const userName = ui.user?.fullName || 'Usuario'
   const userInitials = userName.split(/\s+/).filter(Boolean).slice(0, 2).map((chunk) => chunk[0]?.toUpperCase()).join('') || 'PC'
-  const lowStockCount = ui.lowStock.length
-  const pendingInvoiceCount = ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').length
-  const notificationCount = lowStockCount + pendingInvoiceCount + (ui.openCashSession ? 0 : 1)
-  const alertItems = [
-    ...(!ui.openCashSession ? [{ title: 'Caja cerrada', detail: 'No hay una caja abierta para operar en efectivo.', section: 'caja' }] : []),
+  const allAlertItems = [
+    ...(!ui.openCashSession ? [{ id: 'cash-closed', title: 'Caja cerrada', detail: 'No hay una caja abierta para operar en efectivo.', section: 'caja', target: '[data-cash-operation]' }] : []),
     ...ui.lowStock.slice(0, 4).map((product) => ({
+      id: `low-stock-${product.id}`,
       title: 'Stock bajo',
       detail: `${product.name}: ${product.scopedStock} unidades en ${ui.currentBranch?.name || 'la sucursal'} (min. ${product.minStock}).`,
       section: 'productos',
+      target: `[data-product-id=${product.id}]`,
     })),
     ...ui.enrichedInvoices.filter((invoice) => invoice.status !== 'Cobrada').slice(0, 4).map((invoice) => ({
+      id: `pending-invoice-${invoice.id}`,
       title: 'Factura pendiente',
       detail: `${invoice.number} / ${invoice.customerName} / ${money(invoice.totalAmount)}.`,
       section: 'facturacion',
+      target: `[data-invoice-id=${invoice.id}]`,
     })),
   ]
+  const alertItems = allAlertItems.filter((item) => !dismissedAccountAlertIds.has(item.id))
+  const notificationCount = alertItems.length
   const topbarRightClass = 'topbar-right is-account-only'
 
   return `
@@ -2617,17 +2621,20 @@ const renderApp = (ui) => {
                   <div><strong>${userName}</strong><span>${ui.role?.name || 'Usuario'}</span></div>
                   <button type="button" class="ghost-action account-alerts-link" data-action="open-account-panel">Mi cuenta</button>
                 </div>
-                <button type="button" class="account-cash-action ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja">
+                <button type="button" class="account-cash-action ${ui.openCashSession ? 'is-open' : 'is-closed'}" data-section="caja" data-cash-operation>
                   <span class="status-led" aria-hidden="true"></span>
                   <span><strong>Caja ${statusTitle.toLowerCase()}</strong><small>${statusHint || (ui.openCashSession ? 'Lista para operar' : 'Abrir para cobrar en efectivo')}</small></span>
                   <span aria-hidden="true">›</span>
                 </button>
                 <div class="account-popover-label">Alertas</div>
                 <div class="account-alerts-list">
-                  ${alertItems.length ? alertItems.map((item) => `<button type="button" class="account-alert-item" data-alert-section="${item.section}">
-                    <strong>${item.title}</strong>
-                    <span>${item.detail}</span>
-                  </button>`).join('') : `<div class="account-alert-item is-empty"><strong>Todo en orden</strong><span>No hay alertas activas en este momento.</span></div>`}
+                  ${alertItems.length ? alertItems.map((item) => `<div class="account-alert-item">
+                    <button type="button" class="account-alert-open" data-alert-section="${item.section}" data-alert-target="${item.target}">
+                      <strong>${item.title}</strong>
+                      <span>${item.detail}</span>
+                    </button>
+                    <button type="button" class="account-alert-dismiss" data-dismiss-alert="${item.id}" aria-label="Descartar alerta: ${item.title}" title="Descartar alerta">×</button>
+                  </div>`).join('') : `<div class="account-alert-item is-empty"><strong>Todo en orden</strong><span>No hay alertas activas en este momento.</span></div>`}
                 </div>
                 <div class="account-menu-actions">
                   <button class="account-theme-action" type="button" data-action="toggle-theme" aria-label="Cambiar tema"><span>${theme === 'dark' ? 'Modo oscuro' : 'Modo claro'}</span><small>Cambiar apariencia</small></button>
@@ -3482,6 +3489,14 @@ const bindEvents = () => {
       activeSection = alertSectionButton.dataset.alertSection || 'dashboard'
       saveSection()
       requestScrollTop()
+      queueScrollToSelector(alertSectionButton.dataset.alertTarget)
+      render()
+    })
+  }
+  for (const dismissAlertButton of document.querySelectorAll('[data-dismiss-alert]')) {
+    dismissAlertButton.addEventListener('click', (event) => {
+      event.stopPropagation()
+      dismissedAccountAlertIds.add(dismissAlertButton.dataset.dismissAlert)
       render()
     })
   }

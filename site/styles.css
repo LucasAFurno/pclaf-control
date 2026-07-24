@@ -1564,13 +1564,7 @@ input, select { outline: none; }
 }
 
 .account-menu-chevron {
-  color: var(--muted);
-  font-size: 1rem;
-  transition: transform 160ms ease;
-}
-
-.account-card.is-open .account-menu-chevron {
-  transform: rotate(180deg);
+  display: none;
 }
 
 .account-card.is-open {
@@ -1697,13 +1691,49 @@ input, select { outline: none; }
 
 .account-alert-item {
   width: 100%;
-  display: grid;
-  gap: 4px;
-  padding: 11px 12px;
-  text-align: left;
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: color-mix(in srgb, var(--panel) 94%, transparent);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.account-alert-open {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 11px 42px 11px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.account-alert-dismiss {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.account-alert-open:hover,
+.account-alert-open:focus-visible {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+
+.account-alert-dismiss:hover,
+.account-alert-dismiss:focus-visible {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
   color: var(--text);
 }
 
