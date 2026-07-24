@@ -1564,13 +1564,7 @@ input, select { outline: none; }
 }
 
 .account-menu-chevron {
-  color: var(--muted);
-  font-size: 1rem;
-  transition: transform 160ms ease;
-}
-
-.account-card.is-open .account-menu-chevron {
-  transform: rotate(180deg);
+  display: none;
 }
 
 .account-card.is-open {
@@ -1697,13 +1691,49 @@ input, select { outline: none; }
 
 .account-alert-item {
   width: 100%;
-  display: grid;
-  gap: 4px;
-  padding: 11px 12px;
-  text-align: left;
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: color-mix(in srgb, var(--panel) 94%, transparent);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.account-alert-open {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 11px 42px 11px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.account-alert-dismiss {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.account-alert-open:hover,
+.account-alert-open:focus-visible {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+
+.account-alert-dismiss:hover,
+.account-alert-dismiss:focus-visible {
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
   color: var(--text);
 }
 
@@ -2661,6 +2691,16 @@ input, select { outline: none; }
   background: color-mix(in srgb, var(--panel) 94%, var(--accent) 6%);
 }
 
+.bulk-import-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--panel) 94%, var(--accent) 6%); }
+.bulk-import-copy { display: grid; gap: 4px; }
+.bulk-import-copy strong { color: var(--text); }
+.bulk-import-copy span { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+.bulk-import-copy small { color: var(--muted); font-size: 0.76rem; }
+.bulk-import-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.bulk-upload-action { cursor: pointer; white-space: nowrap; }
+.text-action { border: 0; padding: 6px 4px; background: transparent; color: var(--muted); font: inherit; font-size: 0.8rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.text-action:hover { color: var(--text); }
+
 .assisted-import-note > div {
   display: grid;
   gap: 4px;
@@ -2672,6 +2712,8 @@ input, select { outline: none; }
 @media (max-width: 680px) {
   .assisted-import-note { align-items: stretch; flex-direction: column; }
   .assisted-import-note .inline-action { width: 100%; }
+  .bulk-import-card { align-items: stretch; flex-direction: column; }
+  .bulk-import-actions > * { width: 100%; justify-content: center; text-align: center; }
 }
 
 .dual-actions .inline-action,

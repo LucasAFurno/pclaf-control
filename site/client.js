@@ -314,6 +314,20 @@ const isWithinDateRange = (value, from, to) => {
   return true
 }
 const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`
+const bulkProductColumns = ['Nombre', 'SKU', 'Codigo de barras', 'Stock inicial', 'Precio de venta', 'Costo', 'Stock minimo', 'Categoria', 'Controlar stock']
+const normalizeImportHeader = (value) => String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+const parseDelimitedRows = (content, delimiter) => { const rows = []; let row = []; let cell = ''; let quoted = false; for (let index = 0; index < content.length; index += 1) { const character = content[index]; if (character === '"') { if (quoted && content[index + 1] === '"') { cell += '"'; index += 1 } else quoted = !quoted } else if (character === delimiter && !quoted) { row.push(cell.trim()); cell = '' } else if ((character === '\n' || character === '\r') && !quoted) { if (character === '\r' && content[index + 1] === '\n') index += 1; row.push(cell.trim()); if (row.some(Boolean)) rows.push(row); row = []; cell = '' } else cell += character } row.push(cell.trim()); if (row.some(Boolean)) rows.push(row); return rows }
+const downloadBulkProductTemplate = () => { const csv = `\ufeff${[bulkProductColumns, Array(bulkProductColumns.length).fill('')].map((row) => row.map(csvEscape).join(',')).join('\r\n')}`; const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const link = document.createElement('a'); link.href = url; link.download = 'plantilla-productos-pclaf.csv'; link.click(); URL.revokeObjectURL(url) }
+const importBulkProductsFile = async (event) => {
+  const file = event.target.files?.[0]; if (!file) return
+  try {
+    if (!/\.(csv|txt)$/i.test(file.name)) throw new Error('Usa la plantilla descargada desde aqui en formato CSV compatible con Excel.')
+    const content = (await file.text()).replace(/^\ufeff/, ''); const delimiter = content.split(/\r?\n/, 1)[0].includes(';') ? ';' : ','; const [headers = [], ...dataRows] = parseDelimitedRows(content, delimiter); const headerIndexes = Object.fromEntries(headers.map((header, index) => [normalizeImportHeader(header), index])); const valueAt = (row, ...names) => { const index = names.map(normalizeImportHeader).map((name) => headerIndexes[name]).find((entry) => entry !== undefined); return index === undefined ? '' : String(row[index] || '').trim() }
+    if (headerIndexes.nombre === undefined || headerIndexes.sku === undefined || headerIndexes.preciodeventa === undefined) throw new Error('La planilla debe conservar las columnas Nombre, SKU y Precio de venta de la plantilla.')
+    const errors = []; const rows = dataRows.map((row, index) => { const name = valueAt(row, 'nombre'); const sku = valueAt(row, 'sku'); const salePrice = valueAt(row, 'precio de venta'); if (!name && !sku && !salePrice) return null; if (!name || !sku || salePrice === '') errors.push(index + 2); const trackStock = valueAt(row, 'controlar stock').toLowerCase(); return { name, sku, barcode: valueAt(row, 'codigo de barras'), stock: valueAt(row, 'stock inicial') || 0, salePrice: salePrice || 0, costPrice: valueAt(row, 'costo') || 0, minStock: valueAt(row, 'stock minimo') || 0, category: valueAt(row, 'categoria') || 'General', trackStock: !['no', 'false', '0'].includes(trackStock) } }).filter(Boolean)
+    if (!rows.length) throw new Error('La planilla no tiene productos para importar.'); if (errors.length) throw new Error(`Completa Nombre, SKU y Precio de venta en las filas: ${errors.join(', ')}.`); const result = await store.importProducts(rows, 'create-only'); feedbackMessage = result.message || ''
+  } catch (error) { feedbackMessage = error.message || 'No se pudo importar la planilla.' } finally { event.target.value = ''; render() }
+}
 const readCurrentSaleQuantities = () => Object.fromEntries(
   [...document.querySelectorAll('input[name^="qty_"]')]
     .map((input) => [input.name.replace('qty_', ''), Number(input.value || 0)])
@@ -1701,10 +1715,7 @@ const productsView = (ui) => `
             ${createToggleButton('stock-adjustment', stockAdjustmentFormOpen, 'Ajuste de stock')}
             ${createToggleButton('stock-transfer', stockTransferFormOpen, 'Transferencia')}
           </div>
-          <div class="assisted-import-note">
-            <div><strong>¿Ya tienes tus productos en Excel?</strong><span>Envíanos la planilla. Revisamos las columnas y hacemos una carga controlada para no duplicar productos ni alterar precios o stock.</span></div>
-            <button type="button" class="inline-action" data-action="request-bulk-import">Hablar con soporte</button>
-          </div>
+          <div class="bulk-import-card"><div class="bulk-import-copy"><strong>Carga masiva de productos</strong><span>Descarga la plantilla, completala en Excel y subila. Las columnas ya estan ordenadas para importar sin duplicar productos.</span><small>Campos obligatorios: Nombre, SKU y Precio de venta.</small></div><div class="bulk-import-actions"><button type="button" class="inline-action" data-action="download-product-template">Descargar plantilla Excel</button><label class="primary-action bulk-upload-action">Subir planilla<input type="file" data-input="bulk-product-import" accept=".csv,text/csv,.txt,text/plain" hidden /></label><button type="button" class="text-action" data-action="request-bulk-import">Prefiero que lo hagan por mi</button></div></div>
           ${paginatedInventoryTable(ui.scopedProducts, 'productos', (product) => `
             <div class="inventory-row ${product.trackStock && product.scopedStock <= product.minStock ? 'is-low' : ''}" data-product-id="${product.id}">
               <span class="inventory-product">${product.name}<small>${product.sku}</small></span>
@@ -3990,6 +4001,8 @@ const bindEvents = () => {
       window.open(bulkImportSupportUrl, '_blank', 'noopener,noreferrer')
     })
   }
+  for (const templateButton of document.querySelectorAll('[data-action="download-product-template"]')) templateButton.addEventListener('click', downloadBulkProductTemplate)
+  for (const bulkImportInput of document.querySelectorAll('[data-input="bulk-product-import"]')) bulkImportInput.addEventListener('change', importBulkProductsFile)
   document.addEventListener('click', (event) => {
     if (!accountAlertsOpen) return
     const target = event.target
